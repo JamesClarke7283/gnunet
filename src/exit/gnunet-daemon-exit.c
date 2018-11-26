@@ -3778,6 +3778,7 @@ run (void *cls,
   };
   struct GNUNET_HashCode port;
   char *policy;
+  char *helper_path;
   char *binary;
   char *regex;
   char *prefixed_regex;
@@ -3797,7 +3798,14 @@ run (void *cls,
     GNUNET_SCHEDULER_shutdown ();
     return;
   }
-  binary = GNUNET_OS_get_libexec_binary_path ("gnunet-helper-exit");
+  helper_path = NULL;
+  GNUNET_CONFIGURATION_get_value_string (cfg,
+					 "exit",
+					 "HELPER_PATH",
+					 &helper_path);
+  binary = GNUNET_OS_get_binary_path ("gnunet-helper-exit",
+				      helper_path);
+  GNUNET_free_non_null (helper_path);
   if (GNUNET_YES !=
       GNUNET_OS_check_helper_binary (binary,
                                      GNUNET_YES,
@@ -3812,7 +3820,6 @@ run (void *cls,
     global_ret = 1;
     return;
   }
-  GNUNET_free (binary);
   GNUNET_SCHEDULER_add_shutdown (&cleanup,
 				 NULL);
   stats = GNUNET_STATISTICS_create ("exit",
@@ -3820,6 +3827,7 @@ run (void *cls,
   cadet_handle = GNUNET_CADET_connect (cfg);
   if (NULL == cadet_handle)
   {
+    GNUNET_free (binary);
     GNUNET_SCHEDULER_shutdown ();
     return;
   }
@@ -3827,6 +3835,7 @@ run (void *cls,
   if (GNUNET_OK !=
       setup_exit_helper_args ())
   {
+    GNUNET_free (binary);
     GNUNET_SCHEDULER_shutdown ();
     return;
   }
@@ -3923,11 +3932,12 @@ run (void *cls,
     }
   }
   helper_handle = GNUNET_HELPER_start (GNUNET_NO,
-				       "gnunet-helper-exit",
+				       binary,
 				       exit_argv,
 				       &message_token,
 				       NULL,
 				       NULL);
+  GNUNET_free (binary);
 }
 
 
