@@ -769,6 +769,45 @@ GNUNET_OS_installation_get_path (enum GNUNET_OS_InstallationPathKind dirkind)
 
 
 /**
+ * Given the name of a gnunet-helper, gnunet-service or gnunet-daemon binary and
+ * a prefix, construct the full path to the binary.
+ *
+ * @param progname name of the binary
+ * @param prefix the path to use as a prefix (if NULL this function is
+ *        equivalent to GNUNET_OS_get_libexec_binary_path)
+ * @return full path to the binary, if possible, otherwise copy of 'progname'
+ */
+char *
+GNUNET_OS_get_binary_path (const char *progname, const char* prefix)
+{
+  static const char *cache;
+  const char *path;
+  char *binary;
+
+  if ( (DIR_SEPARATOR == progname[0]) ||
+       (GNUNET_YES ==
+        GNUNET_STRINGS_path_is_absolute (progname,
+                                         GNUNET_NO,
+                                         NULL, NULL)) )
+    return GNUNET_strdup (progname);
+  if (NULL != prefix)
+    path = prefix;
+  else if (NULL != cache)
+    path = cache;
+  else
+    path = GNUNET_OS_installation_get_path (GNUNET_OS_IPK_LIBEXECDIR);
+  if (NULL == path)
+    return GNUNET_strdup (progname);
+  GNUNET_asprintf (&binary,
+		   "%s%s",
+		   path,
+		   progname);
+  cache = path;
+  return binary;
+}
+
+
+/**
  * Given the name of a gnunet-helper, gnunet-service or gnunet-daemon
  * binary, try to prefix it with the libexec/-directory to get the
  * full path.
@@ -779,28 +818,7 @@ GNUNET_OS_installation_get_path (enum GNUNET_OS_InstallationPathKind dirkind)
 char *
 GNUNET_OS_get_libexec_binary_path (const char *progname)
 {
-  static char *cache;
-  char *libexecdir;
-  char *binary;
-
-  if ( (DIR_SEPARATOR == progname[0]) ||
-       (GNUNET_YES ==
-        GNUNET_STRINGS_path_is_absolute (progname,
-                                         GNUNET_NO,
-                                         NULL, NULL)) )
-    return GNUNET_strdup (progname);
-  if (NULL != cache)
-    libexecdir = cache;
-  else
-    libexecdir = GNUNET_OS_installation_get_path (GNUNET_OS_IPK_LIBEXECDIR);
-  if (NULL == libexecdir)
-    return GNUNET_strdup (progname);
-  GNUNET_asprintf (&binary,
-		   "%s%s",
-		   libexecdir,
-		   progname);
-  cache = libexecdir;
-  return binary;
+  return GNUNET_OS_get_binary_path (progname, NULL);
 }
 
 

@@ -306,6 +306,19 @@ GNUNET_OS_installation_get_path (enum GNUNET_OS_InstallationPathKind dirkind);
 
 
 /**
+ * Given the name of a gnunet-helper, gnunet-service or gnunet-daemon binary and
+ * a prefix, construct the full path to the binary.
+ *
+ * @param progname name of the binary
+ * @param prefix the path to use as a prefix (if NULL this function is
+ *        equivalent to GNUNET_OS_get_libexec_binary_path)
+ * @return full path to the binary, if possible, otherwise copy of 'progname'
+ */
+char *
+GNUNET_OS_get_binary_path (const char *progname, const char* prefix);
+
+
+/**
  * Given the name of a gnunet-helper, gnunet-service or gnunet-daemon
  * binary, try to prefix it with the libexec/-directory to get the
  * full path.
