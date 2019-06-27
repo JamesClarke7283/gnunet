@@ -3790,33 +3790,29 @@ run (void *cls,
                                              &max_connections))
     max_connections = 1024;
   parse_ip_options ();
-  if ( (ipv4_exit) || (ipv6_exit) )
-  {
-    binary = GNUNET_OS_get_libexec_binary_path ("gnunet-helper-exit");
-    if (GNUNET_YES !=
-	GNUNET_OS_check_helper_binary (binary,
-                                       GNUNET_YES,
-                                       "gnunet-vpn - - - 169.1.3.7 255.255.255.0")) //no nat, ipv4 only
-    {
-      GNUNET_free (binary);
-      GNUNET_log (GNUNET_ERROR_TYPE_ERROR,
-		  _("`%s' must be installed SUID, EXIT will not work\n"),
-		  "gnunet-helper-exit");
-      GNUNET_SCHEDULER_add_shutdown (&dummy_task,
-				     NULL);
-      global_ret = 1;
-      return;
-    }
-    GNUNET_free (binary);
-  }
-  if (! (ipv4_enabled || ipv6_enabled))
+  if ( ! ((ipv4_enabled && ipv4_exit) || (ipv6_enabled && ipv6_exit) ))
   {
     GNUNET_log (GNUNET_ERROR_TYPE_ERROR,
 		_("No useful service enabled.  Exiting.\n"));
     GNUNET_SCHEDULER_shutdown ();
     return;
   }
-
+  binary = GNUNET_OS_get_libexec_binary_path ("gnunet-helper-exit");
+  if (GNUNET_YES !=
+      GNUNET_OS_check_helper_binary (binary,
+                                     GNUNET_YES,
+                                     "gnunet-vpn - - - 169.1.3.7 255.255.255.0")) //no nat, ipv4 only
+  {
+    GNUNET_free (binary);
+    GNUNET_log (GNUNET_ERROR_TYPE_ERROR,
+		_("`%s' must be installed SUID, EXIT will not work\n"),
+		"gnunet-helper-exit");
+    GNUNET_SCHEDULER_add_shutdown (&dummy_task,
+				   NULL);
+    global_ret = 1;
+    return;
+  }
+  GNUNET_free (binary);
   GNUNET_SCHEDULER_add_shutdown (&cleanup,
 				 NULL);
   stats = GNUNET_STATISTICS_create ("exit",
