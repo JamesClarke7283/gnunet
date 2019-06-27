@@ -32,3 +32,7 @@ IPV4MASK = 255.255.0.0
 # public DNS resolver or your ISP's resolver from /etc/resolv.conf.
 DNS_EXIT = 8.8.8.8
 
+# Location of the helper binary gnunet-helper-dns (setuid flag required).
+# By default it is assumed to be in the libexec directory, but on some systems
+# like NixOS setuid is only possible through a wrapper in a different location.
+HELPER_PATH =

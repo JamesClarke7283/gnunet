@@ -38,3 +38,8 @@ STUN_SERVERS = stun.gnunet.org stun.services.mozilla.com:3478 stun.ekiga.net:347
 # After how long do we consider STUN data stale?
 STUN_STALE = 60 min
 
+# Location of the helper binaries gnunet-helper-nat-client and
+# gnunet-helper-nat-server (setuid flag required).
+# By default it is assumed to be in the libexec directory, but on some systems like
+# NixOS setuid is only possible through a wrapper in a different location.
+HELPER_PATH =
