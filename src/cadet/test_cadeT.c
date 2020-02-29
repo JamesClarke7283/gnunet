@@ -57,17 +57,44 @@
 #define TESTPROGAM_NAME   "test-cadet-channel-resumption"
 #define PORTNAME          "cadet_port"
 
+/**
+ * Testbed operation for connecting to the services. 
+ */
 struct GNUNET_TESTBED_Operation *testbed_to_svc[2];
+
+/**
+ * Testbed operation for requesting peer information.
+ */
+struct GNUNET_TESTBED_Operation *testbed_info_req[2];
 
 /**
  * Port name kown by the two peers.
  */
 static struct GNUNET_HashCode hashed_portname;
 
+/**
+ * Result of the test.
+ */
 static int test_result = 0;
 
 // FIXME: temp cnt
 static int cnt = 0;
+
+/**
+ * Structure for storing information of testbed peers.
+ */
+struct testbed_peers
+{
+  /**
+   * Index of the peer.
+   */
+  int index;
+
+  /**
+   * Peer Identity.
+   */
+  struct GNUNET_PeerIdentity id;
+} testbed_peers[2];
 
 /****************************** TEST LOGIC ********************************/
 
@@ -93,16 +120,32 @@ disconnect_from_peer (void *cls,
   GNUNET_CADET_disconnect (cadet);
 }
 
+static void 
+handle_channel_destroy (void *cls,
+                        const struct GNUNET_CADET_Channel *channel)
+{
+}
+
 static void *
 setup_initiating_peer (void *cls,
                       const struct GNUNET_CONFIGURATION_Handle *cfg)
 {
 
   struct GNUNET_CADET_Handle *cadet;
+  struct GNUNET_PeerIdentity *destination;
+  struct GNUNET_CADET_Channel *channel;
 
   GNUNET_log (GNUNET_ERROR_TYPE_INFO, "setup_initiating_peer()\n");
 
   cadet = GNUNET_CADET_connect (cfg);
+
+  channel = GNUNET_CADET_channel_create (cadet,
+                                         NULL,
+                                         destination,
+                                         &hashed_portname,
+                                         NULL,
+                                         &handle_channel_destroy,
+                                         NULL);
 
   if (NULL == cadet)
     GNUNET_SCHEDULER_shutdown ();
@@ -161,6 +204,22 @@ check_test_readyness (void *cls,
     GNUNET_SCHEDULER_shutdown ();
 }
 
+
+static void
+process_info_req (void *cb_cls,
+                  struct GNUNET_TESTBED_Operation *op,
+                  const struct GNUNET_TESTBED_PeerInformation *pinfo,
+                  const char *emsg)
+{
+  struct testbed_peers *testbed_peer = cb_cls;
+  struct GNUNET_PeerIdentity id = testbed_peer->id;
+
+  GNUNET_memcpy (&id, pinfo->result.id, sizeof (struct GNUNET_PeerIdentity));
+  GNUNET_log (GNUNET_ERROR_TYPE_INFO, "Peer %s ready\n", GNUNET_i2s (&id));
+
+  // TODO: connect_to_peer_services
+}
+
 static void
 connect_to_peers (void *cls,
                   struct GNUNET_TESTBED_RunHandle *h,
@@ -172,6 +231,18 @@ connect_to_peers (void *cls,
   GNUNET_log (GNUNET_ERROR_TYPE_INFO, "connect_to_peers()\n");
 
   GNUNET_assert (0 == links_failed);
+
+  for (int i=0; i<num_peers; i++)
+    testbed_peers[i].index = i;
+
+  testbed_info_req[0] = GNUNET_TESTBED_peer_get_information (peers[0],
+                                                             GNUNET_TESTBED_PIT_IDENTITY,
+                                                             &process_info_req,
+                                                             &testbed_peers[0]);
+  testbed_info_req[1] = GNUNET_TESTBED_peer_get_information (peers[1],
+                                                             GNUNET_TESTBED_PIT_IDENTITY,
+                                                             &process_info_req,
+                                                             &testbed_peers[1]);
 
 
   testbed_to_svc[1] = GNUNET_TESTBED_service_connect (NULL, peers[1],
