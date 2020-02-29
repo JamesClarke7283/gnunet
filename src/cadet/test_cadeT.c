@@ -79,9 +79,25 @@ struct TEST_PEERS
    */
   struct GNUNET_PeerIdentity id;
 
+  /**
+   * Handle of TESTBED peer.
+   */
   struct GNUNET_TESTBED_Peer *testbed_peer;
 
+  /**
+   * Testbed management is finished and test peer is ready for test logic.
+   */
   int ready;
+
+  /**
+   * Channel of initiating peer.
+   */
+  struct GNUNET_CADET_Channel *channel;
+
+  /**
+   * CADET handle.
+   */
+  struct GNUNET_CADET_Handle *cadet;
 
 } test_peers[2];
 
