@@ -60,20 +60,31 @@
 #define TESTPROGAM_NAME   "test-cadet-channel-resumption"
 
 /**
+ * Counter for gathering peerinformation.
+ */
+static int peerinfo_cnt = 0;
+
+/**
  * Structure for storing information of testbed peers.
  */
-struct testbed_peers
+struct TEST_PEERS
 {
   /**
    * Index of the peer.
    */
-  int index;
+  int idx;
 
   /**
    * Peer Identity.
    */
   struct GNUNET_PeerIdentity id;
-} testbed_peers[2];
+
+  struct GNUNET_TESTBED_Peer *testbed_peer;
+
+  int ready;
+
+} test_peers[2];
+
 
 /****************************** TEST LOGIC ********************************/
 
