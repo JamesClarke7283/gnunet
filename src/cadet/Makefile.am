@@ -141,7 +141,8 @@ dep_cadet_test_lib = \
   $(top_builddir)/src/statistics/libgnunetstatistics.la
 
 test_cadet_2_channel_resumption_SOURCES = \
-  test_cadeT.c
+  test_cadeT.c \
+  test_cadeT_util.c test_cadeT_util.h
 test_cadet_2_channel_resumption_LDADD = $(ld_cadet_test_lib)
 
 test_cadet_2_forward_SOURCES = \
