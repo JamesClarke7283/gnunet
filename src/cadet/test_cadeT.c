@@ -26,11 +26,11 @@
  *   - test session resumption after a hard channel breakup
  *
  * ToDos:
- *   - setup peer A
- *   - setup peer B
- *   - setup cadet on peer B listening on port 1234
- *   - create a channel from peer A to B
- *   - create method to find out session initiator
+ *   x setup peer A
+ *   x setup peer B
+ *   x setup cadet on peer B listening on port "cadet_port"
+ *   x create a channel from peer A to B
+ *   - create method to find out KX initiator
  *   - send a message over channel
  *   - check if message was received
  *   - breakup the connection without sending a channel destroy message
