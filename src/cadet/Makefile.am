@@ -84,6 +84,7 @@ endif
 
 if HAVE_TESTING
 check_PROGRAMS = \
+  test_cadet_2_channel_resumption \
   test_cadet_local_mq \
   test_cadet_2_forward \
   test_cadet_2_forward \
@@ -138,6 +139,10 @@ dep_cadet_test_lib = \
   libgnunetcadet.la \
   libgnunetcadettest.la \
   $(top_builddir)/src/statistics/libgnunetstatistics.la
+
+test_cadet_2_channel_resumption_SOURCES = \
+  test_cadeT.c
+test_cadet_2_channel_resumption_LDADD = $(ld_cadet_test_lib)
 
 test_cadet_2_forward_SOURCES = \
   test_cadet.c
