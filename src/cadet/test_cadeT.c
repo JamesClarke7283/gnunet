@@ -47,6 +47,7 @@
  *
  * Development
  *   - red -> green -> refactor (cyclic)
+ *   - be aware of Continuation Passing Style (CPS) programming
  */
 #include "platform.h"
 #include "gnunet_testbed_service.h"
@@ -60,12 +61,12 @@
 /**
  * Testbed operation for connecting to the services. 
  */
-struct GNUNET_TESTBED_Operation *testbed_to_svc[2];
+static struct GNUNET_TESTBED_Operation *testbed_to_svc[2];
 
 /**
  * Testbed operation for requesting peer information.
  */
-struct GNUNET_TESTBED_Operation *testbed_info_req[2];
+static struct GNUNET_TESTBED_Operation *testbed_info_req[2];
 
 /**
  * Port name kown by the two peers.
@@ -81,20 +82,31 @@ static int test_result = 0;
 static int cnt = 0;
 
 /**
+ * Counter for gathering peerinformation.
+ */
+static int peerinfo_cnt = 0;
+
+/**
  * Structure for storing information of testbed peers.
  */
-struct testbed_peers
+struct TEST_PEERS
 {
   /**
    * Index of the peer.
    */
-  int index;
+  int idx;
 
   /**
    * Peer Identity.
    */
   struct GNUNET_PeerIdentity id;
-} testbed_peers[2];
+
+  struct GNUNET_TESTBED_Peer *testbed_peer;
+
+  int ready;
+
+} test_peers[2];
+
 
 /****************************** TEST LOGIC ********************************/
 
@@ -115,7 +127,7 @@ disconnect_from_peer (void *cls,
 {
   struct GNUNET_CADET_Handle *cadet = op_result;
 
-  GNUNET_log (GNUNET_ERROR_TYPE_INFO, "disconnect_from_cadet ()\n");
+  GNUNET_log (GNUNET_ERROR_TYPE_INFO, "%s\n", __func__);
 
   GNUNET_CADET_disconnect (cadet);
 }
@@ -135,7 +147,7 @@ setup_initiating_peer (void *cls,
   struct GNUNET_PeerIdentity *destination;
   struct GNUNET_CADET_Channel *channel;
 
-  GNUNET_log (GNUNET_ERROR_TYPE_INFO, "setup_initiating_peer()\n");
+  GNUNET_log (GNUNET_ERROR_TYPE_INFO, "%s\n", __func__);
 
   cadet = GNUNET_CADET_connect (cfg);
 
@@ -174,7 +186,7 @@ setup_listening_peer (void *cls,
   struct GNUNET_CADET_Handle *cadet;
   struct GNUNET_CADET_Port *port;
 
-  GNUNET_log (GNUNET_ERROR_TYPE_INFO, "setup_listening_peer()\n");
+  GNUNET_log (GNUNET_ERROR_TYPE_INFO, "%s\n", __func__);
   
   cadet = GNUNET_CADET_connect (cfg);
 
@@ -198,26 +210,45 @@ check_test_readyness (void *cls,
                       void *ca_result,
                       const char *emsg)
 {
-  GNUNET_log (GNUNET_ERROR_TYPE_INFO, "check_test_readyness()\n");
+  GNUNET_log (GNUNET_ERROR_TYPE_INFO, "%s\n", __func__);
 
   if (2 == ++cnt)
     GNUNET_SCHEDULER_shutdown ();
 }
 
 
-static void
-process_info_req (void *cb_cls,
-                  struct GNUNET_TESTBED_Operation *op,
-                  const struct GNUNET_TESTBED_PeerInformation *pinfo,
-                  const char *emsg)
+static int
+peerinfo_complete ()
 {
-  struct testbed_peers *testbed_peer = cb_cls;
-  struct GNUNET_PeerIdentity id = testbed_peer->id;
+  return (REQUESTED_PEERS == ++peerinfo_cnt) ? GNUNET_YES : GNUNET_NO;
+}
 
-  GNUNET_memcpy (&id, pinfo->result.id, sizeof (struct GNUNET_PeerIdentity));
-  GNUNET_log (GNUNET_ERROR_TYPE_INFO, "Peer %s ready\n", GNUNET_i2s (&id));
+static void
+connect_to_service (void *cb_cls,
+                    struct GNUNET_TESTBED_Operation *op,
+                    const struct GNUNET_TESTBED_PeerInformation *pinfo,
+                    const char *emsg)
+{
+  struct TEST_PEERS *test_peer = cb_cls;
 
-  // TODO: connect_to_peer_services
+  // Store peer ID.
+  test_peer->id = *(pinfo->result.id);
+
+  if (peerinfo_complete())
+  {
+    testbed_to_svc[1] = 
+      GNUNET_TESTBED_service_connect (NULL, test_peers[1].testbed_peer,
+                                      "cadet", 
+                                      &check_test_readyness, NULL,
+                                      &setup_listening_peer,
+                                      &disconnect_from_peer, NULL);
+    testbed_to_svc[0] = 
+      GNUNET_TESTBED_service_connect (NULL, test_peers[0].testbed_peer,
+                                      "cadet",
+                                      &check_test_readyness, NULL,
+                                      &setup_initiating_peer,
+                                      &disconnect_from_peer, NULL);
+  }
 }
 
 static void
@@ -228,33 +259,25 @@ connect_to_peers (void *cls,
                   unsigned int links_succeeded,
                   unsigned int links_failed)
 {
-  GNUNET_log (GNUNET_ERROR_TYPE_INFO, "connect_to_peers()\n");
+  GNUNET_log (GNUNET_ERROR_TYPE_INFO, "%s\n", __func__);
 
   GNUNET_assert (0 == links_failed);
 
   for (int i=0; i<num_peers; i++)
-    testbed_peers[i].index = i;
+  {
+    test_peers[i].ready = GNUNET_NO;
+    test_peers[i].idx = i;
+    test_peers[i].testbed_peer = peers[i];
+  }
 
   testbed_info_req[0] = GNUNET_TESTBED_peer_get_information (peers[0],
                                                              GNUNET_TESTBED_PIT_IDENTITY,
-                                                             &process_info_req,
-                                                             &testbed_peers[0]);
+                                                             &connect_to_service,
+                                                             &test_peers[0]);
   testbed_info_req[1] = GNUNET_TESTBED_peer_get_information (peers[1],
                                                              GNUNET_TESTBED_PIT_IDENTITY,
-                                                             &process_info_req,
-                                                             &testbed_peers[1]);
-
-
-  testbed_to_svc[1] = GNUNET_TESTBED_service_connect (NULL, peers[1],
-                                                      "cadet", 
-                                                      &check_test_readyness, NULL,
-                                                      &setup_listening_peer,
-                                                      &disconnect_from_peer, NULL);
-  testbed_to_svc[0] = GNUNET_TESTBED_service_connect (NULL, peers[0],
-                                                      "cadet", 
-                                                      &check_test_readyness, NULL,
-                                                      &setup_initiating_peer,
-                                                      &disconnect_from_peer, NULL);
+                                                             &connect_to_service,
+                                                             &test_peers[1]);
 
   GNUNET_SCHEDULER_add_shutdown (&shutdown_task, NULL);
 }
