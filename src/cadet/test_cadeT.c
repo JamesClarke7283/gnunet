@@ -59,6 +59,22 @@
 #define CONFIG            "test_cadet.conf"
 #define TESTPROGAM_NAME   "test-cadet-channel-resumption"
 
+/**
+ * Structure for storing information of testbed peers.
+ */
+struct testbed_peers
+{
+  /**
+   * Index of the peer.
+   */
+  int index;
+
+  /**
+   * Peer Identity.
+   */
+  struct GNUNET_PeerIdentity id;
+} testbed_peers[2];
+
 /****************************** TEST LOGIC ********************************/
 
 static int kx_initiator;
