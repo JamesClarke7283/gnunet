@@ -56,6 +56,7 @@
 #define REQUESTED_PEERS   2
 #define CONFIG            "test_cadet.conf"
 #define TESTPROGAM_NAME   "test-cadet-channel-resumption"
+#define TIMEOUT_IN_SEC    5
 #define PORTNAME          "cadet_port"
 
 /**
@@ -78,9 +79,6 @@ static struct GNUNET_HashCode hashed_portname;
  */
 static int test_result = 0;
 
-// FIXME: temp cnt
-static int cnt = 0;
-
 /**
  * Counter for gathering peerinformation.
  */
@@ -101,9 +99,25 @@ struct TEST_PEERS
    */
   struct GNUNET_PeerIdentity id;
 
+  /**
+   * Handle of TESTBED peer.
+   */
   struct GNUNET_TESTBED_Peer *testbed_peer;
 
+  /**
+   * Testbed management is finished and test peer is ready for test logic.
+   */
   int ready;
+
+  /**
+   * Channel of initiating peer.
+   */
+  struct GNUNET_CADET_Channel *channel;
+
+  /**
+   * CADET handle.
+   */
+  struct GNUNET_CADET_Handle *cadet;
 
 } test_peers[2];
 
@@ -117,8 +131,16 @@ struct TEST_PEERS
 static void
 shutdown_task (void *cls)
 {
+  GNUNET_log (GNUNET_ERROR_TYPE_INFO, "%s\n", __func__);
+
   for (int i=0; i<REQUESTED_PEERS; i++)
     GNUNET_TESTBED_operation_done (testbed_to_svc[i]);
+}
+
+static void
+timeout ()
+{
+  GNUNET_SCHEDULER_shutdown ();
 }
 
 static void
@@ -133,34 +155,35 @@ disconnect_from_peer (void *cls,
 }
 
 static void 
-handle_channel_destroy (void *cls,
-                        const struct GNUNET_CADET_Channel *channel)
+disconnect_channel (void *cls,
+                    const struct GNUNET_CADET_Channel *channel)
 {
+  GNUNET_log (GNUNET_ERROR_TYPE_INFO, "%s\n", __func__);
 }
 
 static void *
 setup_initiating_peer (void *cls,
                       const struct GNUNET_CONFIGURATION_Handle *cfg)
 {
-
   struct GNUNET_CADET_Handle *cadet;
-  struct GNUNET_PeerIdentity *destination;
   struct GNUNET_CADET_Channel *channel;
 
   GNUNET_log (GNUNET_ERROR_TYPE_INFO, "%s\n", __func__);
 
   cadet = GNUNET_CADET_connect (cfg);
-
-  channel = GNUNET_CADET_channel_create (cadet,
-                                         NULL,
-                                         destination,
-                                         &hashed_portname,
-                                         NULL,
-                                         &handle_channel_destroy,
-                                         NULL);
+  test_peers[0].cadet = cadet;
 
   if (NULL == cadet)
     GNUNET_SCHEDULER_shutdown ();
+
+  channel = GNUNET_CADET_channel_create (cadet,
+                                         NULL,
+                                         &test_peers[1].id,
+                                         &hashed_portname,
+                                         NULL,
+                                         &disconnect_channel,
+                                         NULL);
+  test_peers[0].channel = channel;
 
   return cadet;
 }
@@ -189,6 +212,7 @@ setup_listening_peer (void *cls,
   GNUNET_log (GNUNET_ERROR_TYPE_INFO, "%s\n", __func__);
   
   cadet = GNUNET_CADET_connect (cfg);
+  test_peers[1].cadet = cadet;
 
   if (NULL == cadet)
     GNUNET_SCHEDULER_shutdown ();
@@ -211,9 +235,6 @@ check_test_readyness (void *cls,
                       const char *emsg)
 {
   GNUNET_log (GNUNET_ERROR_TYPE_INFO, "%s\n", __func__);
-
-  if (2 == ++cnt)
-    GNUNET_SCHEDULER_shutdown ();
 }
 
 
@@ -280,6 +301,8 @@ connect_to_peers (void *cls,
                                                              &test_peers[1]);
 
   GNUNET_SCHEDULER_add_shutdown (&shutdown_task, NULL);
+  GNUNET_SCHEDULER_add_delayed (GNUNET_TIME_relative_multiply (GNUNET_TIME_UNIT_SECONDS, TIMEOUT_IN_SEC), 
+                                &timeout, NULL);
 }
 
 int 
