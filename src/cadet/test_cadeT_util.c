@@ -28,12 +28,12 @@
 /**
  * Testbed operation for connecting to the services. 
  */
-static struct GNUNET_TESTBED_Operation *testbed_to_svc[2];
+static struct GNUNET_TESTBED_Operation *testbed_to_svc[REQUESTED_PEERS];
 
 /**
  * Testbed operation for requesting peer information.
  */
-static struct GNUNET_TESTBED_Operation *testbed_info_req[2];
+static struct GNUNET_TESTBED_Operation *testbed_info_req[REQUESTED_PEERS];
 
 /**
  * Port name kown by the two peers.
@@ -85,7 +85,7 @@ struct TEST_PEERS
    */
   struct GNUNET_CADET_Handle *cadet;
 
-} test_peers[2];
+} test_peers[REQUESTED_PEERS];
 
 /************************** TESBED MANAGEMENT *****************************/
 
@@ -198,6 +198,8 @@ check_test_readyness (void *cls,
 {
   GNUNET_log (GNUNET_ERROR_TYPE_INFO, "%s\n", __func__);
 
+  // FIXME: check, if all peers are ready, then continue with the
+  // test logic.
   if (GNUNET_OK)
     run_test();
 }
@@ -247,7 +249,7 @@ connect_to_peers (void *cls,
 {
   GNUNET_log (GNUNET_ERROR_TYPE_INFO, "%s\n", __func__);
 
-  GNUNET_assert (0 == links_failed);
+  GNUNET_assert (GNUNET_NO == links_failed);
 
   for (int i=0; i<num_peers; i++)
   {

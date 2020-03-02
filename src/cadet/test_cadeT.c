@@ -65,7 +65,9 @@ run_test ()
   GNUNET_log (GNUNET_ERROR_TYPE_INFO, "%s\n", __func__);
 
   /**
-   * Do testing here.
+   * This function is called after all testbed management is done and the 
+   * testbed peers are ready for the actual test logic.
+   * Use struct test_peers[i] to control the peers.
    */
 }
 
