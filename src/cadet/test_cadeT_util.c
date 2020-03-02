@@ -189,7 +189,6 @@ setup_listening_peer (void *cls,
   return cadet;
 }
 
-
 static void
 check_test_readyness (void *cls,
                       struct GNUNET_TESTBED_Operation *op,
@@ -203,7 +202,6 @@ check_test_readyness (void *cls,
   if (GNUNET_OK)
     run_test();
 }
-
 
 static int
 peerinfo_complete ()
@@ -240,18 +238,19 @@ connect_to_service (void *cb_cls,
 }
 
 void
-connect_to_peers (void *cls,
-                  struct GNUNET_TESTBED_RunHandle *h,
-                  unsigned int num_peers,
-                  struct GNUNET_TESTBED_Peer **peers,
-                  unsigned int links_succeeded,
-                  unsigned int links_failed)
+prepare_test (void *cls,
+              struct GNUNET_TESTBED_RunHandle *h,
+              unsigned int num_peers,
+              struct GNUNET_TESTBED_Peer **peers,
+              unsigned int links_succeeded,
+              unsigned int links_failed)
 {
   GNUNET_log (GNUNET_ERROR_TYPE_INFO, "%s\n", __func__);
 
   GNUNET_assert (GNUNET_NO == links_failed);
+  GNUNET_assert (REQUESTED_PEERS == num_peers);
 
-  for (int i=0; i<num_peers; i++)
+  for (int i=0; i<REQUESTED_PEERS; i++)
   {
     test_peers[i].ready = GNUNET_NO;
     test_peers[i].idx = i;
@@ -268,6 +267,7 @@ connect_to_peers (void *cls,
                                                              &test_peers[1]);
 
   GNUNET_SCHEDULER_add_shutdown (&shutdown_task, NULL);
+
   GNUNET_SCHEDULER_add_delayed (GNUNET_TIME_relative_multiply (GNUNET_TIME_UNIT_SECONDS, TIMEOUT_IN_SEC), 
                                 &timeout, NULL);
 }

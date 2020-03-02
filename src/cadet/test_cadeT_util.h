@@ -33,6 +33,6 @@
 
 int test_result;
 
-void connect_to_peers ();
+void prepare_test ();
 
 void run_test ();
