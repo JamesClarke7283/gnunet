@@ -78,7 +78,7 @@ main (int argc, char *argv[])
   GNUNET_TESTBED_test_run (TESTPROGAM_NAME,
                            CONFIG,
                            REQUESTED_PEERS, 0LL, NULL, NULL,
-                           connect_to_peers, NULL);
+                           prepare_test, NULL);
   return test_result;
 }
 
