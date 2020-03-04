@@ -124,7 +124,7 @@ disconnect_channel (void *cls,
 
 static void *
 setup_initiating_peer (void *cls,
-                      const struct GNUNET_CONFIGURATION_Handle *cfg)
+                       const struct GNUNET_CONFIGURATION_Handle *cfg)
 {
   struct GNUNET_CADET_Handle *cadet;
   struct GNUNET_CADET_Channel *channel;
