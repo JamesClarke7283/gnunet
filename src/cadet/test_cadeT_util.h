@@ -36,3 +36,40 @@ int test_result;
 void prepare_test ();
 
 void run_test ();
+
+/**
+ * Structure for storing information of testbed peers.
+ */
+struct TEST_PEERS
+{
+  /**
+   * Index of the peer.
+   */
+  int idx;
+
+  /**
+   * Peer Identity.
+   */
+  struct GNUNET_PeerIdentity id;
+
+  /**
+   * Handle of TESTBED peer.
+   */
+  struct GNUNET_TESTBED_Peer *testbed_peer;
+
+  /**
+   * Testbed management is finished and test peer is ready for test logic.
+   */
+  int ready;
+
+  /**
+   * Channel of initiating peer.
+   */
+  struct GNUNET_CADET_Channel *channel;
+
+  /**
+   * CADET handle.
+   */
+  struct GNUNET_CADET_Handle *cadet;
+
+} test_peers[REQUESTED_PEERS];

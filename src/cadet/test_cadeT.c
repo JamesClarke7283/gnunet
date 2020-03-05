@@ -30,7 +30,7 @@
  *   x setup peer B
  *   x setup cadet on peer B listening on port "cadet_port"
  *   x create a channel from peer A to B
- *   - create method to find out KX initiator
+ *   x create method to find out KX initiator
  *   - send a message over channel
  *   - check if message was received
  *   - breakup the connection without sending a channel destroy message
@@ -59,10 +59,18 @@
 
 /****************************** TEST LOGIC ********************************/
 
+static int kx_initiator;
+
 void
 run_test ()
 {
   GNUNET_log (GNUNET_ERROR_TYPE_INFO, "%s\n", __func__);
+
+  kx_initiator = (0 < GNUNET_memcmp (&test_peers[0].id, &test_peers[1].id)) ? 1 : 0;
+
+  GNUNET_log (GNUNET_ERROR_TYPE_INFO, 
+              "KX initiator is peer %s\n", 
+              GNUNET_i2s (&test_peers[kx_initiator].id));
 
   /**
    * This function is called after all testbed management is done and the 
