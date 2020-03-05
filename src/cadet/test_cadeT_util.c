@@ -50,43 +50,6 @@ int test_result = 0;
  */
 static int peerinfo_cnt = 0;
 
-/**
- * Structure for storing information of testbed peers.
- */
-struct TEST_PEERS
-{
-  /**
-   * Index of the peer.
-   */
-  int idx;
-
-  /**
-   * Peer Identity.
-   */
-  struct GNUNET_PeerIdentity id;
-
-  /**
-   * Handle of TESTBED peer.
-   */
-  struct GNUNET_TESTBED_Peer *testbed_peer;
-
-  /**
-   * Testbed management is finished and test peer is ready for test logic.
-   */
-  int ready;
-
-  /**
-   * Channel of initiating peer.
-   */
-  struct GNUNET_CADET_Channel *channel;
-
-  /**
-   * CADET handle.
-   */
-  struct GNUNET_CADET_Handle *cadet;
-
-} test_peers[REQUESTED_PEERS];
-
 /************************** TESBED MANAGEMENT *****************************/
 
 static void
@@ -197,9 +160,7 @@ check_test_readyness (void *cls,
 {
   GNUNET_log (GNUNET_ERROR_TYPE_INFO, "%s\n", __func__);
 
-  // FIXME: check, if all peers are ready, then continue with the
-  // test logic.
-  if (GNUNET_OK)
+  if (NULL != test_peers[0].cadet && NULL != test_peers[1].cadet)
     run_test();
 }
 
