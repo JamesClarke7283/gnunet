@@ -33,7 +33,7 @@
  *   x create method to find out KX initiator
  *   - send a message over channel
  *   - check if message was received
- *   - breakup the connection without sending a channel destroy message
+ *   - breakup the connection without the receiver receiving a channel destroy message
  *   - assert tunnel is down
  *   - resume channel (second handshake for tunnel)
  *   - send second message over channel
@@ -61,6 +61,16 @@
 
 static int kx_initiator;
 
+static void
+send_message ()
+{
+}
+
+/**
+ * This function is called after all testbed management is done and the 
+ * testbed peers are ready for the actual test logic.
+ * Use struct test_peers[i] to control the peers.
+ */
 void
 run_test ()
 {
@@ -72,11 +82,7 @@ run_test ()
               "KX initiator is peer %s\n", 
               GNUNET_i2s (&test_peers[kx_initiator].id));
 
-  /**
-   * This function is called after all testbed management is done and the 
-   * testbed peers are ready for the actual test logic.
-   * Use struct test_peers[i] to control the peers.
-   */
+  send_message();
 }
 
 
