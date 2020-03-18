@@ -37,6 +37,8 @@ void prepare_test ();
 
 void run_test ();
 
+void handle_message ();
+
 /**
  * Structure for storing information of testbed peers.
  */
