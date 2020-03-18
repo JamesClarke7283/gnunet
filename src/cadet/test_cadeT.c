@@ -61,9 +61,23 @@
 
 static int kx_initiator;
 
+void
+handle_message ()
+{
+  GNUNET_log (GNUNET_ERROR_TYPE_INFO, "%s\n", __func__);
+}
+
 static void
 send_message ()
 {
+  struct GNUNET_MQ_Envelope *envelope;
+  struct GNUNET_MessageHeader *msg;
+
+  GNUNET_log (GNUNET_ERROR_TYPE_INFO, "%s\n", __func__);
+
+  envelope = GNUNET_MQ_msg (msg, GNUNET_MESSAGE_TYPE_DUMMY);
+
+  GNUNET_MQ_send (GNUNET_CADET_get_mq (test_peers[0].channel), envelope);
 }
 
 /**
