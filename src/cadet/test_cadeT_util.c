@@ -102,13 +102,6 @@ setup_initiating_peer (void *cls,
 {
   struct GNUNET_CADET_Handle *cadet;
   struct GNUNET_CADET_Channel *channel;
-  struct GNUNET_MQ_MessageHandler msg_handlers[] = {
-    GNUNET_MQ_hd_fixed_size (message,
-                             GNUNET_MESSAGE_TYPE_DUMMY,
-                             struct GNUNET_MessageHeader,
-                             NULL),
-    GNUNET_MQ_handler_end ()
-  };
 
   GNUNET_log (GNUNET_ERROR_TYPE_INFO, "%s\n", __func__);
 
@@ -124,7 +117,7 @@ setup_initiating_peer (void *cls,
                                          &hashed_portname,
                                          NULL,
                                          &disconnect_channel,
-                                         msg_handlers);
+                                         NULL);
   test_peers[0].channel = channel;
 
   return cadet;

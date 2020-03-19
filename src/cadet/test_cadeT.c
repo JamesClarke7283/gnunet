@@ -124,8 +124,9 @@ set_data_loss_rate (int rate)
   GNUNET_log (GNUNET_ERROR_TYPE_INFO, "%s: %i loss.\n", __func__, rate);
 }
 
-void
-handle_message ()
+void 
+handle_message (void *cls, 
+                const struct GNUNET_MessageHeader *msg)
 {
   GNUNET_log (GNUNET_ERROR_TYPE_INFO, "%s\n", __func__);
 }
