@@ -31,8 +31,8 @@
  *   x setup cadet on peer B listening on port "cadet_port"
  *   x create a channel from peer A to B
  *   x create method to find out KX initiator
- *   - send a message over channel
- *   - check if message was received
+ *   x send a message over channel
+ *   x check if message was received
  *   - breakup the connection without the receiver receiving a channel destroy message
  *   - assert tunnel is down
  *   - resume channel (second handshake for tunnel)
@@ -42,7 +42,9 @@
  *
  * Questions:
  *   - can we simulate hard breakups with TESTBED?
- *     - yes, with GNUNET_TESTBED_underlay_configure_link 
+ *     - GNUNET_TESTBED_underlay_configure_link not implemented
+ *     - GNUNET_TESTBED_underlaylinkmodel_set_link not usable
+ *     - GNUNET_TESTBED_peer_stop evokes standard service disconnect
  *   - how can we test the sublayers of CADET, e.g. connection, tunnel, channel?
  *
  * Development
@@ -61,8 +63,9 @@
 
 static int kx_initiator;
 
-void
-handle_message ()
+void 
+handle_message (void *cls, 
+                const struct GNUNET_MessageHeader *msg)
 {
   GNUNET_log (GNUNET_ERROR_TYPE_INFO, "%s\n", __func__);
 }
@@ -75,9 +78,11 @@ send_message ()
 
   GNUNET_log (GNUNET_ERROR_TYPE_INFO, "%s\n", __func__);
 
-  envelope = GNUNET_MQ_msg (msg, GNUNET_MESSAGE_TYPE_DUMMY);
+  envelope = GNUNET_MQ_msg (msg, 
+                            GNUNET_MESSAGE_TYPE_DUMMY);
 
-  GNUNET_MQ_send (GNUNET_CADET_get_mq (test_peers[0].channel), envelope);
+  GNUNET_MQ_send (GNUNET_CADET_get_mq (test_peers[0].channel), 
+                  envelope);
 }
 
 /**

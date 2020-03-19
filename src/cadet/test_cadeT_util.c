@@ -58,7 +58,10 @@ shutdown_task (void *cls)
   GNUNET_log (GNUNET_ERROR_TYPE_INFO, "%s\n", __func__);
 
   for (int i=0; i<REQUESTED_PEERS; i++)
+  {
     GNUNET_TESTBED_operation_done (testbed_to_svc[i]);
+    GNUNET_TESTBED_operation_done (testbed_info_req[i]);
+  }
 }
 
 static void
@@ -91,13 +94,6 @@ setup_initiating_peer (void *cls,
 {
   struct GNUNET_CADET_Handle *cadet;
   struct GNUNET_CADET_Channel *channel;
-  struct GNUNET_MQ_MessageHandler msg_handlers[] = {
-    GNUNET_MQ_hd_fixed_size (message,
-                             GNUNET_MESSAGE_TYPE_DUMMY,
-                             struct GNUNET_MessageHeader,
-                             NULL),
-    GNUNET_MQ_handler_end ()
-  };
 
   GNUNET_log (GNUNET_ERROR_TYPE_INFO, "%s\n", __func__);
 
@@ -113,7 +109,7 @@ setup_initiating_peer (void *cls,
                                          &hashed_portname,
                                          NULL,
                                          &disconnect_channel,
-                                         msg_handlers);
+                                         NULL);
   test_peers[0].channel = channel;
 
   return cadet;
@@ -184,7 +180,7 @@ peerinfo_complete ()
   return (REQUESTED_PEERS == ++peerinfo_cnt) ? GNUNET_YES : GNUNET_NO;
 }
 
-void
+static void
 connect_to_service (void *cb_cls,
                     struct GNUNET_TESTBED_Operation *op,
                     const struct GNUNET_TESTBED_PeerInformation *pinfo,

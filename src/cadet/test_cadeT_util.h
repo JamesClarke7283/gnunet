@@ -37,7 +37,8 @@ void prepare_test ();
 
 void run_test ();
 
-void handle_message ();
+void handle_message (void *cls,
+                     const struct GNUNET_MessageHeader *msg);
 
 /**
  * Structure for storing information of testbed peers.
