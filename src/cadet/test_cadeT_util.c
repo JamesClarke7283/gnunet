@@ -41,6 +41,11 @@ static struct GNUNET_TESTBED_Operation *testbed_info_req[REQUESTED_PEERS];
 static struct GNUNET_HashCode hashed_portname;
 
 /**
+ * Port handle.
+ */
+struct GNUNET_CADET_Port *port;
+
+/**
  * Result of the test.
  */
 int test_result = 0;
@@ -77,6 +82,9 @@ disconnect_from_peer (void *cls,
   struct GNUNET_CADET_Handle *cadet = op_result;
 
   GNUNET_log (GNUNET_ERROR_TYPE_INFO, "%s\n", __func__);
+
+  if (0 == strncmp ("listening_peer", cls, sizeof (cls)))
+    GNUNET_CADET_close_port (port);
 
   GNUNET_CADET_disconnect (cadet);
 }
@@ -134,7 +142,6 @@ setup_listening_peer (void *cls,
                       const struct GNUNET_CONFIGURATION_Handle *cfg)
 {
   struct GNUNET_CADET_Handle *cadet;
-  struct GNUNET_CADET_Port *port;
   struct GNUNET_MQ_MessageHandler msg_handlers[] = {
     GNUNET_MQ_hd_fixed_size (message,
                              GNUNET_MESSAGE_TYPE_DUMMY,
@@ -198,13 +205,13 @@ connect_to_service (void *cb_cls,
                                       "cadet", 
                                       &check_test_readyness, NULL,
                                       &setup_listening_peer,
-                                      &disconnect_from_peer, NULL);
+                                      &disconnect_from_peer, "listening_peer");
     testbed_to_svc[0] = 
       GNUNET_TESTBED_service_connect (NULL, test_peers[0].testbed_peer,
                                       "cadet",
                                       &check_test_readyness, NULL,
                                       &setup_initiating_peer,
-                                      &disconnect_from_peer, NULL);
+                                      &disconnect_from_peer, "initiating_peer");
   }
 }
 

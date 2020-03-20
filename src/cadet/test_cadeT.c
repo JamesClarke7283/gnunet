@@ -45,6 +45,7 @@
  *     - GNUNET_TESTBED_underlay_configure_link not implemented
  *     - GNUNET_TESTBED_underlaylinkmodel_set_link not usable
  *     - GNUNET_TESTBED_peer_stop evokes standard service disconnect
+ *     - GNUNET_TESTBED_peer_destroy and GNUNET_TESTBED_peer_create
  *   - how can we test the sublayers of CADET, e.g. connection, tunnel, channel?
  *
  * Development
