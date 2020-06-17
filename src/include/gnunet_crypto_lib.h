@@ -659,7 +659,7 @@ GNUNET_CRYPTO_hash (const void *block,
 /**
  * Calculate the 'proof-of-work' hash (an expensive hash).
  *
- * @param salt salt to use in pow calculation
+ * @param salt salt for the hash. Must be crypto_pwhash_argon2id_SALTBYTES long.
  * @param buf data to hash
  * @param buf_len number of bytes in @a buf
  * @param result where to write the resulting hash
@@ -874,12 +874,25 @@ GNUNET_CRYPTO_hash_to_aes_key (
  * Obtain a bit from a hashcode.
  *
  * @param code the `struct GNUNET_HashCode` to index bit-wise
- * @param bit index into the hashcode, [0...159]
+ * @param bit index into the hashcode, [0...159] where 0 is the leftmost bit
+ *        (bytes in code interpreted big endian)
  * @return Bit \a bit from hashcode \a code, -1 for invalid index
  */
 int
-GNUNET_CRYPTO_hash_get_bit (const struct GNUNET_HashCode *code,
-                            unsigned int bit);
+GNUNET_CRYPTO_hash_get_bit_ltr (const struct GNUNET_HashCode *code,
+                                unsigned int bit);
+
+
+/**
+ * Obtain a bit from a hashcode.
+ * @param code the GNUNET_CRYPTO_hash to index bit-wise
+ * @param bit index into the hashcode, [0...511] where 0 is the rightmost bit
+ *        (bytes in code interpreted little endian)
+ * @return Bit \a bit from hashcode \a code, -1 for invalid index
+ */
+int
+GNUNET_CRYPTO_hash_get_bit_rtl (const struct GNUNET_HashCode *code,
+                                unsigned int bit);
 
 
 /**
@@ -2147,8 +2160,8 @@ GNUNET_CRYPTO_rsa_public_key_dup (const struct GNUNET_CRYPTO_RsaPublicKey *key);
  * @return 0 if the two are equal
  */
 int
-GNUNET_CRYPTO_rsa_signature_cmp (struct GNUNET_CRYPTO_RsaSignature *s1,
-                                 struct GNUNET_CRYPTO_RsaSignature *s2);
+GNUNET_CRYPTO_rsa_signature_cmp (const struct GNUNET_CRYPTO_RsaSignature *s1,
+                                 const struct GNUNET_CRYPTO_RsaSignature *s2);
 
 /**
  * Compare the values of two private keys.
@@ -2158,8 +2171,8 @@ GNUNET_CRYPTO_rsa_signature_cmp (struct GNUNET_CRYPTO_RsaSignature *s1,
  * @return 0 if the two are equal
  */
 int
-GNUNET_CRYPTO_rsa_private_key_cmp (struct GNUNET_CRYPTO_RsaPrivateKey *p1,
-                                   struct GNUNET_CRYPTO_RsaPrivateKey *p2);
+GNUNET_CRYPTO_rsa_private_key_cmp (const struct GNUNET_CRYPTO_RsaPrivateKey *p1,
+                                   const struct GNUNET_CRYPTO_RsaPrivateKey *p2);
 
 
 /**
@@ -2170,8 +2183,8 @@ GNUNET_CRYPTO_rsa_private_key_cmp (struct GNUNET_CRYPTO_RsaPrivateKey *p1,
  * @return 0 if the two are equal
  */
 int
-GNUNET_CRYPTO_rsa_public_key_cmp (struct GNUNET_CRYPTO_RsaPublicKey *p1,
-                                  struct GNUNET_CRYPTO_RsaPublicKey *p2);
+GNUNET_CRYPTO_rsa_public_key_cmp (const struct GNUNET_CRYPTO_RsaPublicKey *p1,
+                                  const struct GNUNET_CRYPTO_RsaPublicKey *p2);
 
 
 /**

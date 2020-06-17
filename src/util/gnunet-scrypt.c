@@ -79,7 +79,7 @@ count_leading_zeroes (const struct GNUNET_HashCode *hash)
   unsigned int hash_count;
 
   hash_count = 0;
-  while (0 == GNUNET_CRYPTO_hash_get_bit (hash, hash_count))
+  while (0 == GNUNET_CRYPTO_hash_get_bit_ltr (hash, hash_count))
     hash_count++;
   return hash_count;
 }
@@ -117,7 +117,7 @@ find_proof (void *cls)
   while ((counter != UINT64_MAX) && (i < ROUND_SIZE))
   {
     GNUNET_memcpy (buf, &counter, sizeof(uint64_t));
-    GNUNET_CRYPTO_pow_hash ("gnunet-nse-proof-of-work",
+    GNUNET_CRYPTO_pow_hash ("gnunet-nse-proof",
                             buf,
                             sizeof(buf),
                             &result);

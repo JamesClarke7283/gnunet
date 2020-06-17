@@ -33,7 +33,7 @@
 #include "gnunet_hello_lib.h"
 #include "gnunet_signatures.h"
 #include "transport.h"
-
+#include <inttypes.h>
 
 #define LOG(kind, ...) GNUNET_log_from (kind, "transport-testing2", __VA_ARGS__)
 
@@ -84,6 +84,8 @@ struct GNUNET_TRANSPORT_TESTING_TransportCommunicatorHandle
    */
   char *cfg_filename;
 
+  struct GNUNET_PeerIdentity peer_id;
+
   /**
    * @brief Handle to the transport service
    */
@@ -105,6 +107,11 @@ struct GNUNET_TRANSPORT_TESTING_TransportCommunicatorHandle
    * NAT process
    */
   struct GNUNET_OS_Process *nat_proc;
+
+  /**
+   * resolver service process
+   */
+  struct GNUNET_OS_Process *resolver_proc;
 
   /**
    * @brief Task that will be run on shutdown to stop and clean communicator
@@ -225,9 +232,19 @@ struct GNUNET_TRANSPORT_TESTING_TransportCommunicatorQueue
   uint32_t nt;
 
   /**
-   * Maximum transmission unit, in NBO.  UINT32_MAX for unlimited.
+   * Maximum transmission unit.  UINT32_MAX for unlimited.
    */
   uint32_t mtu;
+
+  /**
+   * Queue length.  UINT64_MAX for unlimited.
+   */
+  uint64_t q_len;
+
+  /**
+   * Queue prio
+   */
+  uint32_t priority;
 
   /**
    * An `enum GNUNET_TRANSPORT_ConnectionStatus` in NBO.
@@ -368,7 +385,8 @@ handle_communicator_backchannel (void *cls,
   struct GNUNET_TRANSPORT_CommunicatorBackchannelIncoming *cbi;
   struct GNUNET_MQ_Envelope *env;
 
-
+  LOG (GNUNET_ERROR_TYPE_DEBUG,
+       "Received backchannel message\n");
   if (tc_h->bc_enabled != GNUNET_YES)
   {
     GNUNET_SERVICE_client_continue (client->client);
@@ -376,17 +394,17 @@ handle_communicator_backchannel (void *cls,
   }
   /* Find client providing this communicator */
   /* Finally, deliver backchannel message to communicator */
-  GNUNET_log (GNUNET_ERROR_TYPE_DEBUG,
-              "Delivering backchannel message of type %u to %s\n",
-              ntohs (msg->type),
-              target_communicator);
+  LOG (GNUNET_ERROR_TYPE_DEBUG,
+       "Delivering backchannel message of type %u to %s\n",
+       ntohs (msg->type),
+       target_communicator);
   other_tc_h = tc_h->bc_cb (tc_h, msg, (struct
                                         GNUNET_PeerIdentity*) &bc_msg->pid);
   env = GNUNET_MQ_msg_extra (
     cbi,
     isize,
     GNUNET_MESSAGE_TYPE_TRANSPORT_COMMUNICATOR_BACKCHANNEL_INCOMING);
-  cbi->pid = bc_msg->pid;
+  cbi->pid = tc_h->peer_id;
   memcpy (&cbi[1], msg, isize);
 
 
@@ -493,9 +511,6 @@ handle_incoming_msg (void *cls,
   msg = (struct GNUNET_MessageHeader *) &inc_msg[1];
   size_t payload_len = ntohs (msg->size) - sizeof (struct
                                                    GNUNET_MessageHeader);
-  LOG (GNUNET_ERROR_TYPE_DEBUG,
-       "Incoming message from communicator!\n");
-
   if (NULL != tc_h->incoming_msg_cb)
   {
     tc_h->incoming_msg_cb (tc_h->cb_cls,
@@ -515,6 +530,7 @@ handle_incoming_msg (void *cls,
     struct GNUNET_TRANSPORT_IncomingMessageAck *ack;
 
     env = GNUNET_MQ_msg (ack, GNUNET_MESSAGE_TYPE_TRANSPORT_INCOMING_MSG_ACK);
+    GNUNET_assert (NULL != env);
     ack->reserved = htonl (0);
     ack->fc_id = inc_msg->fc_id;
     ack->sender = inc_msg->sender;
@@ -605,15 +621,14 @@ handle_add_queue_message (void *cls,
     client->tc;
   struct GNUNET_TRANSPORT_TESTING_TransportCommunicatorQueue *tc_queue;
 
-  tc_queue = tc_h->queue_head;
-  if (NULL != tc_queue)
+  LOG (GNUNET_ERROR_TYPE_DEBUG,
+       "Got queue with ID %u\n", msg->qid);
+  for (tc_queue = tc_h->queue_head; NULL != tc_queue; tc_queue = tc_queue->next)
   {
-    while (tc_queue->qid != msg->qid)
-    {
-      tc_queue = tc_queue->next;
-    }
+    if (tc_queue->qid == msg->qid)
+      break;
   }
-  else
+  if (NULL == tc_queue)
   {
     tc_queue =
       GNUNET_new (struct GNUNET_TRANSPORT_TESTING_TransportCommunicatorQueue);
@@ -625,12 +640,54 @@ handle_add_queue_message (void *cls,
   GNUNET_assert (tc_queue->qid == msg->qid);
   GNUNET_assert (0 == GNUNET_memcmp (&tc_queue->peer_id, &msg->receiver));
   tc_queue->nt = msg->nt;
-  tc_queue->mtu = msg->mtu;
+  tc_queue->mtu = ntohl (msg->mtu);
   tc_queue->cs = msg->cs;
+  tc_queue->priority = ntohl (msg->priority);
+  tc_queue->q_len = GNUNET_ntohll (msg->q_len);
   if (NULL != tc_h->add_queue_cb)
   {
-    tc_h->add_queue_cb (tc_h->cb_cls, tc_h, tc_queue);
+    tc_h->add_queue_cb (tc_h->cb_cls, tc_h, tc_queue, tc_queue->mtu);
   }
+  GNUNET_SERVICE_client_continue (client->client);
+}
+
+
+/**
+ * @brief Handle new queue
+ *
+ * Store context and call client callback.
+ *
+ * @param cls Closure - communicator handle
+ * @param msg Message struct
+ */
+static void
+handle_update_queue_message (void *cls,
+                             const struct
+                             GNUNET_TRANSPORT_UpdateQueueMessage *msg)
+{
+  struct MyClient *client = cls;
+  struct GNUNET_TRANSPORT_TESTING_TransportCommunicatorHandle *tc_h =
+    client->tc;
+  struct GNUNET_TRANSPORT_TESTING_TransportCommunicatorQueue *tc_queue;
+
+  LOG (GNUNET_ERROR_TYPE_DEBUG,
+       "Received queue update message for %u with q_len %"PRIu64"\n",
+       msg->qid, GNUNET_ntohll(msg->q_len));
+  tc_queue = tc_h->queue_head;
+  if (NULL != tc_queue)
+  {
+    while (tc_queue->qid != msg->qid)
+    {
+      tc_queue = tc_queue->next;
+    }
+  }
+  GNUNET_assert (tc_queue->qid == msg->qid);
+  GNUNET_assert (0 == GNUNET_memcmp (&tc_queue->peer_id, &msg->receiver));
+  tc_queue->nt = msg->nt;
+  tc_queue->mtu = ntohl (msg->mtu);
+  tc_queue->cs = msg->cs;
+  tc_queue->priority = ntohl (msg->priority);
+  tc_queue->q_len += GNUNET_ntohll (msg->q_len);
   GNUNET_SERVICE_client_continue (client->client);
 }
 
@@ -719,6 +776,8 @@ disconnect_cb (void *cls,
     GNUNET_CONTAINER_DLL_remove (tc_h->client_head,
                                  tc_h->client_tail,
                                  cl);
+    if (cl->c_mq == tc_h->c_mq)
+      tc_h->c_mq = NULL;
     GNUNET_free (cl);
     break;
   }
@@ -786,6 +845,10 @@ transport_communicator_start (
                            GNUNET_MESSAGE_TYPE_TRANSPORT_QUEUE_SETUP,
                            struct GNUNET_TRANSPORT_AddQueueMessage,
                            tc_h),
+    GNUNET_MQ_hd_fixed_size (update_queue_message,
+                             GNUNET_MESSAGE_TYPE_TRANSPORT_QUEUE_UPDATE,
+                             struct GNUNET_TRANSPORT_UpdateQueueMessage,
+                             tc_h),
     // GNUNET_MQ_hd_fixed_size (del_queue_message,
     //                         GNUNET_MESSAGE_TYPE_TRANSPORT_QUEUE_TEARDOWN,
     //                         struct GNUNET_TRANSPORT_DelQueueMessage,
@@ -819,11 +882,11 @@ shutdown_process (struct GNUNET_OS_Process *proc)
   if (0 != GNUNET_OS_process_kill (proc, SIGTERM))
   {
     LOG (GNUNET_ERROR_TYPE_WARNING,
-         "Error shutting down communicator with SIGERM, trying SIGKILL\n");
+         "Error shutting down process with SIGERM, trying SIGKILL\n");
     if (0 != GNUNET_OS_process_kill (proc, SIGKILL))
     {
       LOG (GNUNET_ERROR_TYPE_ERROR,
-           "Error shutting down communicator with SIGERM and SIGKILL\n");
+           "Error shutting down process with SIGERM and SIGKILL\n");
     }
   }
   GNUNET_OS_process_destroy (proc);
@@ -884,6 +947,45 @@ shutdown_nat (void *cls)
   shutdown_process (proc);
 }
 
+/**
+ * @brief Task run at shutdown to kill the resolver process
+ *
+ * @param cls Closure - Process of communicator
+ */
+static void
+shutdown_resolver (void *cls)
+{
+  struct GNUNET_OS_Process *proc = cls;
+  shutdown_process (proc);
+}
+
+static void
+resolver_start (struct
+                GNUNET_TRANSPORT_TESTING_TransportCommunicatorHandle *tc_h)
+{
+  char *binary;
+
+  LOG (GNUNET_ERROR_TYPE_DEBUG, "resolver_start\n");
+  binary = GNUNET_OS_get_libexec_binary_path ("gnunet-service-resolver");
+  tc_h->resolver_proc = GNUNET_OS_start_process (GNUNET_YES,
+                                                 GNUNET_OS_INHERIT_STD_OUT_AND_ERR,
+                                                 NULL,
+                                                 NULL,
+                                                 NULL,
+                                                 binary,
+                                                 "gnunet-service-resolver",
+                                                 "-c",
+                                                 tc_h->cfg_filename,
+                                                 NULL);
+  if (NULL == tc_h->resolver_proc)
+  {
+    GNUNET_log (GNUNET_ERROR_TYPE_ERROR, "Failed to start resolver service!");
+    return;
+  }
+  LOG (GNUNET_ERROR_TYPE_INFO, "started resolver service\n");
+  GNUNET_free (binary);
+
+}
 
 /**
  * @brief Start NAT
@@ -934,6 +1036,7 @@ GNUNET_TRANSPORT_TESTING_transport_communicator_service_start (
   const char *service_name,
   const char *binary_name,
   const char *cfg_filename,
+  const struct GNUNET_PeerIdentity *peer_id,
   GNUNET_TRANSPORT_TESTING_CommunicatorAvailableCallback
   communicator_available_cb,
   GNUNET_TRANSPORT_TESTING_AddAddressCallback add_address_cb,
@@ -971,12 +1074,15 @@ GNUNET_TRANSPORT_TESTING_transport_communicator_service_start (
   tc_h->add_queue_cb = add_queue_cb;
   tc_h->incoming_msg_cb = incoming_message_cb;
   tc_h->bc_cb = bc_cb;
+  tc_h->peer_id = *peer_id;
   tc_h->cb_cls = cb_cls;
 
   /* Start communicator part of service */
   transport_communicator_start (tc_h);
   /* Start NAT */
   nat_start (tc_h);
+  /* Start resolver service */
+  resolver_start (tc_h);
   /* Schedule start communicator */
   communicator_start (tc_h,
                       binary_name);
@@ -991,6 +1097,7 @@ GNUNET_TRANSPORT_TESTING_transport_communicator_service_stop (
   shutdown_communicator (tc_h->c_proc);
   shutdown_service (tc_h->sh);
   shutdown_nat (tc_h->nat_proc);
+  shutdown_resolver (tc_h->resolver_proc);
   GNUNET_CONFIGURATION_destroy (tc_h->cfg);
   GNUNET_free (tc_h);
 }
@@ -1058,7 +1165,7 @@ GNUNET_TRANSPORT_TESTING_transport_communicator_open_queue (
  */
 void
 GNUNET_TRANSPORT_TESTING_transport_communicator_send
-  (struct GNUNET_TRANSPORT_TESTING_TransportCommunicatorQueue *tc_queue,
+  (struct GNUNET_TRANSPORT_TESTING_TransportCommunicatorHandle *tc_h,
   GNUNET_SCHEDULER_TaskCallback cont,
   void *cont_cls,
   const void *payload,
@@ -1068,11 +1175,46 @@ GNUNET_TRANSPORT_TESTING_transport_communicator_send
   struct GNUNET_TRANSPORT_SendMessageTo *msg;
   struct GNUNET_MQ_Envelope *env;
   size_t inbox_size;
+  struct GNUNET_TRANSPORT_TESTING_TransportCommunicatorQueue *tc_queue;
+  struct GNUNET_TRANSPORT_TESTING_TransportCommunicatorQueue *tc_queue_tmp;
 
+  tc_queue = NULL;
+  for (tc_queue_tmp = tc_h->queue_head;
+       NULL != tc_queue_tmp;
+       tc_queue_tmp = tc_queue_tmp->next)
+  {
+    if (tc_queue_tmp->q_len <= 0)
+      continue;
+    if (NULL == tc_queue)
+    {
+      LOG (GNUNET_ERROR_TYPE_DEBUG,
+           "Selecting queue with prio %u, len %" PRIu64 " and MTU %u\n",
+           tc_queue_tmp->priority,
+           tc_queue_tmp->q_len,
+           tc_queue_tmp->mtu);
+      tc_queue = tc_queue_tmp;
+      continue;
+    }
+    if (tc_queue->priority < tc_queue_tmp->priority)
+    {
+      LOG (GNUNET_ERROR_TYPE_DEBUG,
+           "Selecting queue with prio %u, len %" PRIu64 " and MTU %u\n",
+           tc_queue_tmp->priority,
+           tc_queue_tmp->q_len,
+           tc_queue_tmp->mtu);
+      tc_queue = tc_queue_tmp;
+    }
+  }
+  GNUNET_assert (NULL != tc_queue);
+  if (tc_queue->q_len != GNUNET_TRANSPORT_QUEUE_LENGTH_UNLIMITED)
+    tc_queue->q_len--;
+  GNUNET_log (GNUNET_ERROR_TYPE_DEBUG,
+              "Sending message\n");
   inbox_size = sizeof (struct GNUNET_MessageHeader) + payload_size;
   env = GNUNET_MQ_msg_extra (msg,
                              inbox_size,
                              GNUNET_MESSAGE_TYPE_TRANSPORT_SEND_MSG);
+  GNUNET_assert (NULL != env);
   msg->qid = htonl (tc_queue->qid);
   msg->mid = tc_queue->mid++;
   msg->receiver = tc_queue->peer_id;

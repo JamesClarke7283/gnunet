@@ -394,9 +394,8 @@ static unsigned int
 count_leading_zeroes (const struct GNUNET_HashCode *hash)
 {
   unsigned int hash_count;
-
   hash_count = 0;
-  while ((0 == GNUNET_CRYPTO_hash_get_bit (hash, hash_count)))
+  while ((0 == GNUNET_CRYPTO_hash_get_bit_ltr (hash, hash_count)))
     hash_count++;
   return hash_count;
 }
@@ -467,15 +466,12 @@ GNUNET_REVOCATION_check_pow (const struct GNUNET_REVOCATION_PowP *pow,
   }
 
   /**
-   * First, check if any duplicates are in the PoW set
+   * First, check if PoW set is strictly monotically increasing
    */
-  for (unsigned int i = 0; i < POW_COUNT; i++)
+  for (unsigned int i = 0; i < POW_COUNT-1; i++)
   {
-    for (unsigned int j = i + 1; j < POW_COUNT; j++)
-    {
-      if (pow->pow[i] == pow->pow[j])
-        return GNUNET_NO;
-    }
+    if (GNUNET_ntohll (pow->pow[i]) >= GNUNET_ntohll (pow->pow[i+1]))
+      return GNUNET_NO;
   }
   GNUNET_memcpy (&buf[sizeof(uint64_t)],
                  &pow->timestamp,
@@ -486,8 +482,8 @@ GNUNET_REVOCATION_check_pow (const struct GNUNET_REVOCATION_PowP *pow,
   for (unsigned int i = 0; i < POW_COUNT; i++)
   {
     pow_val = GNUNET_ntohll (pow->pow[i]);
-    GNUNET_memcpy (buf, &pow_val, sizeof(uint64_t));
-    GNUNET_CRYPTO_pow_hash ("gnunet-revocation-proof-of-work",
+    GNUNET_memcpy (buf, &pow->pow[i], sizeof(uint64_t));
+    GNUNET_CRYPTO_pow_hash ("GnsRevocationPow",
                             buf,
                             sizeof(buf),
                             &result);
@@ -495,6 +491,7 @@ GNUNET_REVOCATION_check_pow (const struct GNUNET_REVOCATION_PowP *pow,
     GNUNET_log (GNUNET_ERROR_TYPE_DEBUG,
                 "Score %u with %" PRIu64 " (#%u)\n",
                 tmp_score, pow_val, i);
+
     score += tmp_score;
 
   }
@@ -580,9 +577,14 @@ GNUNET_REVOCATION_pow_start (struct GNUNET_REVOCATION_PowP *pow,
                              unsigned int difficulty)
 {
   struct GNUNET_REVOCATION_PowCalculationHandle *pc;
+  struct GNUNET_TIME_Relative ttl;
+
 
   pc = GNUNET_new (struct GNUNET_REVOCATION_PowCalculationHandle);
   pc->pow = pow;
+  ttl = GNUNET_TIME_relative_multiply (GNUNET_TIME_UNIT_YEARS,
+                                       epochs);
+  pc->pow->ttl = GNUNET_TIME_relative_hton (ttl);
   pc->current_pow = GNUNET_CRYPTO_random_u64 (GNUNET_CRYPTO_QUALITY_WEAK,
                                               UINT64_MAX);
   pc->difficulty = difficulty;
@@ -590,6 +592,18 @@ GNUNET_REVOCATION_pow_start (struct GNUNET_REVOCATION_PowP *pow,
   return pc;
 }
 
+/**
+ * Comparison function for quicksort
+ *
+ * @param a left element
+ * @param b right element
+ * @return a-b
+ */
+static int
+cmp_pow_value (const void *a, const void *b)
+{
+  return ( GNUNET_ntohll(*(uint64_t*)a) - GNUNET_ntohll(*(uint64_t*)b));
+}
 
 /**
  * Calculate a key revocation valid for broadcasting for a number
@@ -609,6 +623,8 @@ GNUNET_REVOCATION_pow_round (struct GNUNET_REVOCATION_PowCalculationHandle *pc)
            + sizeof (uint64_t)] GNUNET_ALIGN;
   struct GNUNET_HashCode result;
   unsigned int zeros;
+  int ret;
+  uint64_t pow_nbo;
 
   pc->current_pow++;
 
@@ -618,15 +634,15 @@ GNUNET_REVOCATION_pow_round (struct GNUNET_REVOCATION_PowCalculationHandle *pc)
   for (unsigned int i = 0; i < POW_COUNT; i++)
     if (pc->current_pow == pc->best[i].pow)
       return GNUNET_NO;
-
-  GNUNET_memcpy (buf, &pc->current_pow, sizeof(uint64_t));
+  pow_nbo = GNUNET_htonll (pc->current_pow);
+  GNUNET_memcpy (buf, &pow_nbo, sizeof(uint64_t));
   GNUNET_memcpy (&buf[sizeof(uint64_t)],
                  &pc->pow->timestamp,
                  sizeof (uint64_t));
   GNUNET_memcpy (&buf[sizeof(uint64_t) * 2],
                  &pc->pow->key,
                  sizeof(struct GNUNET_CRYPTO_EcdsaPublicKey));
-  GNUNET_CRYPTO_pow_hash ("gnunet-revocation-proof-of-work",
+  GNUNET_CRYPTO_pow_hash ("GnsRevocationPow",
                           buf,
                           sizeof(buf),
                           &result);
@@ -637,15 +653,22 @@ GNUNET_REVOCATION_pow_round (struct GNUNET_REVOCATION_PowCalculationHandle *pc)
     {
       pc->best[i].bits = zeros;
       pc->best[i].pow = pc->current_pow;
-      pc->pow->pow[i] = GNUNET_htonll (pc->current_pow);
+      pc->pow->pow[i] = pow_nbo;
       GNUNET_log (GNUNET_ERROR_TYPE_DEBUG,
                   "New best score %u with %" PRIu64 " (#%u)\n",
                   zeros, pc->current_pow, i);
+
       break;
     }
   }
-  return calculate_score (pc) >= pc->difficulty + pc->epochs ? GNUNET_YES :
-         GNUNET_NO;
+  ret = calculate_score (pc) >= pc->difficulty + pc->epochs ? GNUNET_YES :
+        GNUNET_NO;
+  if (GNUNET_YES == ret)
+  {
+    /* Sort POWs) */
+    qsort (pc->pow->pow, POW_COUNT, sizeof (uint64_t), &cmp_pow_value);
+  }
+  return ret;
 }
 
 

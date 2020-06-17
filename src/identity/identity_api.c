@@ -392,6 +392,7 @@ handle_identity_update (void *cls,
       return;
     }
     ego = GNUNET_new (struct GNUNET_IDENTITY_Ego);
+    ego->pub_initialized = GNUNET_NO;
     ego->pk = um->private_key;
     ego->name = GNUNET_strdup (str);
     ego->id = id;
@@ -607,11 +608,11 @@ void
 GNUNET_IDENTITY_ego_get_public_key (struct GNUNET_IDENTITY_Ego *ego,
                                     struct GNUNET_CRYPTO_EcdsaPublicKey *pk)
 {
-  if (! ego->pub_initialized)
+  if (GNUNET_NO == ego->pub_initialized)
   {
     GNUNET_CRYPTO_ecdsa_key_get_public (&ego->pk,
                                         &ego->pub);
-    ego->pub_initialized = true;
+    ego->pub_initialized = GNUNET_YES;
   }
   *pk = ego->pub;
 }
@@ -714,6 +715,7 @@ GNUNET_IDENTITY_set (struct GNUNET_IDENTITY_Handle *h,
  *
  * @param h identity service to use
  * @param name desired name
+ * @param privkey desired private key or NULL to create one
  * @param cont function to call with the result (will only be called once)
  * @param cont_cls closure for @a cont
  * @return handle to abort the operation
@@ -721,6 +723,7 @@ GNUNET_IDENTITY_set (struct GNUNET_IDENTITY_Handle *h,
 struct GNUNET_IDENTITY_Operation *
 GNUNET_IDENTITY_create (struct GNUNET_IDENTITY_Handle *h,
                         const char *name,
+                        const struct GNUNET_CRYPTO_EcdsaPrivateKey *privkey,
                         GNUNET_IDENTITY_CreateContinuation cont,
                         void *cont_cls)
 {
@@ -745,7 +748,10 @@ GNUNET_IDENTITY_create (struct GNUNET_IDENTITY_Handle *h,
   env = GNUNET_MQ_msg_extra (crm, slen, GNUNET_MESSAGE_TYPE_IDENTITY_CREATE);
   crm->name_len = htons (slen);
   crm->reserved = htons (0);
-  GNUNET_CRYPTO_ecdsa_key_create (&crm->private_key);
+  if (NULL == privkey)
+    GNUNET_CRYPTO_ecdsa_key_create (&crm->private_key);
+  else
+    crm->private_key = *privkey;
   op->pk = crm->private_key;
   GNUNET_memcpy (&crm[1], name, slen);
   GNUNET_MQ_send (h->mq, env);

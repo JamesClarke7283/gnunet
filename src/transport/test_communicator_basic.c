@@ -58,21 +58,23 @@ static char *cfg_peers_name[NUM_PEERS];
 
 static int ret;
 
+static size_t long_message_size;
+
 static struct GNUNET_TIME_Absolute start_short;
 
 static struct GNUNET_TIME_Absolute start_long;
 
 static struct GNUNET_TIME_Absolute timeout;
 
-static struct GNUNET_TRANSPORT_TESTING_TransportCommunicatorQueue *my_tc;
+static struct GNUNET_TRANSPORT_TESTING_TransportCommunicatorHandle *my_tc;
 
 #define SHORT_MESSAGE_SIZE 128
 
-#define LONG_MESSAGE_SIZE 32000
+#define LONG_MESSAGE_SIZE 32000 /* FIXME */
 
 #define BURST_PACKETS 5000
 
-#define TOTAL_ITERATIONS 5
+#define TOTAL_ITERATIONS 1
 
 #define PEER_A 0
 
@@ -88,6 +90,7 @@ static unsigned int iterations_left = TOTAL_ITERATIONS;
 
 enum TestPhase
 {
+  TP_INIT,
   TP_BURST_SHORT,
   TP_BURST_LONG,
   TP_SIZE_CHECK
@@ -182,7 +185,7 @@ handle_backchannel_cb (void *cls,
                        struct GNUNET_PeerIdentity *pid)
 {
   struct GNUNET_TRANSPORT_TESTING_TransportCommunicatorHandle *tc_h = cls;
-  GNUNET_log (GNUNET_ERROR_TYPE_DEBUG, "Handling BC message...\n");
+  LOG (GNUNET_ERROR_TYPE_DEBUG, "Handling BC message...\n");
   if (0 == memcmp (&peer_id[PEER_A], pid, sizeof (*pid)))
     return tc_hs[PEER_A];
   else
@@ -197,6 +200,8 @@ make_payload (size_t payload_size)
   struct GNUNET_TIME_AbsoluteNBO ts_n;
   char *payload = GNUNET_malloc (payload_size);
 
+  LOG (GNUNET_ERROR_TYPE_DEBUG,
+       "Making payload of size %lu\n", payload_size);
   GNUNET_assert (payload_size >= 8); // So that out timestamp fits
   ts = GNUNET_TIME_absolute_get ();
   ts_n = GNUNET_TIME_absolute_hton (ts);
@@ -218,7 +223,7 @@ latency_timeout (void *cls)
     return;
   }
 
-  GNUNET_log (GNUNET_ERROR_TYPE_ERROR,
+  LOG (GNUNET_ERROR_TYPE_ERROR,
               "Latency too high. Test failed. (Phase: %d. Sent: %lu, Received: %lu)\n",
               phase, num_sent, num_received);
   ret = 2;
@@ -230,15 +235,18 @@ static void
 size_test (void *cls)
 {
   char *payload;
+  size_t max_size = 64000;
 
   GNUNET_assert (TP_SIZE_CHECK == phase);
-  if (ack >= 64000)
+  if (LONG_MESSAGE_SIZE != long_message_size)
+    max_size = long_message_size;
+  if (ack + 10 > max_size)
     return; /* Leave some room for our protocol, so not 2^16 exactly */
+  ack += 10;
   payload = make_payload (ack);
-  ack += 5;
   num_sent++;
   GNUNET_TRANSPORT_TESTING_transport_communicator_send (my_tc,
-                                                        (ack < 64000)
+                                                        (ack < max_size)
                                                         ? &size_test
                                                         : NULL,
                                                         NULL,
@@ -254,7 +262,7 @@ long_test (void *cls)
 {
   char *payload;
 
-  payload = make_payload (LONG_MESSAGE_SIZE);
+  payload = make_payload (long_message_size);
   num_sent++;
   GNUNET_TRANSPORT_TESTING_transport_communicator_send (my_tc,
                                                         (BURST_PACKETS ==
@@ -263,7 +271,7 @@ long_test (void *cls)
                                                         : &long_test,
                                                         NULL,
                                                         payload,
-                                                        LONG_MESSAGE_SIZE);
+                                                        long_message_size);
   GNUNET_free (payload);
   timeout = GNUNET_TIME_relative_to_absolute (GNUNET_TIME_UNIT_SECONDS);
 }
@@ -289,6 +297,34 @@ short_test (void *cls)
 }
 
 
+static int test_prepared = GNUNET_NO;
+
+/**
+ * This helps establishing the backchannel
+ */
+static void
+prepare_test (void *cls)
+{
+  char *payload;
+
+  if (GNUNET_YES == test_prepared)
+  {
+    GNUNET_SCHEDULER_add_delayed (GNUNET_TIME_UNIT_SECONDS,
+                                  &short_test,
+                                  NULL);
+    return;
+  }
+  test_prepared = GNUNET_YES;
+  payload = make_payload (SHORT_MESSAGE_SIZE);
+  GNUNET_TRANSPORT_TESTING_transport_communicator_send (my_tc,
+                                                        &prepare_test,
+                                                        NULL,
+                                                        payload,
+                                                        SHORT_MESSAGE_SIZE);
+  GNUNET_free (payload);
+}
+
+
 /**
  * @brief Handle opening of queue
  *
@@ -304,21 +340,28 @@ static void
 add_queue_cb (void *cls,
               struct GNUNET_TRANSPORT_TESTING_TransportCommunicatorHandle *tc_h,
               struct GNUNET_TRANSPORT_TESTING_TransportCommunicatorQueue *
-              tc_queue)
+              tc_queue,
+              size_t mtu)
 {
+  if (TP_INIT != phase)
+    return;
   if (0 != strcmp ((char*) cls, cfg_peers_name[0]))
     return; // TODO?
   LOG (GNUNET_ERROR_TYPE_DEBUG,
        "Queue established, starting test...\n");
   start_short = GNUNET_TIME_absolute_get ();
-  my_tc = tc_queue;
+  my_tc = tc_h;
+  if (0 != mtu)
+    long_message_size = mtu - 4; /* Dummy message header overhead */
+  else
+    long_message_size = LONG_MESSAGE_SIZE;
   phase = TP_BURST_SHORT;
-  timeout = GNUNET_TIME_relative_to_absolute (GNUNET_TIME_UNIT_SECONDS);
+  timeout = GNUNET_TIME_relative_to_absolute (GNUNET_TIME_UNIT_MINUTES);
   GNUNET_assert (NULL == to_task);
-  to_task = GNUNET_SCHEDULER_add_delayed (GNUNET_TIME_UNIT_SECONDS,
+  to_task = GNUNET_SCHEDULER_add_delayed (GNUNET_TIME_UNIT_MINUTES,
                                           &latency_timeout,
                                           NULL);
-  short_test (NULL);
+  prepare_test (NULL);
 }
 
 
@@ -359,7 +402,7 @@ incoming_message_cb (void *cls,
 {
   if (0 != strcmp ((char*) cls, cfg_peers_name[NUM_PEERS - 1]))
   {
-    GNUNET_log (GNUNET_ERROR_TYPE_WARNING,
+    LOG (GNUNET_ERROR_TYPE_WARNING,
                 "unexpected receiver...\n");
     return;
   }
@@ -367,6 +410,9 @@ incoming_message_cb (void *cls,
   timeout = GNUNET_TIME_relative_to_absolute (GNUNET_TIME_UNIT_SECONDS);
   switch (phase)
   {
+  case TP_INIT:
+    GNUNET_break (0);
+    break;
   case TP_BURST_SHORT:
     {
       GNUNET_assert (SHORT_MESSAGE_SIZE == payload_len);
@@ -375,13 +421,13 @@ incoming_message_cb (void *cls,
       update_avg_latency (payload);
       if (num_received == BURST_PACKETS)
       {
-        GNUNET_log (GNUNET_ERROR_TYPE_MESSAGE,
+        LOG (GNUNET_ERROR_TYPE_MESSAGE,
                     "Short size packet test done.\n");
         char *goodput = GNUNET_STRINGS_byte_size_fancy ((SHORT_MESSAGE_SIZE
                                                          * num_received * 1000
                                                          * 1000)
                                                         / duration.rel_value_us);
-        GNUNET_log (GNUNET_ERROR_TYPE_MESSAGE,
+        LOG (GNUNET_ERROR_TYPE_MESSAGE,
                     "%lu/%lu packets in %llu us (%s/s) -- avg latency: %llu us\n",
                     (unsigned long) num_received,
                     (unsigned long) num_sent,
@@ -400,9 +446,9 @@ incoming_message_cb (void *cls,
     }
   case TP_BURST_LONG:
     {
-      if (LONG_MESSAGE_SIZE != payload_len)
+      if (long_message_size != payload_len)
       {
-        GNUNET_log (GNUNET_ERROR_TYPE_WARNING,
+        LOG (GNUNET_ERROR_TYPE_WARNING,
                     "Ignoring packet with wrong length\n");
         return; // Ignore
       }
@@ -411,14 +457,14 @@ incoming_message_cb (void *cls,
       update_avg_latency (payload);
       if (num_received == BURST_PACKETS)
       {
-        GNUNET_log (GNUNET_ERROR_TYPE_MESSAGE,
+        LOG (GNUNET_ERROR_TYPE_MESSAGE,
                     "Long size packet test done.\n");
-        char *goodput = GNUNET_STRINGS_byte_size_fancy ((LONG_MESSAGE_SIZE
+        char *goodput = GNUNET_STRINGS_byte_size_fancy ((long_message_size
                                                          * num_received * 1000
                                                          * 1000)
                                                         / duration.rel_value_us);
 
-        GNUNET_log (GNUNET_ERROR_TYPE_MESSAGE,
+        LOG (GNUNET_ERROR_TYPE_MESSAGE,
                     "%lu/%lu packets in %llu us (%s/s) -- avg latency: %llu us\n",
                     (unsigned long) num_received,
                     (unsigned long) num_sent,
@@ -426,7 +472,7 @@ incoming_message_cb (void *cls,
                     goodput,
                     (unsigned long long) avg_latency);
         GNUNET_free (goodput);
-        ack = 10;
+        ack = 0;
         phase = TP_SIZE_CHECK;
         num_received = 0;
         num_sent = 0;
@@ -437,13 +483,18 @@ incoming_message_cb (void *cls,
     }
   case TP_SIZE_CHECK:
     {
+      size_t max_size = 64000;
+
+      GNUNET_assert (TP_SIZE_CHECK == phase);
+      if (LONG_MESSAGE_SIZE != long_message_size)
+        max_size = long_message_size;
       num_received++;
       update_avg_latency (payload);
-      if (num_received >= (64000 - 10) / 5)
+      if (num_received >= (max_size) / 10)
       {
-        GNUNET_log (GNUNET_ERROR_TYPE_MESSAGE,
+        LOG (GNUNET_ERROR_TYPE_MESSAGE,
                     "Size packet test done.\n");
-        GNUNET_log (GNUNET_ERROR_TYPE_MESSAGE,
+        LOG (GNUNET_ERROR_TYPE_MESSAGE,
                     "%lu/%lu packets -- avg latency: %llu us\n",
                     (unsigned long) num_received,
                     (unsigned long) num_sent,
@@ -459,7 +510,7 @@ incoming_message_cb (void *cls,
           short_test (NULL);
           break;
         }
-        GNUNET_log (GNUNET_ERROR_TYPE_DEBUG,
+        LOG (GNUNET_ERROR_TYPE_DEBUG,
                     "Finished\n");
         GNUNET_SCHEDULER_shutdown ();
       }
@@ -501,6 +552,7 @@ run (void *cls)
       "transport",
       communicator_binary,
       cfg_peers_name[i],
+      &peer_id[i],
       &communicator_available_cb,
       &add_address_cb,
       &queue_create_reply_cb,
@@ -524,6 +576,7 @@ main (int argc,
   char *test_name;
   char *cfg_peer;
 
+  phase = TP_INIT;
   ret = 1;
   test_name = GNUNET_TESTING_get_testname_from_underscore (argv[0]);
   communicator_name = strchr (test_name, '-');
@@ -586,12 +639,12 @@ main (int argc,
     GNUNET_CRYPTO_eddsa_key_get_public (private_key,
                                         &peer_id[i].public_key);
     GNUNET_free (private_key);
-    GNUNET_log (GNUNET_ERROR_TYPE_INFO,
+    LOG (GNUNET_ERROR_TYPE_INFO,
                 "Identity of peer %u is %s\n",
                 i,
                 GNUNET_i2s_full (&peer_id[i]));
   }
-  GNUNET_log (GNUNET_ERROR_TYPE_MESSAGE, "Starting test...\n");
+  LOG (GNUNET_ERROR_TYPE_MESSAGE, "Starting test...\n");
   GNUNET_SCHEDULER_run (&run,
                         NULL);
   return ret;

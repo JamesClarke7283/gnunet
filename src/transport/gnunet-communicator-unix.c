@@ -57,7 +57,11 @@
 /**
  * Our MTU.
  */
+#ifndef DARWIN
 #define UNIX_MTU UINT16_MAX
+#else
+#define UNIX_MTU 2048
+#endif
 
 GNUNET_NETWORK_STRUCT_BEGIN
 
@@ -669,7 +673,9 @@ setup_queue (const struct GNUNET_PeerIdentity *target,
     queue->qh = GNUNET_TRANSPORT_communicator_mq_add (ch,
                                                       &queue->target,
                                                       foreign_addr,
-                                                      UNIX_MTU,
+                                                      UNIX_MTU - sizeof (struct UNIXMessage),
+                                                      GNUNET_TRANSPORT_QUEUE_LENGTH_UNLIMITED,
+                                                      0,
                                                       GNUNET_NT_LOOPBACK,
                                                       cs,
                                                       queue->mq);

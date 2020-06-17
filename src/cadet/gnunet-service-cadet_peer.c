@@ -31,6 +31,7 @@
  *   to take a break if we have some connections and have searched a lot (?))
  */
 #include "platform.h"
+#include "gnunet_time_lib.h"
 #include "gnunet_util_lib.h"
 #include "gnunet_hello_lib.h"
 #include "gnunet_signatures.h"
@@ -38,10 +39,10 @@
 #include "gnunet_ats_service.h"
 #include "gnunet_core_service.h"
 #include "gnunet_statistics_service.h"
-#include "cadet_protocol.h"
+#include "gnunet-service-cadet_peer.h"
+#include "gnunet-service-cadet.h"
 #include "gnunet-service-cadet_connection.h"
 #include "gnunet-service-cadet_dht.h"
-#include "gnunet-service-cadet_peer.h"
 #include "gnunet-service-cadet_paths.h"
 #include "gnunet-service-cadet_tunnels.h"
 
@@ -65,7 +66,6 @@
  * Queue size when we start dropping OOO messages.
  */
 #define MAX_OOO_QUEUE_SIZE  100
-
 
 /**
  * Data structure used to track whom we have to notify about changes
@@ -118,7 +118,7 @@ struct CadetPeer
   /**
    * Last time we heard from this peer (currently not used!)
    */
-  struct GNUNET_TIME_Absolute last_contactXXX;
+  struct GNUNET_TIME_Absolute last_connection_create;
 
   /**
    * Array of DLLs of paths traversing the peer, organized by the
@@ -1550,6 +1550,57 @@ GCP_send_ooo (struct CadetPeer *cp,
                          cp);
   GNUNET_MQ_send (cp->core_mq,
                   env);
+}
+
+/**
+ * Checking if a monotime value is newer than the last monotime value received from a peer. If the time value is newer it will be stored at the peer.
+ *
+ * @param peer The peer we received a new time value from.
+ * @param monotime Time value we check against the last time value we received from a peer.
+ * @return GNUNET_YES if monotime is newer than the last received time value, GNUNET_NO if monotime is not newer.
+ */
+int
+GCP_check_and_update_monotime (struct CadetPeer *peer,
+                               struct GNUNET_TIME_AbsoluteNBO monotime)
+{
+
+  struct GNUNET_TIME_Absolute mt = GNUNET_TIME_absolute_ntoh (monotime);
+
+  if (mt.abs_value_us > *(&peer->last_connection_create.abs_value_us))
+  {
+    peer->last_connection_create = mt;
+    return GNUNET_YES;
+  }
+  return GNUNET_NO;
+}
+
+/**
+ * Checking the signature for a monotime of a GNUNET_CADET_ConnectionCreateMessage.
+ *
+ * @param peer The peer that signed the monotime value.
+ * @param msg The GNUNET_CADET_ConnectionCreateMessage with the monotime value.
+ * @return GNUNET_OK if the signature is good, GNUNET_SYSERR if not.
+ */
+int
+GCP_check_monotime_sig (struct CadetPeer *peer,
+                        const struct GNUNET_CADET_ConnectionCreateMessage *msg)
+{
+  struct CadetConnectionCreatePS cp = { .purpose.purpose = htonl (
+                                          GNUNET_SIGNATURE_PURPOSE_CADET_CONNECTION_INITIATOR),
+                                        .purpose.size = htonl (sizeof(cp)),
+                                        .monotonic_time = msg->monotime};
+
+  if (GNUNET_OK !=
+      GNUNET_CRYPTO_eddsa_verify (
+        GNUNET_SIGNATURE_PURPOSE_CADET_CONNECTION_INITIATOR,
+        &cp,
+        &msg->monotime_sig,
+        &peer->pid.public_key))
+  {
+    GNUNET_break_op (0);
+    return GNUNET_SYSERR;
+  }
+  return GNUNET_OK;
 }
 
 

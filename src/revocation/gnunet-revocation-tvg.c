@@ -34,6 +34,22 @@
 #define TEST_EPOCHS 2
 #define TEST_DIFFICULTY 5
 
+static void
+print_bytes (void *buf,
+             size_t buf_len,
+             int fold)
+{
+  int i;
+
+  for (i = 0; i < buf_len; i++)
+  {
+    if ((0 != i) && (0 != fold) && (i%fold == 0))
+      printf("\n");
+    printf("%02x", ((unsigned char*)buf)[i]);
+  }
+  printf("\n");
+}
+
 /**
  * Main function that will be run.
  *
@@ -52,22 +68,18 @@ run (void *cls,
   struct GNUNET_CRYPTO_EcdsaPublicKey id_pub;
   struct GNUNET_REVOCATION_PowP pow;
   struct GNUNET_REVOCATION_PowCalculationHandle *ph;
-  char* data_enc;
+  struct GNUNET_TIME_Relative exp;
 
   GNUNET_CRYPTO_ecdsa_key_create (&id_priv);
   GNUNET_CRYPTO_ecdsa_key_get_public (&id_priv,
                                       &id_pub);
-  GNUNET_STRINGS_base64_encode (&id_priv,
-                                sizeof (struct GNUNET_CRYPTO_EcdsaPrivateKey),
-                                &data_enc);
-  fprintf(stdout, "Zone private key (d):\n%s\n\n", data_enc);
-  GNUNET_free (data_enc);
-  GNUNET_STRINGS_base64_encode (&id_pub,
-                                sizeof (struct GNUNET_CRYPTO_EcdsaPrivateKey),
-                                &data_enc);
-  fprintf(stdout, "Zone public key (zk):\n%s\n\n", data_enc);
-  GNUNET_free (data_enc);
-
+  fprintf(stdout, "Zone private key (d, little-endian scalar):\n");
+  print_bytes (&id_priv, sizeof(id_priv), 0);
+  fprintf(stdout, "\n");
+  fprintf(stdout, "Zone public key (zk):\n");
+  print_bytes (&id_pub, sizeof(id_pub), 0);
+  fprintf(stdout, "\n");
+  memset (&pow, 0, sizeof (pow));
   GNUNET_REVOCATION_pow_init (&id_priv,
                               &pow);
   ph = GNUNET_REVOCATION_pow_start (&pow,
@@ -82,11 +94,15 @@ run (void *cls,
   {
     pow_passes++;
   }
-  GNUNET_STRINGS_base64_encode (&pow,
-                                sizeof (struct GNUNET_REVOCATION_PowP),
-                                &data_enc);
-  fprintf(stdout, "Proof:\n%s\n", data_enc);
-  GNUNET_free (data_enc);
+  exp = GNUNET_TIME_relative_multiply (GNUNET_TIME_UNIT_YEARS,
+                                       TEST_EPOCHS);
+  GNUNET_assert (GNUNET_OK == GNUNET_REVOCATION_check_pow (&pow,
+                                                           TEST_DIFFICULTY,
+                                                           exp));
+  fprintf(stdout, "Proof:\n");
+  print_bytes (&pow,
+               sizeof (pow),
+               8);
 }
 
 

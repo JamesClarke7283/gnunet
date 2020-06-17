@@ -50,25 +50,29 @@ extern "C" {
 #endif
 
 /*******************************************************************************
- * UTIL message types
- ******************************************************************************/
+* Deprecated
+* *****************************************************************************/
 
 /**
  * Test if service is online.
  *
  * @deprecated!
  */
-#define GNUNET_MESSAGE_TYPE_TEST 1
+#define GNUNET_MESSAGE_TYPE_TEST 0
+
+/*******************************************************************************
+* AGPL source code download
+* *****************************************************************************/
 
 /**
- * Dummy messages for testing / benchmarking.
+ * Message to request source code link.
  */
-#define GNUNET_MESSAGE_TYPE_DUMMY 2
+#define GNUNET_MESSAGE_TYPE_REQUEST_AGPL 1
 
 /**
- * Another dummy messages for testing / benchmarking.
+ * Source code link.
  */
-#define GNUNET_MESSAGE_TYPE_DUMMY2 3
+#define GNUNET_MESSAGE_TYPE_RESPONSE_AGPL 2
 
 /*******************************************************************************
  * RESOLVER message types
@@ -85,18 +89,18 @@ extern "C" {
 #define GNUNET_MESSAGE_TYPE_RESOLVER_RESPONSE 5
 
 /*******************************************************************************
-* AGPL source code download
-* *****************************************************************************/
+ * UTIL message types
+ ******************************************************************************/
 
 /**
- * Message to request source code link.
+ * Dummy messages for testing / benchmarking.
  */
-#define GNUNET_MESSAGE_TYPE_REQUEST_AGPL 6
+#define GNUNET_MESSAGE_TYPE_DUMMY 6
 
 /**
- * Source code link.
+ * Another dummy messages for testing / benchmarking.
  */
-#define GNUNET_MESSAGE_TYPE_RESPONSE_AGPL 7
+#define GNUNET_MESSAGE_TYPE_DUMMY2 7
 
 
 /*******************************************************************************
@@ -1648,29 +1652,8 @@ extern "C" {
  */
 #define GNUNET_MESSAGE_TYPE_CONSENSUS_P2P_ELEMENTS_REPORT 545
 
-/*
- * Initialization message for consensus p2p communication.
- */
-#define GNUNET_MESSAGE_TYPE_CONSENSUS_P2P_HELLO 546
-
 /**
- * Report that the peer is synced with the partner after successfuly decoding
- * the invertible bloom filter.
- */
-#define GNUNET_MESSAGE_TYPE_CONSENSUS_P2P_SYNCED 547
-
-/**
- * Interaction os over, got synched and reported all elements
- */
-#define GNUNET_MESSAGE_TYPE_CONSENSUS_P2P_FIN 548
-
-/**
- * Abort a round, don't send requested elements anymore
- */
-#define GNUNET_MESSAGE_TYPE_CONSENSUS_P2P_ABORT 548
-
-/**
- * Abort a round, don't send requested elements anymore
+ * Provide context for a consensus round.
  */
 #define GNUNET_MESSAGE_TYPE_CONSENSUS_P2P_ROUND_CONTEXT 547
 
@@ -2751,9 +2734,8 @@ extern "C" {
  * 1000-1009 Connection-level Messages
  * 1010-1019 Channel-level Messages
  * 1020-1029 Local Client-Service
- * 1030-1039 Local Service Monitoring
- * 1040-1049 Application Data
- * 1050-1059 Reserved
+ * 1030-1049 Local Service Monitoring
+ * 1050-1059 Application Data
  */
 
 /********************************  Connection  ********************************/
@@ -2948,6 +2930,11 @@ extern "C" {
  * End of local information about all tunnels of service.
  */
 #define GNUNET_MESSAGE_TYPE_CADET_LOCAL_INFO_TUNNELS_END 1041
+
+/**
+ * Request to drop a message of type X to peer y.
+ */
+#define GNUNET_MESSAGE_TYPE_CADET_DROP_CADET_MESSAGE 1042
 
 
 /********************************  Application  *******************************/
@@ -3178,6 +3165,10 @@ extern "C" {
  */
 #define GNUNET_MESSAGE_TYPE_TRANSPORT_FLOW_CONTROL 1221
 
+/**
+ * @brief inform transport that a queue was updated
+ */
+#define GNUNET_MESSAGE_TYPE_TRANSPORT_QUEUE_UPDATE 1222
 
 /**
  * Message sent to indicate to the transport that a monitor

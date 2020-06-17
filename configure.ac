@@ -786,12 +786,9 @@ AC_ARG_WITH(jansson,
    ],
    [AC_MSG_RESULT([--with-jansson not specified])
     CHECK_LIBHEADER(JANSSON, jansson, json_loads, jansson.h,jansson=1,)])
-AM_CONDITIONAL(HAVE_JANSSON, [test "$jansson" = 1])
-AM_CONDITIONAL(HAVE_JSON, [test x$jansson = x1])
-AS_IF([test "x$jansson" = x1],
-      [AC_DEFINE([HAVE_JANSSON],[1],[Have jansson library])],
-      [AC_DEFINE([HAVE_JANSSON],[0],[Lacking jansson library])])
 
+AS_IF([test "x$jansson" != x1],
+      [AC_MSG_ERROR([GNUnet requires libjansson])])
 
 # check for libpulse(audio) library
 pulse=0
@@ -984,8 +981,8 @@ AS_IF([test "x$curl" = xtrue],[
  AC_CHECK_HEADER([curl/curl.h],
   AC_CHECK_DECLS(CURLINFO_TLS_SESSION,[curl=true],[curl=false],[[#include <curl/curl.h>]]),
   [curl=false])
- # need libcurl-gnutls.so, everything else is not acceptable
- AC_CHECK_LIB([curl-gnutls],[curl_easy_getinfo],,[curl=false])
+ # need libcurl-gnutls.so for proxy, warn later if not found.
+ AC_CHECK_LIB([curl-gnutls],[curl_easy_getinfo],[curl_gnutls=true],[curl_gnutls=false])
  # cURL must support CURLINFO_TLS_SESSION, version >= 7.34
 ])
 
@@ -1000,7 +997,7 @@ AS_IF([test "$gnurl" = 1],
               AC_DEFINE([HAVE_LIBGNURL],[0],[Lacking libgnurl])
               AM_CONDITIONAL(HAVE_LIBCURL, true)
               AC_DEFINE([HAVE_LIBCURL],[1],[Have libcurl])],
-             [AC_MSG_WARN([ERROR: GNUnet requires libcurl-gnutls or gnurl >= 7.34])
+             [AC_MSG_ERROR([GNUnet requires libcurl or gnurl >= 7.34])
               AM_CONDITIONAL(HAVE_LIBGNURL, false)
               AC_DEFINE([HAVE_LIBGNURL],[0],[Lacking libgnurl])
               AM_CONDITIONAL(HAVE_LIBCURL, false)
@@ -1036,20 +1033,10 @@ AS_IF([test x$nss = xfalse],
 AC_CHECK_LIB([kvm],[kvm_open])
 AC_CHECK_LIB([kstat],[kstat_open])
 
-argon=0
-# test for argon2 (for POW)
-AC_CHECK_LIB([argon2],[argon2d_hash_raw], argon=1, argon=0)
-AS_IF([test x$argon = x1],
-[
- AC_MSG_RESULT([argon2 found])
-],[
- AC_MSG_ERROR([GNUnet requires argon2.])
-])
-
 libsodium=0
 # test for libsodium
 AC_CHECK_HEADER([sodium.h],
-                [AC_CHECK_LIB([sodium], [sodium_init],
+                [AC_CHECK_LIB([sodium], [crypto_pwhash_argon2id],
                               [libsodium=1])])
 
 AS_IF([test x$libsodium = x0],
@@ -1472,6 +1459,9 @@ AC_DEFINE_UNQUOTED([HAVE_MHD], $lmhd, [We have libmicrohttpd])
 
 AM_CONDITIONAL(HAVE_JSON, [test x$jansson = x1])
 AM_CONDITIONAL(HAVE_REST, [test x$jansson = x1 -a x$lmhd = x1])
+AS_IF([test "x$lmhd" != "x1"],
+      [AC_MSG_ERROR([GNUnet requires libmicrohttpd >= 0.9.63.])])
+
 
 # restore LIBS
 LIBS=$SAVE_LIBS
@@ -2001,7 +1991,7 @@ AS_IF([test "x$enable_java_ports" = "xyes"],
 #### This could be moved to the checks above,
 #### but for now let's keep it here.
 ####
-transport_msg="tcp udp unix"
+transport_msg="tcp udp unix http"
 AS_IF([test "x$build_target" = "xlinux" -a "x$enable_experimental" = "xyes"],
       [transport_msg="$transport_msg wlan"])
 # -- print message regarding enabled experimental features
@@ -2047,26 +2037,10 @@ AS_IF([test "x$conversation_backend" = "xnone"],
       [AS_IF([test "x$opus" = x1],
              [conversation_msg="yes (x$conversation_backend)"],
              [AC_MSG_WARN([libopus not found (required to build conversation)])])])
-# -- rest / oidc
-rest_msg="no"
-AS_IF([test "x$lmhd" = "x1" -a "x$jansson" = "x1"],
-      [rest_msg="yes"
-       reclaim_msg="yes (with OpenID Connect)"],
-      [rest_msg="no"
-       reclaim_msg="yes (without OpenID Connect)"])
-
 
 # -- interface
 interface_msg=`echo $DEFAULT_INTERFACE | tr -d \"`
-# -- libmicrohttpd
-AS_IF([test "x$lmhd" = "x0"],
-      [libmicrohttpd_msg="no (REST service and HTTP transport will not be built)"],
-      [libmicrohttpd_msg="yes"
-       transport_msg="$transport_msg http_server"])
 # -- jansson
-AS_IF([test "x$jansson" = "x0"],
-      [jansson_msg="no (REST service will not be built)"],
-      [jansson_msg="yes"])
 # -- libextractor
 AS_IF([test "$extractor" != 1],
       [AC_MSG_WARN([libextractor not found, but various file-sharing functions require it])],
@@ -2080,11 +2054,15 @@ AS_IF([test "$gnurl" = "0"],
       [AS_IF([test "x$curl" = "xfalse"],
              [AC_MSG_WARN([libgnurl not found. http client support will not be compiled.])
               AC_MSG_WARN([IMPORTANT: No HTTP client library found. HTTP transports and hostlist daemon will not be compiled, and you probably WANT the hostlist daemon])
-              curl_msg="no"],
-             [AC_MSG_NOTICE([libgnurl not found, trying to use libcurl-gnutls instead.])
-              curl_msg="yes"])],
-       [gnurl_msg="yes"
-        transport_msg="$transport_msg http_client"])
+              http_client="none"],
+             [AC_MSG_NOTICE([Using libcurl as HTTP client library.])
+              http_client="curl"])],
+       [AC_MSG_NOTICE([Using libgnurl as HTTP client library.])
+        http_client="gnurl"])
+AS_IF([test "x$curl" = "xtrue" -a "x$curl_gnutls" != "xtrue"],
+      [AC_MSG_WARN([libcurl TLS backend is not gnutls. The GNS Proxy will likely not function properly.])
+       http_client="curl-openssl"],
+      [http_client="curl-gnutls"])
 # -- ifconfig
 AS_IF([test "$VAR_IFCONFIG_BINARY" = "false"],
       [ifconfig_msg="no (optional, some features will not work)"],
@@ -2160,17 +2138,14 @@ Default Interface:              ${interface_msg}
 MySQL:                          ${mysql_msg}
 PostgreSQL:                     ${postgres_msg}
 sqlite3:                        ${sqlite_msg}
-gnurl:                          ${gnurl_msg}
-curl:                           ${curl_msg}
+http client:                    ${http_client}
 bluetooth:                      ${bluetooth_msg}
-jansson:                        ${jansson_msg}
 iptables:                       ${iptables_msg}
 ifconfig:                       ${ifconfig_msg}
 upnpc:                          ${upnpc_msg}
 gnutls:                         ${gnutls_msg}
 libzbar:                        ${libzbar_msg}
 java:                           ${java_msg}
-libmicrohttpd:                  ${libmicrohttpd_msg}
 libidn:                         ${libidn1_msg}${libidn2_msg}
 libopus:                        ${libopus_msg}
 gstreamer:                      ${gstreamer_msg}
@@ -2182,9 +2157,7 @@ mandoc:                         ${mandoc_msg}
 GNUnet configuration:
 =====================
 transports:                     ${transport_msg}
-reclaimID:                      ${reclaim_msg}
 conversation:                   ${conversation_msg}
-rest:                           ${rest_msg}
 database backends:              ${features_msg}
 experimental:                   ${experimental_msg}
 

@@ -780,7 +780,7 @@ count_leading_zeroes (const struct GNUNET_HashCode *hash)
   unsigned int hash_count;
 
   hash_count = 0;
-  while (0 == GNUNET_CRYPTO_hash_get_bit (hash, hash_count))
+  while (0 == GNUNET_CRYPTO_hash_get_bit_ltr (hash, hash_count))
     hash_count++;
   return hash_count;
 }
@@ -806,7 +806,7 @@ check_proof_of_work (const struct GNUNET_CRYPTO_EddsaPublicKey *pkey,
   GNUNET_memcpy (&buf[sizeof(val)],
                  pkey,
                  sizeof(struct GNUNET_CRYPTO_EddsaPublicKey));
-  GNUNET_CRYPTO_pow_hash ("gnunet-nse-proof-of-work",
+  GNUNET_CRYPTO_pow_hash ("gnunet-nse-proof",
                           buf,
                           sizeof(buf),
                           &result);
@@ -861,7 +861,7 @@ find_proof (void *cls)
   while ((counter != UINT64_MAX) && (i < ROUND_SIZE))
   {
     GNUNET_memcpy (buf, &counter, sizeof(uint64_t));
-    GNUNET_CRYPTO_pow_hash ("gnunet-nse-proof-of-work",
+    GNUNET_CRYPTO_pow_hash ("gnunet-nse-proof",
                             buf,
                             sizeof(buf),
                             &result);
@@ -1001,7 +1001,7 @@ handle_p2p_estimate (void *cls,
     if (NULL != lh)
       GNUNET_TESTBED_LOGGER_write (lh, &t, sizeof(uint64_t));
     if (NULL != histogram)
-      GNUNET_BIO_write_int64 (histogram, t);
+      GNUNET_BIO_write_int64 (histogram, "histogram-time", t);
   }
 #endif
   GNUNET_STATISTICS_update (stats, "# flood messages received", 1, GNUNET_NO);
@@ -1299,7 +1299,7 @@ shutdown_task (void *cls)
   }
   if (NULL != histogram)
   {
-    GNUNET_BIO_write_close (histogram);
+    GNUNET_BIO_write_close (histogram, NULL);
     histogram = NULL;
   }
 #endif
@@ -1453,7 +1453,7 @@ run (void *cls,
       GNUNET_assert (
         0 < GNUNET_asprintf (&histogram_fn, "%s/timestamps", histogram_dir));
       GNUNET_free (histogram_dir);
-      histogram = GNUNET_BIO_write_open (histogram_fn);
+      histogram = GNUNET_BIO_write_open_file (histogram_fn);
       if (NULL == histogram)
         GNUNET_log (GNUNET_ERROR_TYPE_WARNING,
                     "Unable to open histogram file `%s'\n",
