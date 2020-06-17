@@ -45,7 +45,6 @@
  *     - GNUNET_TESTBED_underlay_configure_link not implemented
  *     - GNUNET_TESTBED_underlaylinkmodel_set_link not usable
  *     - GNUNET_TESTBED_peer_stop evokes standard service disconnect
- *     - GNUNET_TESTBED_peer_destroy and GNUNET_TESTBED_peer_create
  *   - how can we test the sublayers of CADET, e.g. connection, tunnel, channel?
  *
  * Development
@@ -63,27 +62,48 @@
 /****************************** TEST LOGIC ********************************/
 
 static int kx_initiator;
-
-void 
-handle_message (void *cls, 
-                const struct GNUNET_MessageHeader *msg)
-{
-  GNUNET_log (GNUNET_ERROR_TYPE_INFO, "%s\n", __func__);
-}
+static struct GNUNET_TESTBED_UnderlayLinkModel *model;
 
 static void
 send_message ()
 {
   struct GNUNET_MQ_Envelope *envelope;
   struct GNUNET_MessageHeader *msg;
+  int *data;
 
   GNUNET_log (GNUNET_ERROR_TYPE_INFO, "%s\n", __func__);
 
-  envelope = GNUNET_MQ_msg (msg, 
-                            GNUNET_MESSAGE_TYPE_DUMMY);
+  envelope = GNUNET_MQ_msg_extra (msg, 10000,
+                                  GNUNET_MESSAGE_TYPE_DUMMY);
+  data = (int *) &msg[1];
+  *data = 1000;
 
   GNUNET_MQ_send (GNUNET_CADET_get_mq (test_peers[0].channel), 
                   envelope);
+}
+
+int
+check_message (void *cls,
+               const struct GNUNET_MessageHeader *message)
+{
+  return GNUNET_OK;             /* all is well-formed */
+}
+
+void 
+handle_message (void *cls, 
+                const struct GNUNET_MessageHeader *msg)
+{
+  GNUNET_log (GNUNET_ERROR_TYPE_INFO, "%s\n", __func__);
+
+/*
+  model = GNUNET_TESTBED_underlaylinkmodel_create (test_peers[1].testbed_peer,
+                                                   GNUNET_TESTBED_UNDERLAYLINKMODELTYPE_BLACKLIST);
+  GNUNET_TESTBED_underlaylinkmodel_set_link (model,
+                                             test_peers[0].testbed_peer,
+                                             0, 100, 0);
+  GNUNET_log (GNUNET_ERROR_TYPE_INFO, "%s: Modified link model.\n", __func__);
+*/
+  send_message();
 }
 
 /**
@@ -99,10 +119,12 @@ run_test ()
   kx_initiator = (0 < GNUNET_memcmp (&test_peers[0].id, &test_peers[1].id)) ? 1 : 0;
 
   GNUNET_log (GNUNET_ERROR_TYPE_INFO, 
-              "KX initiator is peer %s\n", 
-              GNUNET_i2s (&test_peers[kx_initiator].id));
+              "KX initiator is peer %s (idx:%i)\n", 
+              GNUNET_i2s (&test_peers[kx_initiator].id),
+              kx_initiator);
 
-  send_message();
+  for (int i=0; i<10; i++)
+    send_message();
 }
 
 
