@@ -47,8 +47,13 @@ int
 check_message (void *cls,
                const struct GNUNET_MessageHeader *message);
 
-void handle_message (void *cls,
-                     const struct GNUNET_MessageHeader *msg);
+void 
+handle_message (void *cls,
+                const struct GNUNET_MessageHeader *msg);
+
+int
+check_message (void *cls,
+               const struct GNUNET_MessageHeader *message);
 
 /**
  * Structure for storing information of testbed peers.
