@@ -24,8 +24,10 @@
  * @author Sree Harsha Totakura <sreeharsha@totakura.in>
  */
 
+#include "platform.h"
+#include "gnunet_util_lib.h"
+#include "gnunet_testbed_service.h"
 #include "testbed_api_peers.h"
-
 
 /**
  * An underlay link
@@ -101,7 +103,7 @@ struct GNUNET_TESTBED_UnderlayLinkModel
    * the type of this model
    */
   enum GNUNET_TESTBED_UnderlayLinkModelType type;
-}
+};
 
 
 /**
@@ -236,7 +238,7 @@ GNUNET_TESTBED_underlaylinkmodel_free (struct
   model->peer->underlay_model_exists = 0;
   free_entries (model);
   free_link_properties (model);
-  gnunet_free (model);
+  GNUNET_free (model);
 }
 
 

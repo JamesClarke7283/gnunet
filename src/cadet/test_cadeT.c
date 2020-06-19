@@ -63,6 +63,23 @@
 
 static int kx_initiator;
 static struct GNUNET_TESTBED_UnderlayLinkModel *model;
+static int msg_count;
+static struct GNUNET_SCHEDULER_Task *task;
+
+enum RES {
+  RECEIVED_MESSAGE = 1
+};
+
+enum RES check;
+
+static void
+set_data_loss_rate (int rate)
+{
+  GNUNET_TESTBED_underlaylinkmodel_set_link (model,
+                                             test_peers[0].testbed_peer,
+                                             0, rate, 100);
+  GNUNET_log (GNUNET_ERROR_TYPE_INFO, "%s: %i loss.\n", __func__, rate);
+}
 
 static void
 send_message ()
@@ -73,13 +90,26 @@ send_message ()
 
   GNUNET_log (GNUNET_ERROR_TYPE_INFO, "%s\n", __func__);
 
-  envelope = GNUNET_MQ_msg_extra (msg, 10000,
+  envelope = GNUNET_MQ_msg_extra (msg, 1000,
                                   GNUNET_MESSAGE_TYPE_DUMMY);
   data = (int *) &msg[1];
   *data = 1000;
 
   GNUNET_MQ_send (GNUNET_CADET_get_mq (test_peers[0].channel), 
                   envelope);
+
+  msg_count++;
+
+  switch (msg_count) 
+  {
+    case 2: set_data_loss_rate (100); break;
+    case 4: set_data_loss_rate (0); break;
+  }
+
+  if (msg_count < 5)
+    task = GNUNET_SCHEDULER_add_delayed (GNUNET_TIME_relative_multiply (GNUNET_TIME_UNIT_SECONDS, 1),
+                                         &send_message,
+                                         NULL);
 }
 
 int
@@ -94,16 +124,9 @@ handle_message (void *cls,
                 const struct GNUNET_MessageHeader *msg)
 {
   GNUNET_log (GNUNET_ERROR_TYPE_INFO, "%s\n", __func__);
+  GNUNET_CADET_receive_done (test_peers[1].channel);
 
-/*
-  model = GNUNET_TESTBED_underlaylinkmodel_create (test_peers[1].testbed_peer,
-                                                   GNUNET_TESTBED_UNDERLAYLINKMODELTYPE_BLACKLIST);
-  GNUNET_TESTBED_underlaylinkmodel_set_link (model,
-                                             test_peers[0].testbed_peer,
-                                             0, 100, 0);
-  GNUNET_log (GNUNET_ERROR_TYPE_INFO, "%s: Modified link model.\n", __func__);
-*/
-  send_message();
+  check = RECEIVED_MESSAGE;
 }
 
 /**
@@ -116,6 +139,10 @@ run_test ()
 {
   GNUNET_log (GNUNET_ERROR_TYPE_INFO, "%s\n", __func__);
 
+  // Init underlay link model to manipulate links
+  model = GNUNET_TESTBED_underlaylinkmodel_create (test_peers[1].testbed_peer,
+                                                   GNUNET_TESTBED_UNDERLAYLINKMODELTYPE_BLACKLIST);
+
   kx_initiator = (0 < GNUNET_memcmp (&test_peers[0].id, &test_peers[1].id)) ? 1 : 0;
 
   GNUNET_log (GNUNET_ERROR_TYPE_INFO, 
@@ -123,8 +150,7 @@ run_test ()
               GNUNET_i2s (&test_peers[kx_initiator].id),
               kx_initiator);
 
-  for (int i=0; i<10; i++)
-    send_message();
+  send_message();
 }
 
 

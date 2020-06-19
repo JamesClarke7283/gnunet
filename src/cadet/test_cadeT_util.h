@@ -33,12 +33,19 @@
 
 int test_result;
 
-void prepare_test ();
+void 
+prepare_test ();
 
-void run_test ();
+void 
+run_test ();
 
-void handle_message (void *cls,
-                     const struct GNUNET_MessageHeader *msg);
+void 
+handle_message (void *cls,
+                const struct GNUNET_MessageHeader *msg);
+
+int
+check_message (void *cls,
+               const struct GNUNET_MessageHeader *message);
 
 /**
  * Structure for storing information of testbed peers.
