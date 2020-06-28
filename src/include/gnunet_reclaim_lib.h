@@ -66,6 +66,22 @@ extern "C" {
 #define GNUNET_RECLAIM_ID_LENGTH (256 / 8)
 
 /**
+ * Enum for the different key escrow methods
+ */
+enum GNUNET_RECLAIM_Key_Escrow_Method {
+  GNUNET_RECLAIM_KE_PLAINTEXT,
+  GNUNET_RECLAIM_KE_GNS,
+  GNUNET_RECLAIM_KE_ANASTASIS
+};
+
+/**
+ * Enum for the different attribute escrow methods
+ */
+enum GNUNET_RECLAIM_Attribute_Escrow_Method {
+  GNUNET_RECLAIM_AE_PLAINTEXT
+};
+
+/**
  * A reclaim identifier
  * FIXME maybe put this in a different namespace
  */
