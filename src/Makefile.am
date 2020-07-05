@@ -12,7 +12,8 @@ endif
 if HAVE_EXPERIMENTAL
  EXP_DIR = \
   rps \
-  abd
+  abd \
+  escrow
 if HAVE_ABE
  EXP_DIR += \
   abe

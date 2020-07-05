@@ -19,15 +19,14 @@
  */
 
 /**
- * @file reclaim-escrow/plugin_reclaim_escrow_key_anastasis.c
- * @brief reclaim-escrow-plugin-key-anastasis escrow plugin for
- *        escrow of the key using Anastasis
+ * @file escrow/plugin_escrow_anastasis.c
+ * @brief escrow-plugin-anastasis escrow plugin for escrow of the key using Anastasis
  *
  * @author Johannes Späth
  */
 #include "platform.h"
 #include "gnunet_util_lib.h"
-#include "gnunet_reclaim_plugin.h"
+#include "gnunet_escrow_plugin.h"
 #include <inttypes.h>
 
 
@@ -39,7 +38,7 @@
  * @return GNUNET_OK if successful
  */
 int
-start_anastasis_key_escrow (struct GNUNET_IDENTITY_Ego *ego,
+start_anastasis_key_escrow (const struct GNUNET_IDENTITY_Ego *ego,
                             void *escrowAnchor)
 {
   // TODO: implement
@@ -55,7 +54,7 @@ start_anastasis_key_escrow (struct GNUNET_IDENTITY_Ego *ego,
  * @return GNUNET_OK if successful
  */
 int
-renew_anastasis_key_escrow (struct GNUNET_IDENTITY_Ego *ego,
+renew_anastasis_key_escrow (const struct GNUNET_IDENTITY_Ego *ego,
                             void *escrowAnchor)
 {
   // TODO: implement
@@ -70,11 +69,11 @@ renew_anastasis_key_escrow (struct GNUNET_IDENTITY_Ego *ego,
  * @return the exported block API
  */
 void *
-libgnunet_plugin_reclaim_escrow_anastasis_init (void *cls)
+libgnunet_plugin_escrow_anastasis_init (void *cls)
 {
-  struct GNUNET_RECLAIM_EscrowKeyPluginFunctions *api;
+  struct GNUNET_ESCROW_KeyPluginFunctions *api;
 
-  api = GNUNET_new (struct GNUNET_RECLAIM_EscrowKeyPluginFunctions);
+  api = GNUNET_new (struct GNUNET_ESCROW_KeyPluginFunctions);
   api->start_key_escrow = &start_anastasis_key_escrow;
   api->renew_key_escrow = &renew_anastasis_key_escrow;
   return api;
@@ -88,7 +87,7 @@ libgnunet_plugin_reclaim_escrow_anastasis_init (void *cls)
  * @return NULL
  */
 void *
-libgnunet_plugin_reclaim_escrow_anastasis_done (void *cls)
+libgnunet_plugin_escrow_anastasis_done (void *cls)
 {
   struct GNUNET_RECLAIM_EscrowKeyPluginFunctions *api = cls;
 
@@ -97,4 +96,4 @@ libgnunet_plugin_reclaim_escrow_anastasis_done (void *cls)
 }
 
 
-/* end of plugin_reclaim_escrow_key_anastasis.c */
+/* end of plugin_escrow_anastasis.c */
