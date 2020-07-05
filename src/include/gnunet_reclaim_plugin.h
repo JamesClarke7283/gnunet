@@ -201,51 +201,6 @@ typedef int (*GNUNET_RECLAIM_AttestationGetExpirationFunction) (
   const struct GNUNET_RECLAIM_Attestation *attest,
   struct GNUNET_TIME_Absolute *expiration);
 
-/**
- * Function called to start the escrow of the key
- * 
- * @param ego the identity ego containing the private key
- * @param escrowAnchor the anchor needed to restore the key
- * @return GNUNET_OK if successful
- */
-typedef int (*GNUNET_RECLAIM_EscrowStartKeyEscrowFunction) (
-  struct GNUNET_IDENTITY_Ego *ego,
-  void *escrowAnchor);
-
-/**
- * Function called to renew the escrow of the key
- * 
- * @param ego the identity ego containing the private key
- * @param escrowAnchor the anchor needed to restore the key
- * @return GNUNET_OK if successful
- */
-typedef int (*GNUNET_RECLAIM_EscrowRenewKeyEscrowFunction) (
-  struct GNUNET_IDENTITY_Ego *ego,
-  void *escrowAnchor);
-
-/**
- * Function called to start the escrow of the attributes
- * 
- * @param identity the private key of the identity
- * @param escrowAnchor the anchor needed to restore the attributes
- * @return GNUNET_OK if successful
- */
-typedef int (*GNUNET_RECLAIM_EscrowStartAttributesEscrowFunction) (
-  const struct GNUNET_CRYPTO_EcdsaPrivateKey *identity,
-  void *escrowAnchor);
-
-/**
- * Function called to renew the escrow of the attributes
- * 
- * @param identity the private key of the identity
- * @param escrowAnchor the anchor needed to restore the attributes
- * @return GNUNET_OK if successful
- */
-typedef int (*GNUNET_RECLAIM_EscrowRenewAttributesEscrowFunction) (
-  const struct GNUNET_CRYPTO_EcdsaPrivateKey *identity,
-  void *escrowAnchor);
-
-
 
 /**
  * Each plugin is required to return a pointer to a struct of this
@@ -325,50 +280,6 @@ struct GNUNET_RECLAIM_AttestationPluginFunctions
    * Expiration.
    */
   GNUNET_RECLAIM_AttestationGetExpirationFunction get_expiration;
-};
-
-/**
- * Each plugin is required to return a pointer to a struct of this
- * type as the return value from its entry point.
- */
-struct GNUNET_RECLAIM_EscrowKeyPluginFunctions
-{
-  /**
-   * Closure for all of the callbacks.
-   */
-  void *cls;
-
-  /**
-   * Start key escrow
-   */
-  GNUNET_RECLAIM_EscrowStartKeyEscrowFunction start_key_escrow;
-
-  /**
-   * Renew key escrow
-   */
-  GNUNET_RECLAIM_EscrowRenewKeyEscrowFunction renew_key_escrow;
-};
-
-/**
- * Each plugin is required to return a pointer to a struct of this
- * type as the return value from its entry point.
- */
-struct GNUNET_RECLAIM_EscrowAttributesPluginFunctions
-{
-  /**
-   * Closure for all of the callbacks.
-   */
-  void *cls;
-
-  /**
-   * Start attributes escrow
-   */
-  GNUNET_RECLAIM_EscrowStartAttributesEscrowFunction start_attributes_escrow;
-
-  /**
-   * Renew attributes escrow
-   */
-  GNUNET_RECLAIM_EscrowRenewAttributesEscrowFunction renew_attributes_escrow;
 };
 
 

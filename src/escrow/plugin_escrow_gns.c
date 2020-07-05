@@ -19,54 +19,63 @@
  */
 
 /**
- * @file reclaim-escrow/plugin_reclaim_escrow_key_plaintext.c
- * @brief reclaim-escrow-plugin-key-plaintext escrow plugin for
- *        plaintext escrow of the key
+ * @file escrow/plugin_escrow_gns.c
+ * @brief escrow-plugin-gns escrow plugin for the escrow of the key
+ *        using GNS and escrow identities
  *
  * @author Johannes Späth
  */
 #include "platform.h"
 #include "gnunet_util_lib.h"
-#include "gnunet_identity_service.h"
-#include "gnunet_reclaim_plugin.h"
+#include "gnunet_escrow_plugin.h"
+#include <sss.h>
 #include <inttypes.h>
 
 
 /**
- * Start the plaintext escrow of the key, i.e. simply hand out the key
+ * Start the GNS escrow of the key
  * 
  * @param ego the identity ego containing the private key
  * @param escrowAnchor the anchor needed to restore the key
  * @return GNUNET_OK if successful
  */
 int
-start_plaintext_key_escrow (struct GNUNET_IDENTITY_Ego *ego,
-                            void *escrowAnchor)
+start_gns_key_escrow (const struct GNUNET_IDENTITY_Ego *ego,
+                      void *escrowAnchor)
 {
-  struct GNUNET_CRYPTO_EcdsaPrivateKey *pk;
+  const struct GNUNET_CRYPTO_EcdsaPrivateKey *pk;
 
   if (NULL == ego)
   {
     return GNUNET_NO;
   }
   pk = GNUNET_IDENTITY_ego_get_private_key (ego);
-  escrowAnchor = GNUNET_CRYPTO_ecdsa_private_key_to_string (pk);
-  return GNUNET_OK;
+
+  // split the private key (SSS)
+
+  // create the escrow identities
+
+  // distribute the shares to the identities
+
+
+  // TODO: implement
+  return GNUNET_NO;
 }
 
 
 /**
- * Renew the plaintext escrow of the key, i.e. simply hand out the key
+ * Renew the GNS escrow of the key
  * 
  * @param ego the identity ego containing the private key
  * @param escrowAnchor the anchor needed to restore the key
  * @return GNUNET_OK if successful
  */
 int
-renew_plaintext_key_escrow (struct GNUNET_IDENTITY_Ego *ego,
-                            void *escrowAnchor)
+renew_gns_key_escrow (const struct GNUNET_IDENTITY_Ego *ego,
+                      void *escrowAnchor)
 {
-  return start_plaintext_key_escrow (ego, escrowAnchor);
+  // TODO: implement
+  return GNUNET_NO;
 }
 
 
@@ -77,13 +86,13 @@ renew_plaintext_key_escrow (struct GNUNET_IDENTITY_Ego *ego,
  * @return the exported block API
  */
 void *
-libgnunet_plugin_reclaim_escrow_plaintext_init (void *cls)
+libgnunet_plugin_escrow_gns_init (void *cls)
 {
-  struct GNUNET_RECLAIM_EscrowKeyPluginFunctions *api;
+  struct GNUNET_ESCROW_KeyPluginFunctions *api;
 
-  api = GNUNET_new (struct GNUNET_RECLAIM_EscrowKeyPluginFunctions);
-  api->start_key_escrow = &start_plaintext_key_escrow;
-  api->renew_key_escrow = &renew_plaintext_key_escrow;
+  api = GNUNET_new (struct GNUNET_ESCROW_KeyPluginFunctions);
+  api->start_key_escrow = &start_gns_key_escrow;
+  api->renew_key_escrow = &renew_gns_key_escrow;
   return api;
 }
 
@@ -95,7 +104,7 @@ libgnunet_plugin_reclaim_escrow_plaintext_init (void *cls)
  * @return NULL
  */
 void *
-libgnunet_plugin_reclaim_escrow_plaintext_done (void *cls)
+libgnunet_plugin_escrow_gns_done (void *cls)
 {
   struct GNUNET_RECLAIM_EscrowKeyPluginFunctions *api = cls;
 
@@ -104,4 +113,4 @@ libgnunet_plugin_reclaim_escrow_plaintext_done (void *cls)
 }
 
 
-/* end of plugin_reclaim_escrow_key_plaintext.c */
+/* end of plugin_escrow_gns.c */
