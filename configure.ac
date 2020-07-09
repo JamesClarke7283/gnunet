@@ -790,6 +790,34 @@ AC_ARG_WITH(jansson,
 AS_IF([test "x$jansson" != x1],
       [AC_MSG_ERROR([GNUnet requires libjansson])])
 
+# check for sss (Shamir Secret Sharing) library
+sss=0
+AC_MSG_CHECKING(for sss)
+AC_ARG_WITH(sss,
+   [  --with-sss=PREFIX (base of sss installation)],
+   [AC_MSG_RESULT([$with_sss])
+    AS_CASE([$with_sss],
+      [no],[],
+      [yes],[
+        CHECK_LIBHEADER(SSS, sss, sss_create_shares, sss.h, sss=1,)
+      ],[
+        LDFLAGS="-L$with_sss/lib $LDFLAGS"
+        CPPFLAGS="-I$with_sss/include $CPPFLAGS"
+        AC_CHECK_HEADERS(sss.h,
+          AC_CHECK_LIB([sss], [sss_create_shares],
+            EXT_LIB_PATH="-L$with_sss/lib $EXT_LIB_PATH"
+            sss=1))
+      ])
+   ],
+   [AC_MSG_RESULT([--with-sss not specified])
+    CHECK_LIBHEADER(SSS, sss, sss_create_shares, sss.h,sss=1,)])
+AM_CONDITIONAL(HAVE_SSS, [test "$sss" = 1])
+AS_IF([test "$sss" = 1],
+      [AC_DEFINE([HAVE_SSS],[1],[Have sss library])
+       sss_msg="yes"],
+      [AC_DEFINE([HAVE_SSS],[0],[Lacking sss library])
+       sss_msg="no"])
+
 # check for libpulse(audio) library
 pulse=0
 libpulse_msg="no"
@@ -2042,6 +2070,10 @@ AS_IF([test "x$conversation_backend" = "xnone"],
 # -- interface
 interface_msg=`echo $DEFAULT_INTERFACE | tr -d \"`
 # -- jansson
+# -- sss
+AS_IF([test "$sss" != 1],
+      [AC_MSG_WARN([sss library not found. GNS escrow plugin will not be compiled.])],
+      [sss_msg="yes"])
 # -- libextractor
 AS_IF([test "$extractor" != 1],
       [AC_MSG_WARN([libextractor not found, but various file-sharing functions require it])],
@@ -2154,6 +2186,7 @@ libpulse:                       ${libpulse_msg}
 libextractor:                   ${libextractor_msg}
 texi2mdoc:                      ${texi2mdoc_msg}
 mandoc:                         ${mandoc_msg}
+sss:                            ${sss_msg}
 
 GNUnet configuration:
 =====================

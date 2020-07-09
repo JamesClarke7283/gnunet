@@ -74,3 +74,5 @@ CMakeLists.txt
 CMakeFiles.txt
 
 .vscode/settings.json
+src/gnsrecord/gnunet-gnsrecord-tvg
+src/revocation/gnunet-revocation-tvg
