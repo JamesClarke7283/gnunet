@@ -9,11 +9,14 @@ if HAVE_TESTING
  ATS_TESTS = ats-tests
 endif
 
+if HAVE_SSS
+  ESCROW_DIR = escrow
+endif
 if HAVE_EXPERIMENTAL
  EXP_DIR = \
   rps \
   abd \
-  escrow
+  $(ESCROW_DIR)
 if HAVE_ABE
  EXP_DIR += \
   abe
