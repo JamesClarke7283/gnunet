@@ -27,6 +27,7 @@
 #include "platform.h"
 #include "gnunet_util_lib.h"
 #include "gnunet_escrow_plugin.h"
+#include "gnunet_identity_service.h"
 #include <inttypes.h>
 
 
@@ -34,37 +35,92 @@
  * Start the plaintext escrow of the key, i.e. simply hand out the key
  * 
  * @param ego the identity ego containing the private key
- * @param escrowAnchor the anchor needed to restore the key
- * @return GNUNET_OK if successful
+ * @return the escrow anchor needed to restore the key
  */
-int
-start_plaintext_key_escrow (const struct GNUNET_IDENTITY_Ego *ego,
-                            void *escrowAnchor)
+void *
+start_plaintext_key_escrow (const struct GNUNET_IDENTITY_Ego *ego)
 {
   const struct GNUNET_CRYPTO_EcdsaPrivateKey *pk;
 
   if (NULL == ego)
   {
-    return GNUNET_NO;
+    return NULL;
   }
   pk = GNUNET_IDENTITY_ego_get_private_key (ego);
-  escrowAnchor = GNUNET_CRYPTO_ecdsa_private_key_to_string (pk);
-  return GNUNET_OK;
+  return GNUNET_CRYPTO_ecdsa_private_key_to_string (pk);
 }
 
 
 /**
  * Renew the plaintext escrow of the key, i.e. simply hand out the key
  * 
+ * @param escrowAnchor the the escrow anchor returned by the start method
+ * @return the escrow anchor needed to restore the key
+ */
+void *
+renew_plaintext_key_escrow (const struct GNUNET_IDENTITY_Ego *ego)
+{
+  return start_plaintext_key_escrow (ego);
+}
+
+
+/**
+ * Verify the plaintext escrow of the key
+ * 
  * @param ego the identity ego containing the private key
- * @param escrowAnchor the anchor needed to restore the key
- * @return GNUNET_OK if successful
+ * @param escrowAnchor the escrow anchor needed to restore the key
+ * @return GNUNET_OK if verification is successful
  */
 int
-renew_plaintext_key_escrow (const struct GNUNET_IDENTITY_Ego *ego,
-                            void *escrowAnchor)
+verify_plaintext_key_escrow (const struct GNUNET_IDENTITY_Ego *ego,
+                             void *escrowAnchor)
 {
-  return start_plaintext_key_escrow (ego, escrowAnchor);
+  const struct GNUNET_CRYPTO_EcdsaPrivateKey *pk;
+  char *pkString;
+
+  if (NULL == ego)
+  {
+    return NULL;
+  }
+  pk = GNUNET_IDENTITY_ego_get_private_key (ego);
+  pkString = GNUNET_CRYPTO_ecdsa_private_key_to_string (pk);
+  return strncmp (pkString, (char *)escrowAnchor, strlen (pkString));
+}
+
+
+/**
+ * Restore the key from plaintext escrow
+ * 
+ * @param escrowAnchor the escrow anchor needed to restore the key
+ * @param egoName the name of the ego to restore
+ * @return the identity ego containing the private key
+ */
+const struct GNUNET_IDENTITY_Ego *
+restore_plaintext_key_escrow (void *escrowAnchor,
+                              char *egoName)
+{
+  const struct GNUNET_CRYPTO_EcdsaPrivateKey pk;
+  struct GNUNET_IDENTITY_Operation *op;
+
+  if (NULL == escrowAnchor)
+  {
+    return NULL;
+  }
+  // TODO: ecdsa method for string -> privkey
+  if (GNUNET_OK != GNUNET_CRYPTO_ecdsa_private_key_from_string ((char *)escrowAnchor,
+                                                                strlen ((char *)escrowAnchor),
+                                                                &pk))
+  {
+    return NULL;
+  }
+  
+  // TODO: implement
+  op = GNUNET_IDENTITY_create (NULL,
+                               egoName,
+                               &pk,
+                               NULL,
+                               NULL);
+  return NULL;
 }
 
 
@@ -82,6 +138,8 @@ libgnunet_plugin_escrow_plaintext_init (void *cls)
   api = GNUNET_new (struct GNUNET_ESCROW_KeyPluginFunctions);
   api->start_key_escrow = &start_plaintext_key_escrow;
   api->renew_key_escrow = &renew_plaintext_key_escrow;
+  api->verify_key_escrow = &verify_plaintext_key_escrow;
+  api->restore_key = &restore_plaintext_key_escrow;
   return api;
 }
 

@@ -43,11 +43,69 @@ extern "C" {
 /**
  * Enum for the different key escrow methods
  */
-enum GNUNET_RECLAIM_Key_Escrow_Method {
+enum GNUNET_ESCROW_Key_Escrow_Method {
   GNUNET_ESCROW_KEY_PLAINTEXT,
   GNUNET_ESCROW_KEY_GNS,
   GNUNET_ESCROW_KEY_ANASTASIS
 };
+
+
+/**
+ * Put some data in escrow using the specified escrow method
+ * 
+ * @param ego the identity ego to put in escrow
+ * @param method the escrow method to use
+ * 
+ * @return the escrow anchor needed to get the data back
+ */
+void *
+GNUNET_ESCROW_put (
+  const struct GNUNET_IDENTITY_Ego *ego,
+  enum GNUNET_ESCROW_Key_Escrow_Method method);
+
+
+/**
+ * Renew the escrow of the data related to the given escrow anchor
+ * 
+ * @param escrowAnchor the escrow anchor returned by the GNUNET_ESCROW_put method
+ * @param method the escrow method to use
+ * 
+ * @return the escrow anchor needed to get the data back
+ */
+void *
+GNUNET_ESCROW_renew (
+  void *escrowAnchor,
+  enum GNUNET_ESCROW_Key_Escrow_Method method);
+
+
+/**
+ * Get the escrowed data back
+ * 
+ * @param escrowAnchor the escrow anchor returned by the GNUNET_ESCROW_put method
+ * @param method the escrow method to use
+ * 
+ * @return a new identity ego restored from the escrow
+ */
+const struct GNUNET_IDENTITY_Ego *
+GNUNET_ESCROW_get (
+  void *escrowAnchor,
+  enum GNUNET_ESCROW_Key_Escrow_Method method);
+
+
+/**
+ * Verify the escrowed data
+ * 
+ * @param ego the identity ego that was put into escrow
+ * @param escrowAnchor the escrow anchor returned by the GNUNET_ESCROW_put method
+ * @param method the escrow method to use
+ * 
+ * @return GNUNET_OK if the escrow could successfully by restored
+ */
+int
+GNUNET_ESCROW_verify (
+  const struct GNUNET_IDENTITY_Ego *ego,
+  void *escrowAnchor,
+  enum GNUNET_ESCROW_Key_Escrow_Method method);
 
 
 #if 0 /* keep Emacsens' auto-indent happy */

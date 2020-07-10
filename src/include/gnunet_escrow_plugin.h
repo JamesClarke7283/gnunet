@@ -46,23 +46,41 @@ extern "C" {
  * Function called to start the escrow of the key
  * 
  * @param ego the identity ego containing the private key
- * @param escrowAnchor the anchor needed to restore the key
- * @return GNUNET_OK if successful
+ * @return the escrow anchor needed to restore the key
  */
-typedef int (*GNUNET_ESCROW_StartKeyEscrowFunction) (
-  const struct GNUNET_IDENTITY_Ego *ego,
-  void *escrowAnchor);
+typedef void *(*GNUNET_ESCROW_StartKeyEscrowFunction) (
+  const struct GNUNET_IDENTITY_Ego *ego);
 
 /**
  * Function called to renew the escrow of the key
  * 
- * @param ego the identity ego containing the private key
- * @param escrowAnchor the anchor needed to restore the key
- * @return GNUNET_OK if successful
+ * @param escrowAnchor the the escrow anchor returned by the start method
+ * @return the escrow anchor needed to restore the key
  */
-typedef int (*GNUNET_ESCROW_RenewKeyEscrowFunction) (
+typedef void *(*GNUNET_ESCROW_RenewKeyEscrowFunction) (
+  void *escrowAnchor);
+
+/**
+ * Function called to verify the escrow of the key
+ * 
+ * @param ego the identity ego containing the private key
+ * @param escrowAnchor the escrow anchor needed to restore the key
+ * @return GNUNET_OK if verification is successful
+ */
+typedef int (*GNUNET_ESCROW_VerifyKeyEscrowFunction) (
   const struct GNUNET_IDENTITY_Ego *ego,
   void *escrowAnchor);
+
+/**
+ * Function called to restore a key from an escrow
+ * 
+ * @param escrowAnchor the escrow anchor needed to restore the key
+ * @param egoName the name of the ego to restore
+ * @return the identity ego containing the private key
+ */
+typedef const struct GNUNET_IDENTITY_Ego *(*GNUNET_ESCROW_RestoreKeyFunction) (
+  void *escrowAnchor,
+  char *egoName);
 
 
 /**
@@ -85,6 +103,16 @@ struct GNUNET_ESCROW_KeyPluginFunctions
    * Renew key escrow
    */
   GNUNET_ESCROW_RenewKeyEscrowFunction renew_key_escrow;
+
+  /**
+   * Verify key escrow
+   */
+  GNUNET_ESCROW_VerifyKeyEscrowFunction verify_key_escrow;
+
+  /**
+   * Restore key escrow
+   */
+  GNUNET_ESCROW_RestoreKeyFunction restore_key;
 };
 
 

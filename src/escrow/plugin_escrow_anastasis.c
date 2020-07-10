@@ -34,12 +34,40 @@
  * Start the Anastasis escrow of the key
  * 
  * @param ego the identity ego containing the private key
- * @param escrowAnchor the anchor needed to restore the key
- * @return GNUNET_OK if successful
+ * @return the escrow anchor needed to restore the key
+ */
+void *
+start_anastasis_key_escrow (const struct GNUNET_IDENTITY_Ego *ego)
+{
+  // TODO: implement
+  return NULL;
+}
+
+
+/**
+ * Renew the Anastasis escrow of the key
+ * 
+ * @param escrowAnchor the the escrow anchor returned by the start method
+ * @return the escrow anchor needed to restore the key
+ */
+void *
+renew_anastasis_key_escrow (const struct GNUNET_IDENTITY_Ego *ego)
+{
+  // TODO: implement
+  return NULL;
+}
+
+
+/**
+ * Verify the Anastasis escrow of the key
+ * 
+ * @param ego the identity ego containing the private key
+ * @param escrowAnchor the escrow anchor needed to restore the key
+ * @return GNUNET_OK if verification is successful
  */
 int
-start_anastasis_key_escrow (const struct GNUNET_IDENTITY_Ego *ego,
-                            void *escrowAnchor)
+verify_anastasis_key_escrow (const struct GNUNET_IDENTITY_Ego *ego,
+                             void *escrowAnchor)
 {
   // TODO: implement
   return GNUNET_NO;
@@ -47,18 +75,18 @@ start_anastasis_key_escrow (const struct GNUNET_IDENTITY_Ego *ego,
 
 
 /**
- * Renew the Anastasis escrow of the key
+ * Restore the key from Anastasis escrow
  * 
- * @param ego the identity ego containing the private key
- * @param escrowAnchor the anchor needed to restore the key
- * @return GNUNET_OK if successful
+ * @param escrowAnchor the escrow anchor needed to restore the key
+ * @param egoName the name of the ego to restore
+ * @return the identity ego containing the private key
  */
-int
-renew_anastasis_key_escrow (const struct GNUNET_IDENTITY_Ego *ego,
-                            void *escrowAnchor)
+const struct GNUNET_IDENTITY_Ego *
+restore_anastasis_key_escrow (void *escrowAnchor,
+                              char *egoName)
 {
   // TODO: implement
-  return GNUNET_NO;
+  return NULL;
 }
 
 
@@ -76,6 +104,8 @@ libgnunet_plugin_escrow_anastasis_init (void *cls)
   api = GNUNET_new (struct GNUNET_ESCROW_KeyPluginFunctions);
   api->start_key_escrow = &start_anastasis_key_escrow;
   api->renew_key_escrow = &renew_anastasis_key_escrow;
+  api->verify_key_escrow = &verify_anastasis_key_escrow;
+  api->restore_key = &restore_anastasis_key_escrow;
   return api;
 }
 

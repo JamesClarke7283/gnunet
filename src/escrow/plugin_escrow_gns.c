@@ -31,19 +31,22 @@
 #include <sss.h>
 #include <inttypes.h>
 
+#define GNUNET_ESCROW_GNS_NumberOfShares 6
+#define GNUNET_ESCROW_GNS_ShareThreshold 3
+
 
 /**
  * Start the GNS escrow of the key
  * 
  * @param ego the identity ego containing the private key
- * @param escrowAnchor the anchor needed to restore the key
- * @return GNUNET_OK if successful
+ * @return the escrow anchor needed to restore the key
  */
-int
-start_gns_key_escrow (const struct GNUNET_IDENTITY_Ego *ego,
-                      void *escrowAnchor)
+void *
+start_gns_key_escrow (const struct GNUNET_IDENTITY_Ego *ego)
 {
   const struct GNUNET_CRYPTO_EcdsaPrivateKey *pk;
+  sss_Keyshare keyshares;
+  void *escrowAnchor;
 
   if (NULL == ego)
   {
@@ -52,6 +55,10 @@ start_gns_key_escrow (const struct GNUNET_IDENTITY_Ego *ego,
   pk = GNUNET_IDENTITY_ego_get_private_key (ego);
 
   // split the private key (SSS)
+  sss_create_keyshares(keyshares,
+                       pk,
+                       GNUNET_ESCROW_GNS_NumberOfShares,
+                       GNUNET_ESCROW_GNS_ShareThreshold);
 
   // create the escrow identities
 
@@ -59,23 +66,53 @@ start_gns_key_escrow (const struct GNUNET_IDENTITY_Ego *ego,
 
 
   // TODO: implement
-  return GNUNET_NO;
+  return escrowAnchor;
 }
 
 
 /**
  * Renew the GNS escrow of the key
  * 
+ * @param escrowAnchor the the escrow anchor returned by the start method
+ * @return the escrow anchor needed to restore the key
+ */
+void *
+renew_gns_key_escrow (const struct GNUNET_IDENTITY_Ego *ego)
+{
+  // TODO: implement
+  return NULL;
+}
+
+
+/**
+ * Verify the GNS escrow of the key
+ * 
  * @param ego the identity ego containing the private key
- * @param escrowAnchor the anchor needed to restore the key
- * @return GNUNET_OK if successful
+ * @param escrowAnchor the escrow anchor needed to restore the key
+ * @return GNUNET_OK if verification is successful
  */
 int
-renew_gns_key_escrow (const struct GNUNET_IDENTITY_Ego *ego,
-                      void *escrowAnchor)
+verify_gns_key_escrow (const struct GNUNET_IDENTITY_Ego *ego,
+                       void *escrowAnchor)
 {
   // TODO: implement
   return GNUNET_NO;
+}
+
+
+/**
+ * Restore the key from GNS escrow
+ * 
+ * @param escrowAnchor the escrow anchor needed to restore the key
+ * @param egoName the name of the ego to restore
+ * @return the identity ego containing the private key
+ */
+const struct GNUNET_IDENTITY_Ego *
+restore_gns_key_escrow (void *escrowAnchor,
+                        char *egoName)
+{
+  // TODO: implement
+  return NULL;
 }
 
 
@@ -93,6 +130,8 @@ libgnunet_plugin_escrow_gns_init (void *cls)
   api = GNUNET_new (struct GNUNET_ESCROW_KeyPluginFunctions);
   api->start_key_escrow = &start_gns_key_escrow;
   api->renew_key_escrow = &renew_gns_key_escrow;
+  api->verify_key_escrow = &verify_gns_key_escrow;
+  api->restore_key = &restore_gns_key_escrow;
   return api;
 }
 
