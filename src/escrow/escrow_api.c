@@ -25,7 +25,90 @@
  * @brief api to interact with the escrow component
  */
 
+#include "gnunet_util_lib.h"
 #include "gnunet_escrow_lib.h"
+#include "gnunet_escrow_plugin.h"
+
+
+/**
+ * Init canary for the plaintext plugin
+ */
+static int plaintext_initialized;
+
+
+/**
+ * Init canary for the GNS plugin
+ */
+static int gns_initialized;
+
+
+/**
+ * Init canary for the Anastasis plugin
+ */
+static int anastasis_initialized;
+
+
+/**
+ * Pointer to the plaintext plugin API
+ */
+static struct GNUNET_ESCROW_KeyPluginFunctions *plaintext_api;
+
+
+/**
+ * Pointer to the GNS plugin API
+ */
+static struct GNUNET_ESCROW_KeyPluginFunctions *gns_api;
+
+
+/**
+ * Pointer to the Anastasis plugin API
+ */
+static struct GNUNET_ESCROW_KeyPluginFunctions *anastasis_api;
+
+
+/**
+ * Initialize an escrow plugin
+ * 
+ * @param method the escrow method determining the plugin
+ * 
+ * @return pointer to the escrow plugin API
+ */
+struct GNUNET_ESCROW_KeyPluginFunctions *
+init_plugin (enum GNUNET_ESCROW_Key_Escrow_Method method)
+{
+  switch (method)
+  {
+    case GNUNET_ESCROW_KEY_PLAINTEXT:
+      if (GNUNET_YES == plaintext_initialized)
+        return plaintext_api;
+      plaintext_initialized = GNUNET_YES;
+      GNUNET_log (GNUNET_ERROR_TYPE_DEBUG,
+                  "Loading PLAINTEXT escrow plugin\n");
+      plaintext_api = GNUNET_PLUGIN_load ("libgnunet_plugin_escrow_plaintext",
+                                          NULL);
+      return plaintext_api;
+    case GNUNET_ESCROW_KEY_GNS:
+      if (GNUNET_YES == gns_initialized)
+        return gns_api;
+      gns_initialized = GNUNET_YES;
+      GNUNET_log (GNUNET_ERROR_TYPE_DEBUG,
+                  "Loading GNS escrow plugin\n");
+      gns_api = GNUNET_PLUGIN_load ("libgnunet_plugin_escrow_gns",
+                                    NULL);
+      return gns_api;
+    case GNUNET_ESCROW_KEY_ANASTASIS:
+      if (GNUNET_YES == anastasis_initialized)
+        return anastasis_api;
+      anastasis_initialized = GNUNET_YES;
+      GNUNET_log (GNUNET_ERROR_TYPE_DEBUG,
+                  "Loading ANASTASIS escrow plugin\n");
+      anastasis_api = GNUNET_PLUGIN_load ("libgnunet_plugin_escrow_anastasis",
+                                          NULL);
+      return anastasis_api;
+  }
+  // should never be reached
+  return NULL;
+}
 
 
 /**
@@ -40,16 +123,10 @@ void *
 GNUNET_ESCROW_put (const struct GNUNET_IDENTITY_Ego *ego,
                    enum GNUNET_ESCROW_Key_Escrow_Method method)
 {
-  switch (method)
-  {
-    case GNUNET_ESCROW_KEY_PLAINTEXT:
-      break;
-    case GNUNET_ESCROW_KEY_GNS:
-      break;
-    case GNUNET_ESCROW_KEY_ANASTASIS:
-      break;
-  }
-  return NULL;
+  struct GNUNET_ESCROW_KeyPluginFunctions *api;
+
+  api = init_plugin (method);
+  return api->start_key_escrow (ego);
 }
 
 
@@ -65,7 +142,10 @@ void *
 GNUNET_ESCROW_renew (void *escrowAnchor,
                      enum GNUNET_ESCROW_Key_Escrow_Method method)
 {
-  return NULL;
+  struct GNUNET_ESCROW_KeyPluginFunctions *api;
+
+  api = init_plugin (method);
+  return api->renew_key_escrow (escrowAnchor);
 }
 
 
@@ -73,15 +153,20 @@ GNUNET_ESCROW_renew (void *escrowAnchor,
  * Get the escrowed data back
  * 
  * @param escrowAnchor the escrow anchor returned by the GNUNET_ESCROW_put method
+ * @param egoName the name of the ego to get back
  * @param method the escrow method to use
  * 
  * @return a new identity ego restored from the escrow
  */
 const struct GNUNET_IDENTITY_Ego *
 GNUNET_ESCROW_get (void *escrowAnchor,
+                   char *egoName,
                    enum GNUNET_ESCROW_Key_Escrow_Method method)
 {
-  return NULL;
+  struct GNUNET_ESCROW_KeyPluginFunctions *api;
+
+  api = init_plugin (method);
+  return api->restore_key (escrowAnchor, egoName);
 }
 
 
@@ -99,5 +184,8 @@ GNUNET_ESCROW_verify (const struct GNUNET_IDENTITY_Ego *ego,
                       void *escrowAnchor,
                       enum GNUNET_ESCROW_Key_Escrow_Method method)
 {
-  return GNUNET_NO;
+  struct GNUNET_ESCROW_KeyPluginFunctions *api;
+
+  api = init_plugin (method);
+  return api->verify_key_escrow (ego, escrowAnchor);
 }

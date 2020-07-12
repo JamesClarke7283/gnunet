@@ -82,6 +82,7 @@ GNUNET_ESCROW_renew (
  * Get the escrowed data back
  * 
  * @param escrowAnchor the escrow anchor returned by the GNUNET_ESCROW_put method
+ * @param egoName the name of the ego to get back
  * @param method the escrow method to use
  * 
  * @return a new identity ego restored from the escrow
@@ -89,6 +90,7 @@ GNUNET_ESCROW_renew (
 const struct GNUNET_IDENTITY_Ego *
 GNUNET_ESCROW_get (
   void *escrowAnchor,
+  char *egoName,
   enum GNUNET_ESCROW_Key_Escrow_Method method);
 
 
