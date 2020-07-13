@@ -1177,6 +1177,21 @@ GNUNET_CRYPTO_eddsa_public_key_to_string (
 
 
 /**
+ * Convert a string representing a private key to a private key.
+ *
+ * @param enc encoded private key
+ * @param enclen number of bytes in @a enc (without 0-terminator)
+ * @param priv where to store the private key
+ * @return #GNUNET_OK on success
+ */
+int
+GNUNET_CRYPTO_ecdsa_private_key_from_string (
+  const char *enc,
+  size_t enclen,
+  struct GNUNET_CRYPTO_EcdsaPrivateKey *pub);
+
+
+/**
  * Convert a string representing a public key to a public key.
  *
  * @param enc encoded public key
@@ -1194,7 +1209,7 @@ GNUNET_CRYPTO_ecdsa_public_key_from_string (
 /**
  * Convert a string representing a private key to a private key.
  *
- * @param enc encoded public key
+ * @param enc encoded private key
  * @param enclen number of bytes in @a enc (without 0-terminator)
  * @param priv where to store the private key
  * @return #GNUNET_OK on success
