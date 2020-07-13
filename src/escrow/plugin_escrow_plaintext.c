@@ -69,7 +69,9 @@ renew_plaintext_key_escrow (const struct GNUNET_IDENTITY_Ego *ego)
  * 
  * @param ego the identity ego containing the private key
  * @param escrowAnchor the escrow anchor needed to restore the key
- * @return GNUNET_OK if verification is successful
+ * @return GNUNET_ESCROW_VALID if the escrow could successfully by restored,
+ *         GNUNET_ESCROW_RENEW_NEEDED if the escrow needs to be renewed,
+ *         GNUNET_ESCROW_INVALID otherwise
  */
 int
 verify_plaintext_key_escrow (const struct GNUNET_IDENTITY_Ego *ego,
@@ -80,11 +82,12 @@ verify_plaintext_key_escrow (const struct GNUNET_IDENTITY_Ego *ego,
 
   if (NULL == ego)
   {
-    return NULL;
+    return GNUNET_ESCROW_INVALID;
   }
   pk = GNUNET_IDENTITY_ego_get_private_key (ego);
   pkString = GNUNET_CRYPTO_ecdsa_private_key_to_string (pk);
-  return strncmp (pkString, (char *)escrowAnchor, strlen (pkString));
+  return strncmp (pkString, (char *)escrowAnchor, strlen (pkString)) == 0 ?
+    GNUNET_ESCROW_VALID : GNUNET_ESCROW_INVALID;
 }
 
 

@@ -177,7 +177,9 @@ GNUNET_ESCROW_get (void *escrowAnchor,
  * @param escrowAnchor the escrow anchor returned by the GNUNET_ESCROW_put method
  * @param method the escrow method to use
  * 
- * @return GNUNET_OK if the escrow could successfully by restored
+ * @return GNUNET_ESCROW_VALID if the escrow could successfully by restored,
+ *         GNUNET_ESCROW_RENEW_NEEDED if the escrow needs to be renewed,
+ *         GNUNET_ESCROW_INVALID otherwise
  */
 int
 GNUNET_ESCROW_verify (const struct GNUNET_IDENTITY_Ego *ego,

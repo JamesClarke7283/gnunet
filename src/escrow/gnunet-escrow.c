@@ -96,4 +96,3 @@ main (int argc, char *const argv[])
   else
     return ret;
 }
-

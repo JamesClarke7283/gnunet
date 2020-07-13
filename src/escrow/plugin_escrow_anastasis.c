@@ -63,14 +63,16 @@ renew_anastasis_key_escrow (const struct GNUNET_IDENTITY_Ego *ego)
  * 
  * @param ego the identity ego containing the private key
  * @param escrowAnchor the escrow anchor needed to restore the key
- * @return GNUNET_OK if verification is successful
+ * @return GNUNET_ESCROW_VALID if the escrow could successfully by restored,
+ *         GNUNET_ESCROW_RENEW_NEEDED if the escrow needs to be renewed,
+ *         GNUNET_ESCROW_INVALID otherwise
  */
 int
 verify_anastasis_key_escrow (const struct GNUNET_IDENTITY_Ego *ego,
                              void *escrowAnchor)
 {
   // TODO: implement
-  return GNUNET_NO;
+  return GNUNET_ESCROW_INVALID;
 }
 
 

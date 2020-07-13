@@ -51,6 +51,16 @@ enum GNUNET_ESCROW_Key_Escrow_Method {
 
 
 /**
+ * Enum for the different verification results
+ */
+enum GNUNET_ESCROW_Verification_Result {
+  GNUNET_ESCROW_VALID,
+  GNUNET_ESCROW_INVALID,
+  GNUNET_ESCROW_RENEW_NEEDED
+};
+
+
+/**
  * Put some data in escrow using the specified escrow method
  * 
  * @param ego the identity ego to put in escrow
@@ -101,7 +111,9 @@ GNUNET_ESCROW_get (
  * @param escrowAnchor the escrow anchor returned by the GNUNET_ESCROW_put method
  * @param method the escrow method to use
  * 
- * @return GNUNET_OK if the escrow could successfully by restored
+ * @return GNUNET_ESCROW_VALID if the escrow could successfully by restored,
+ *         GNUNET_ESCROW_RENEW_NEEDED if the escrow needs to be renewed,
+ *         GNUNET_ESCROW_INVALID otherwise
  */
 int
 GNUNET_ESCROW_verify (
