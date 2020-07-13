@@ -112,6 +112,41 @@ init_plugin (enum GNUNET_ESCROW_Key_Escrow_Method method)
 
 
 /**
+ * Unload all loaded plugins on destruction.
+ */
+void __attribute__ ((destructor))
+GNUNET_ESCROW_fini_plugins ()
+{
+  if (GNUNET_YES == plaintext_initialized)
+  {
+    plaintext_initialized = GNUNET_NO;
+    GNUNET_break (NULL == 
+                  GNUNET_PLUGIN_unload ("libgnunet_plugin_escrow_plaintext",
+                                        plaintext_api));
+    plaintext_api = NULL;
+  }
+
+  if (GNUNET_YES == gns_initialized)
+  {
+    gns_initialized = GNUNET_NO;
+    GNUNET_break (NULL == 
+                  GNUNET_PLUGIN_unload ("libgnunet_plugin_escrow_gns",
+                                        gns_api));
+    gns_api = NULL;
+  }
+
+  if (GNUNET_YES == anastasis_initialized)
+  {
+    anastasis_initialized = GNUNET_NO;
+    GNUNET_break (NULL == 
+                  GNUNET_PLUGIN_unload ("libgnunet_plugin_escrow_anastasis",
+                                        anastasis_api));
+    anastasis_api = NULL;
+  }
+}
+
+
+/**
  * Put some data in escrow using the specified escrow method
  * 
  * @param ego the identity ego to put in escrow
