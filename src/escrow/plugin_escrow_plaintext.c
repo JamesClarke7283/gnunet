@@ -193,7 +193,7 @@ libgnunet_plugin_escrow_plaintext_init (void *cls)
   ph.cont = &plaintext_cont_init;
 
   identity_handle = GNUNET_IDENTITY_connect (cfg,
-                                             &GNUNET_ESCROW_list_ego,
+                                             &ESCROW_list_ego,
                                              &ph);
 
   return api;
@@ -213,7 +213,7 @@ libgnunet_plugin_escrow_plaintext_done (void *cls)
 
   GNUNET_free (api);
   GNUNET_IDENTITY_disconnect (identity_handle);
-  GNUNET_ESCROW_cleanup_ego_list (&ph);
+  ESCROW_cleanup_ego_list (&ph);
 
   return NULL;
 }

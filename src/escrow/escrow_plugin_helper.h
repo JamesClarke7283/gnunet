@@ -65,8 +65,8 @@
  *                   NULL if the user just deleted the ego and it
  *                   must thus no longer be used
  */
-static void
-GNUNET_ESCROW_list_ego (void *cls,
+void
+ESCROW_list_ego (void *cls,
                         struct GNUNET_IDENTITY_Ego *ego,
                         void **ctx,
                         const char *identifier);
@@ -77,5 +77,5 @@ GNUNET_ESCROW_list_ego (void *cls,
  * 
  * @param ph handle for the plugin
  */
-static void
-GNUNET_ESCROW_cleanup_ego_list (struct EscrowPluginHandle *ph);
+void
+ESCROW_cleanup_ego_list (struct EscrowPluginHandle *ph);
