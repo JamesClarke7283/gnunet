@@ -41,6 +41,81 @@ extern "C" {
 #endif
 #endif
 
+/**
+ * State while collecting all egos
+ */
+#define ESCROW_PLUGIN_STATE_INIT 0
+
+/**
+ * Done collecting egos
+ */
+#define ESCROW_PLUGIN_STATE_POST_INIT 1
+
+
+/**
+ * The ego list
+ */
+struct EgoEntry
+{
+  /**
+   * DLL
+   */
+  struct EgoEntry *next;
+
+  /**
+   * DLL
+   */
+  struct EgoEntry *prev;
+
+  /**
+   * Ego Identifier
+   */
+  char *identifier;
+
+  /**
+   * Public key string
+   */
+  char *keystring;
+
+  /**
+   * The Ego
+   */
+  struct GNUNET_IDENTITY_Ego *ego;
+};
+
+/**
+ * Function called after the initialization of the identity service.
+ * Passed via cls to the callback of GNUNET_IDENTITY_connect
+ */
+typedef void (*GNUNET_ESCROW_ContinueIdentityInitFunction) (
+);
+
+/**
+ * Handle for a plugin instance
+ */
+struct EscrowPluginHandle
+{
+  /**
+   * The ContinueIdentityInit function.
+   */
+  GNUNET_ESCROW_ContinueIdentityInitFunction cont;
+
+  /**
+   * The state of the plugin (in the initialization phase).
+   */
+  int state;
+
+  /**
+   * The head of the ego list.
+   */
+  struct EgoEntry *ego_head;
+
+  /**
+   * The tail of the ego list
+   */
+  struct EgoEntry *ego_tail;
+};
+
 
 /**
  * Function called to start the escrow of the key
@@ -86,6 +161,17 @@ typedef const struct GNUNET_IDENTITY_Ego *(*GNUNET_ESCROW_RestoreKeyFunction) (
 
 
 /**
+ * Function called to deserialize an escrow anchor string into a
+ * GNUNET_ESCROW_Anchor struct
+ * 
+ * @param anchorString the encoded escrow anchor string
+ * @return the deserialized data packed into a GNUNET_ESCROW_Anchor struct
+ */
+typedef const struct GNUNET_ESCROW_Anchor *(*GNUNET_ESCROW_AnchorStringToDataFunction) (
+  char *anchorString);
+
+
+/**
  * Each plugin is required to return a pointer to a struct of this
  * type as the return value from its entry point.
  */
@@ -115,6 +201,11 @@ struct GNUNET_ESCROW_KeyPluginFunctions
    * Restore key escrow
    */
   GNUNET_ESCROW_RestoreKeyFunction restore_key;
+
+  /**
+   * Deserialize anchor string to data
+   */
+  GNUNET_ESCROW_AnchorStringToDataFunction anchor_string_to_data;
 };
 
 

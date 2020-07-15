@@ -25,9 +25,34 @@
  * @brief api to interact with the escrow component
  */
 
+#include "platform.h"
 #include "gnunet_util_lib.h"
 #include "gnunet_escrow_lib.h"
 #include "gnunet_escrow_plugin.h"
+
+
+/**
+ * Handle for the escrow component.
+ */
+struct GNUNET_ESCROW_Handle
+{
+  /**
+   * Configuration to use.
+   */
+  const struct GNUNET_CONFIGURATION_Handle *cfg;
+};
+
+
+/**
+ * Handle for an operation with the escrow component.
+ */
+struct GNUNET_ESCROW_Operation
+{
+  /**
+   * Main escrow handle.
+   */
+  struct GNUNET_ESCROW_Handle *h;
+};
 
 
 /**
@@ -74,7 +99,8 @@ static struct GNUNET_ESCROW_KeyPluginFunctions *anastasis_api;
  * @return pointer to the escrow plugin API
  */
 struct GNUNET_ESCROW_KeyPluginFunctions *
-init_plugin (enum GNUNET_ESCROW_Key_Escrow_Method method)
+init_plugin (struct GNUNET_ESCROW_Handle *h,
+             enum GNUNET_ESCROW_Key_Escrow_Method method)
 {
   switch (method)
   {
@@ -85,7 +111,7 @@ init_plugin (enum GNUNET_ESCROW_Key_Escrow_Method method)
       GNUNET_log (GNUNET_ERROR_TYPE_DEBUG,
                   "Loading PLAINTEXT escrow plugin\n");
       plaintext_api = GNUNET_PLUGIN_load ("libgnunet_plugin_escrow_plaintext",
-                                          NULL);
+                                          (void *)h->cfg);
       return plaintext_api;
     case GNUNET_ESCROW_KEY_GNS:
       if (GNUNET_YES == gns_initialized)
@@ -94,7 +120,7 @@ init_plugin (enum GNUNET_ESCROW_Key_Escrow_Method method)
       GNUNET_log (GNUNET_ERROR_TYPE_DEBUG,
                   "Loading GNS escrow plugin\n");
       gns_api = GNUNET_PLUGIN_load ("libgnunet_plugin_escrow_gns",
-                                    NULL);
+                                    (void *)h->cfg);
       return gns_api;
     case GNUNET_ESCROW_KEY_ANASTASIS:
       if (GNUNET_YES == anastasis_initialized)
@@ -103,7 +129,7 @@ init_plugin (enum GNUNET_ESCROW_Key_Escrow_Method method)
       GNUNET_log (GNUNET_ERROR_TYPE_DEBUG,
                   "Loading ANASTASIS escrow plugin\n");
       anastasis_api = GNUNET_PLUGIN_load ("libgnunet_plugin_escrow_anastasis",
-                                          NULL);
+                                          (void *)h->cfg);
       return anastasis_api;
   }
   // should never be reached
@@ -112,11 +138,32 @@ init_plugin (enum GNUNET_ESCROW_Key_Escrow_Method method)
 
 
 /**
- * Unload all loaded plugins on destruction.
+ * Initialize the escrow component.
+ * 
+ * @param cfg the configuration to use
+ * 
+ * @return handle to use
  */
-void __attribute__ ((destructor))
-GNUNET_ESCROW_fini_plugins ()
+struct GNUNET_ESCROW_Handle *
+GNUNET_ESCROW_init (const struct GNUNET_CONFIGURATION_Handle *cfg)
 {
+  struct GNUNET_ESCROW_Handle *h;
+
+  h = GNUNET_new (struct GNUNET_ESCROW_Handle);
+  h->cfg = cfg;
+  return h;
+}
+
+
+/**
+ * Unload all loaded plugins on destruction.
+ * 
+ * @param h the escrow handle
+ */
+void
+GNUNET_ESCROW_fini (struct GNUNET_ESCROW_Handle *h)
+{
+  /* unload all loaded plugins */
   if (GNUNET_YES == plaintext_initialized)
   {
     plaintext_initialized = GNUNET_NO;
@@ -143,6 +190,9 @@ GNUNET_ESCROW_fini_plugins ()
                                         anastasis_api));
     anastasis_api = NULL;
   }
+
+  /* freee the escrow handle */
+  GNUNET_free (h);
 }
 
 
@@ -155,12 +205,13 @@ GNUNET_ESCROW_fini_plugins ()
  * @return the escrow anchor needed to get the data back
  */
 void *
-GNUNET_ESCROW_put (const struct GNUNET_IDENTITY_Ego *ego,
+GNUNET_ESCROW_put (struct GNUNET_ESCROW_Handle *h,
+                   const struct GNUNET_IDENTITY_Ego *ego,
                    enum GNUNET_ESCROW_Key_Escrow_Method method)
 {
   struct GNUNET_ESCROW_KeyPluginFunctions *api;
 
-  api = init_plugin (method);
+  api = init_plugin (h, method);
   return api->start_key_escrow (ego);
 }
 
@@ -174,12 +225,13 @@ GNUNET_ESCROW_put (const struct GNUNET_IDENTITY_Ego *ego,
  * @return the escrow anchor needed to get the data back
  */
 void *
-GNUNET_ESCROW_renew (void *escrowAnchor,
+GNUNET_ESCROW_renew (struct GNUNET_ESCROW_Handle *h,
+                     void *escrowAnchor,
                      enum GNUNET_ESCROW_Key_Escrow_Method method)
 {
   struct GNUNET_ESCROW_KeyPluginFunctions *api;
 
-  api = init_plugin (method);
+  api = init_plugin (h, method);
   return api->renew_key_escrow (escrowAnchor);
 }
 
@@ -194,13 +246,14 @@ GNUNET_ESCROW_renew (void *escrowAnchor,
  * @return a new identity ego restored from the escrow
  */
 const struct GNUNET_IDENTITY_Ego *
-GNUNET_ESCROW_get (void *escrowAnchor,
+GNUNET_ESCROW_get (struct GNUNET_ESCROW_Handle *h,
+                   void *escrowAnchor,
                    char *egoName,
                    enum GNUNET_ESCROW_Key_Escrow_Method method)
 {
   struct GNUNET_ESCROW_KeyPluginFunctions *api;
 
-  api = init_plugin (method);
+  api = init_plugin (h, method);
   return api->restore_key (escrowAnchor, egoName);
 }
 
@@ -217,12 +270,34 @@ GNUNET_ESCROW_get (void *escrowAnchor,
  *         GNUNET_ESCROW_INVALID otherwise
  */
 int
-GNUNET_ESCROW_verify (const struct GNUNET_IDENTITY_Ego *ego,
+GNUNET_ESCROW_verify (struct GNUNET_ESCROW_Handle *h,
+                      const struct GNUNET_IDENTITY_Ego *ego,
                       void *escrowAnchor,
                       enum GNUNET_ESCROW_Key_Escrow_Method method)
 {
   struct GNUNET_ESCROW_KeyPluginFunctions *api;
 
-  api = init_plugin (method);
+  api = init_plugin (h, method);
   return api->verify_key_escrow (ego, escrowAnchor);
+}
+
+
+/**
+ * Deserialize an escrow anchor string (e.g. from command line) into a
+ * GNUNET_ESCROW_Anchor struct
+ * 
+ * @param anchorString the encoded escrow anchor string
+ * @param method the escrow method to use
+ * 
+ * @return the deserialized data packed into a GNUNET_ESCROW_Anchor struct
+ */
+const struct GNUNET_ESCROW_Anchor *
+GNUNET_ESCROW_anchor_string_to_data (struct GNUNET_ESCROW_Handle *h,
+                                     char *anchorString,
+                                     enum GNUNET_ESCROW_Key_Escrow_Method method)
+{
+  struct GNUNET_ESCROW_KeyPluginFunctions *api;
+
+  api = init_plugin (h, method);
+  return api->anchor_string_to_data (anchorString);
 }

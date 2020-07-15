@@ -38,6 +38,7 @@ extern "C" {
 #endif
 
 #include "gnunet_util_lib.h"
+#include "gnunet_identity_service.h"
 
 
 /**
@@ -61,8 +62,40 @@ enum GNUNET_ESCROW_Verification_Result {
 
 
 /**
+ * Struct for the escrow anchor
+ */
+struct GNUNET_ESCROW_Anchor {
+  enum GNUNET_ESCROW_Key_Escrow_Method method;
+  uint32_t size;
+};
+
+
+/**
+ * Initialize the escrow component.
+ * 
+ * @param cfg the configuration to use
+ * 
+ * @return handle to use
+ */
+struct GNUNET_ESCROW_Handle *
+GNUNET_ESCROW_init (
+  const struct GNUNET_CONFIGURATION_Handle *cfg);
+
+
+/**
+ * Unload all loaded plugins on destruction.
+ * 
+ * @param h the escrow handle
+ */
+void
+GNUNET_ESCROW_fini (
+  struct GNUNET_ESCROW_Handle *h);
+
+
+/**
  * Put some data in escrow using the specified escrow method
  * 
+ * @param h the handle for the escrow component
  * @param ego the identity ego to put in escrow
  * @param method the escrow method to use
  * 
@@ -70,6 +103,7 @@ enum GNUNET_ESCROW_Verification_Result {
  */
 void *
 GNUNET_ESCROW_put (
+  struct GNUNET_ESCROW_Handle *h,
   const struct GNUNET_IDENTITY_Ego *ego,
   enum GNUNET_ESCROW_Key_Escrow_Method method);
 
@@ -77,6 +111,7 @@ GNUNET_ESCROW_put (
 /**
  * Renew the escrow of the data related to the given escrow anchor
  * 
+ * @param h the handle for the escrow component
  * @param escrowAnchor the escrow anchor returned by the GNUNET_ESCROW_put method
  * @param method the escrow method to use
  * 
@@ -84,6 +119,7 @@ GNUNET_ESCROW_put (
  */
 void *
 GNUNET_ESCROW_renew (
+  struct GNUNET_ESCROW_Handle *h,
   void *escrowAnchor,
   enum GNUNET_ESCROW_Key_Escrow_Method method);
 
@@ -91,6 +127,7 @@ GNUNET_ESCROW_renew (
 /**
  * Get the escrowed data back
  * 
+ * @param h the handle for the escrow component
  * @param escrowAnchor the escrow anchor returned by the GNUNET_ESCROW_put method
  * @param egoName the name of the ego to get back
  * @param method the escrow method to use
@@ -99,6 +136,7 @@ GNUNET_ESCROW_renew (
  */
 const struct GNUNET_IDENTITY_Ego *
 GNUNET_ESCROW_get (
+  struct GNUNET_ESCROW_Handle *h,
   void *escrowAnchor,
   char *egoName,
   enum GNUNET_ESCROW_Key_Escrow_Method method);
@@ -107,6 +145,7 @@ GNUNET_ESCROW_get (
 /**
  * Verify the escrowed data
  * 
+ * @param h the handle for the escrow component
  * @param ego the identity ego that was put into escrow
  * @param escrowAnchor the escrow anchor returned by the GNUNET_ESCROW_put method
  * @param method the escrow method to use
@@ -117,8 +156,26 @@ GNUNET_ESCROW_get (
  */
 int
 GNUNET_ESCROW_verify (
+  struct GNUNET_ESCROW_Handle *h,
   const struct GNUNET_IDENTITY_Ego *ego,
   void *escrowAnchor,
+  enum GNUNET_ESCROW_Key_Escrow_Method method);
+
+
+/**
+ * Deserialize an escrow anchor string (e.g. from command line) into a
+ * GNUNET_ESCROW_Anchor struct
+ * 
+ * @param h the handle for the escrow component
+ * @param anchorString the encoded escrow anchor string
+ * @param method the escrow method to use
+ * 
+ * @return the deserialized data packed into a GNUNET_ESCROW_Anchor struct
+ */
+const struct GNUNET_ESCROW_Anchor *
+GNUNET_ESCROW_anchor_string_to_data (
+  struct GNUNET_ESCROW_Handle *h,
+  char *anchorString,
   enum GNUNET_ESCROW_Key_Escrow_Method method);
 
 

@@ -27,8 +27,20 @@
 #include "platform.h"
 #include "gnunet_util_lib.h"
 #include "gnunet_escrow_plugin.h"
+#include "escrow_plugin_helper.h"
 #include "gnunet_identity_service.h"
 #include <inttypes.h>
+
+
+/**
+ * Identity handle
+ */
+static struct GNUNET_IDENTITY_Handle *identity_handle;
+
+/**
+ * Handle for the plugin instance
+ */
+struct EscrowPluginHandle ph;
 
 
 /**
@@ -58,9 +70,9 @@ start_plaintext_key_escrow (const struct GNUNET_IDENTITY_Ego *ego)
  * @return the escrow anchor needed to restore the key
  */
 void *
-renew_plaintext_key_escrow (const struct GNUNET_IDENTITY_Ego *ego)
+renew_plaintext_key_escrow (void *escrowAnchor)
 {
-  return start_plaintext_key_escrow (ego);
+  return escrowAnchor;
 }
 
 
@@ -102,14 +114,13 @@ const struct GNUNET_IDENTITY_Ego *
 restore_plaintext_key_escrow (void *escrowAnchor,
                               char *egoName)
 {
-  const struct GNUNET_CRYPTO_EcdsaPrivateKey pk;
+  struct GNUNET_CRYPTO_EcdsaPrivateKey pk;
   struct GNUNET_IDENTITY_Operation *op;
 
   if (NULL == escrowAnchor)
   {
     return NULL;
   }
-  // TODO: ecdsa method for string -> privkey
   if (GNUNET_OK != GNUNET_CRYPTO_ecdsa_private_key_from_string ((char *)escrowAnchor,
                                                                 strlen ((char *)escrowAnchor),
                                                                 &pk))
@@ -128,21 +139,63 @@ restore_plaintext_key_escrow (void *escrowAnchor,
 
 
 /**
+ * Deserialize an escrow anchor string into a GNUNET_ESCROW_Anchor struct
+ * 
+ * @param anchorString the encoded escrow anchor string
+ * @return the deserialized data packed into a GNUNET_ESCROW_Anchor struct
+ */
+const struct GNUNET_ESCROW_Anchor *
+plaintext_anchor_string_to_data (char *anchorString)
+{
+  struct GNUNET_ESCROW_Anchor *anchor;
+  uint32_t data_size;
+
+  data_size = strlen (anchorString) + 1;
+
+  anchor = GNUNET_malloc (sizeof (struct GNUNET_ESCROW_Anchor) + data_size);
+  anchor->size = data_size;
+  // TODO: deserialize?
+  GNUNET_memcpy (&anchor[1], anchorString, data_size);
+
+  return anchor;
+}
+
+
+/**
+ * ContinueIdentityInitFunction for the plaintext plugin
+ */
+void
+plaintext_cont_init ()
+{
+  return;
+}
+
+
+/**
  * Entry point for the plugin.
  *
- * @param cls NULL
+ * @param cls Config info
  * @return the exported block API
  */
 void *
 libgnunet_plugin_escrow_plaintext_init (void *cls)
 {
   struct GNUNET_ESCROW_KeyPluginFunctions *api;
+  struct GNUNET_CONFIGURATION_Handle *cfg = cls;
 
   api = GNUNET_new (struct GNUNET_ESCROW_KeyPluginFunctions);
   api->start_key_escrow = &start_plaintext_key_escrow;
   api->renew_key_escrow = &renew_plaintext_key_escrow;
   api->verify_key_escrow = &verify_plaintext_key_escrow;
   api->restore_key = &restore_plaintext_key_escrow;
+  api->anchor_string_to_data = &plaintext_anchor_string_to_data;
+
+  ph.cont = &plaintext_cont_init;
+
+  identity_handle = GNUNET_IDENTITY_connect (cfg,
+                                             &GNUNET_ESCROW_list_ego,
+                                             &ph);
+
   return api;
 }
 
@@ -159,6 +212,9 @@ libgnunet_plugin_escrow_plaintext_done (void *cls)
   struct GNUNET_RECLAIM_EscrowKeyPluginFunctions *api = cls;
 
   GNUNET_free (api);
+  GNUNET_IDENTITY_disconnect (identity_handle);
+  GNUNET_ESCROW_cleanup_ego_list (&ph);
+
   return NULL;
 }
 

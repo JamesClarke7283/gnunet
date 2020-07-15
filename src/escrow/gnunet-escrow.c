@@ -27,6 +27,7 @@
 #include "platform.h"
 
 #include "gnunet_util_lib.h"
+#include "gnunet_escrow_lib.h"
 
 /**
  * return value
@@ -42,6 +43,22 @@ static char *ego_name;
  * Plugin name
  */
 static char *plugin_name;
+
+/**
+ * Handle to the escrow component
+ */
+static struct GNUNET_ESCROW_Handle *escrow_handle;
+
+
+/**
+ * Called to clean up the escrow component
+ */
+static void
+do_cleanup (void *cls)
+{
+  GNUNET_ESCROW_fini (escrow_handle);
+}
+
 
 static void
 run (void *cls,
@@ -65,6 +82,10 @@ run (void *cls,
   }
 
 // TODO: where to decide what to call from api?
+
+  escrow_handle = GNUNET_ESCROW_init (c);
+  // GNUNET_IDENTITY_connect (..., &ego_cb, ...);
+  // Ego-API...
 
 }
 

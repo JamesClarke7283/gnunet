@@ -28,11 +28,23 @@
 #include "platform.h"
 #include "gnunet_util_lib.h"
 #include "gnunet_escrow_plugin.h"
+#include "escrow_plugin_helper.h"
 #include <sss.h>
 #include <inttypes.h>
 
 #define GNUNET_ESCROW_GNS_NumberOfShares 6
 #define GNUNET_ESCROW_GNS_ShareThreshold 3
+
+
+/**
+ * Identity handle
+ */
+static struct GNUNET_IDENTITY_Handle *identity_handle;
+
+/**
+ * Handle for the plugin instance
+ */
+struct EscrowPluginHandle ph;
 
 
 /**
@@ -77,7 +89,7 @@ start_gns_key_escrow (const struct GNUNET_IDENTITY_Ego *ego)
  * @return the escrow anchor needed to restore the key
  */
 void *
-renew_gns_key_escrow (const struct GNUNET_IDENTITY_Ego *ego)
+renew_gns_key_escrow (void *escrowAnchor)
 {
   // TODO: implement
   return NULL;
@@ -119,21 +131,63 @@ restore_gns_key_escrow (void *escrowAnchor,
 
 
 /**
+ * Deserialize an escrow anchor string into a GNUNET_ESCROW_Anchor struct
+ * 
+ * @param anchorString the encoded escrow anchor string
+ * @return the deserialized data packed into a GNUNET_ESCROW_Anchor struct
+ */
+const struct GNUNET_ESCROW_Anchor *
+gns_anchor_string_to_data (char *anchorString)
+{
+  struct GNUNET_ESCROW_Anchor *anchor;
+  uint32_t data_size;
+
+  data_size = strlen (anchorString) + 1;
+
+  anchor = GNUNET_malloc (sizeof (struct GNUNET_ESCROW_Anchor) + data_size);
+  anchor->size = data_size;
+  // TODO: deserialize?
+  GNUNET_memcpy (&anchor[1], anchorString, data_size);
+
+  return anchor;
+}
+
+
+/**
+ * ContinueIdentityInitFunction for the GNS plugin
+ */
+void
+gns_cont_init ()
+{
+  return;
+}
+
+
+/**
  * Entry point for the plugin.
  *
- * @param cls NULL
+ * @param cls Config info
  * @return the exported block API
  */
 void *
 libgnunet_plugin_escrow_gns_init (void *cls)
 {
   struct GNUNET_ESCROW_KeyPluginFunctions *api;
+  struct GNUNET_CONFIGURATION_Handle *cfg = cls;
 
   api = GNUNET_new (struct GNUNET_ESCROW_KeyPluginFunctions);
   api->start_key_escrow = &start_gns_key_escrow;
   api->renew_key_escrow = &renew_gns_key_escrow;
   api->verify_key_escrow = &verify_gns_key_escrow;
   api->restore_key = &restore_gns_key_escrow;
+  api->anchor_string_to_data = &gns_anchor_string_to_data;
+
+  ph.cont = &gns_cont_init;
+
+  identity_handle = GNUNET_IDENTITY_connect (cfg,
+                                             &GNUNET_ESCROW_list_ego,
+                                             &ph);
+
   return api;
 }
 
@@ -150,6 +204,9 @@ libgnunet_plugin_escrow_gns_done (void *cls)
   struct GNUNET_RECLAIM_EscrowKeyPluginFunctions *api = cls;
 
   GNUNET_free (api);
+  GNUNET_IDENTITY_disconnect (identity_handle);
+  GNUNET_ESCROW_cleanup_ego_list (&ph);
+
   return NULL;
 }
 

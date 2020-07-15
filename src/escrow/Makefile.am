@@ -42,7 +42,9 @@ libgnunetescrow_la_LDFLAGS = \
 
 
 libgnunet_plugin_escrow_plaintext_la_SOURCES = \
-  plugin_escrow_plaintext.c
+  plugin_escrow_plaintext.c \
+  escrow_plugin_helper.c \
+  escrow_plugin_helper.h
 libgnunet_plugin_escrow_plaintext_la_LIBADD = \
   $(top_builddir)/src/util/libgnunetutil.la \
   $(top_builddir)/src/identity/libgnunetidentity.la \
@@ -51,7 +53,9 @@ libgnunet_plugin_escrow_plaintext_la_LDFLAGS = \
  $(GN_PLUGIN_LDFLAGS)
 
 libgnunet_plugin_escrow_gns_la_SOURCES = \
-  plugin_escrow_gns.c
+  plugin_escrow_gns.c \
+  escrow_plugin_helper.c \
+  escrow_plugin_helper.h
 libgnunet_plugin_escrow_gns_la_LIBADD = \
   $(top_builddir)/src/util/libgnunetutil.la \
   $(top_builddir)/src/identity/libgnunetidentity.la \
@@ -61,7 +65,9 @@ libgnunet_plugin_escrow_gns_la_LDFLAGS = \
  $(GN_PLUGIN_LDFLAGS)
 
 libgnunet_plugin_escrow_anastasis_la_SOURCES = \
-  plugin_escrow_anastasis.c
+  plugin_escrow_anastasis.c \
+  escrow_plugin_helper.c \
+  escrow_plugin_helper.h
 libgnunet_plugin_escrow_anastasis_la_LIBADD = \
   $(top_builddir)/src/util/libgnunetutil.la \
   $(top_builddir)/src/identity/libgnunetidentity.la \
