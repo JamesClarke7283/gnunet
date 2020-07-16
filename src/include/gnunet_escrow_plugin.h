@@ -83,12 +83,6 @@ struct EgoEntry
   struct GNUNET_IDENTITY_Ego *ego;
 };
 
-/**
- * Function called after the initialization of the identity service.
- * Passed via cls to the callback of GNUNET_IDENTITY_connect
- */
-typedef void (*GNUNET_ESCROW_ContinueIdentityInitFunction) (
-);
 
 /**
  * Handle for a plugin instance
@@ -98,7 +92,7 @@ struct EscrowPluginHandle
   /**
    * The ContinueIdentityInit function.
    */
-  GNUNET_ESCROW_ContinueIdentityInitFunction cont;
+  GNUNET_ESCROW_IdentityInitContinuation cont;
 
   /**
    * The state of the plugin (in the initialization phase).
@@ -120,44 +114,65 @@ struct EscrowPluginHandle
 /**
  * Function called to start the escrow of the key
  * 
+ * @param h the handle for the escrow component
  * @param ego the identity ego containing the private key
- * @return the escrow anchor needed to restore the key
+ * @param cb function to call with the escrow anchor on completion
+ * @param cb_cls closure for @a cb
  */
-typedef void *(*GNUNET_ESCROW_StartKeyEscrowFunction) (
-  const struct GNUNET_IDENTITY_Ego *ego);
+typedef void (*GNUNET_ESCROW_StartKeyEscrowFunction) (
+  struct GNUNET_ESCROW_Handle *h,
+  const struct GNUNET_IDENTITY_Ego *ego,
+  GNUNET_ESCROW_AnchorContinuation cb,
+  void *cb_cls);
 
 /**
  * Function called to renew the escrow of the key
  * 
+ * @param h the handle for the escrow component
  * @param escrowAnchor the the escrow anchor returned by the start method
- * @return the escrow anchor needed to restore the key
+ * @param cb function to call with the (new) escrow anchor on completion
+ * @param cb_cls closure for @a cb
  */
-typedef void *(*GNUNET_ESCROW_RenewKeyEscrowFunction) (
-  void *escrowAnchor);
+typedef void (*GNUNET_ESCROW_RenewKeyEscrowFunction) (
+  struct GNUNET_ESCROW_Handle *h,
+  struct GNUNET_ESCROW_Anchor *escrowAnchor,
+  GNUNET_ESCROW_AnchorContinuation cb,
+  void *cb_cls);
 
 /**
  * Function called to verify the escrow of the key
  * 
+ * @param h the handle for the escrow component
  * @param ego the identity ego containing the private key
  * @param escrowAnchor the escrow anchor needed to restore the key
- * @return GNUNET_ESCROW_VALID if the escrow could successfully by restored,
- *         GNUNET_ESCROW_RENEW_NEEDED if the escrow needs to be renewed,
- *         GNUNET_ESCROW_INVALID otherwise
+ * @param cb function to call with the verification result on completion, i.e.
+ *  GNUNET_ESCROW_VALID if the escrow could successfully by restored,
+ *  GNUNET_ESCROW_RENEW_NEEDED if the escrow needs to be renewed,
+ *  GNUNET_ESCROW_INVALID otherwise
+ * @param cb_cls closure for @a cb
  */
-typedef int (*GNUNET_ESCROW_VerifyKeyEscrowFunction) (
+typedef void (*GNUNET_ESCROW_VerifyKeyEscrowFunction) (
+  struct GNUNET_ESCROW_Handle *h,
   const struct GNUNET_IDENTITY_Ego *ego,
-  void *escrowAnchor);
+  struct GNUNET_ESCROW_Anchor *escrowAnchor,
+  GNUNET_ESCROW_VerifyContinuation cb,
+  void *cb_cls);
 
 /**
  * Function called to restore a key from an escrow
  * 
+ * @param h the handle for the escrow component
  * @param escrowAnchor the escrow anchor needed to restore the key
  * @param egoName the name of the ego to restore
- * @return the identity ego containing the private key
+ * @param cb function to call with the restored ego on completion
+ * @param cb_cls closure for @a cb
  */
-typedef const struct GNUNET_IDENTITY_Ego *(*GNUNET_ESCROW_RestoreKeyFunction) (
-  void *escrowAnchor,
-  char *egoName);
+typedef void (*GNUNET_ESCROW_RestoreKeyFunction) (
+  struct GNUNET_ESCROW_Handle *h,
+  struct GNUNET_ESCROW_Anchor *escrowAnchor,
+  char *egoName,
+  GNUNET_ESCROW_EgoContinuation cb,
+  void *cb_cls);
 
 
 /**

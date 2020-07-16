@@ -67,9 +67,9 @@
  */
 void
 ESCROW_list_ego (void *cls,
-                        struct GNUNET_IDENTITY_Ego *ego,
-                        void **ctx,
-                        const char *identifier)
+                 struct GNUNET_IDENTITY_Ego *ego,
+                 void **ctx,
+                 const char *identifier)
 {
   struct EgoEntry *ego_entry;
   struct GNUNET_CRYPTO_EcdsaPublicKey pk;

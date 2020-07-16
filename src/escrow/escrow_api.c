@@ -29,30 +29,7 @@
 #include "gnunet_util_lib.h"
 #include "gnunet_escrow_lib.h"
 #include "gnunet_escrow_plugin.h"
-
-
-/**
- * Handle for the escrow component.
- */
-struct GNUNET_ESCROW_Handle
-{
-  /**
-   * Configuration to use.
-   */
-  const struct GNUNET_CONFIGURATION_Handle *cfg;
-};
-
-
-/**
- * Handle for an operation with the escrow component.
- */
-struct GNUNET_ESCROW_Operation
-{
-  /**
-   * Main escrow handle.
-   */
-  struct GNUNET_ESCROW_Handle *h;
-};
+#include "escrow.h"
 
 
 /**
@@ -199,86 +176,132 @@ GNUNET_ESCROW_fini (struct GNUNET_ESCROW_Handle *h)
 /**
  * Put some data in escrow using the specified escrow method
  * 
+ * @param h the handle for the escrow component
  * @param ego the identity ego to put in escrow
  * @param method the escrow method to use
+ * @param cb function to call with the escrow anchor on completion
+ * @param cb_cls closure for @a cb
  * 
- * @return the escrow anchor needed to get the data back
+ * @return handle to abort the operation
  */
-void *
+struct GNUNET_ESCROW_Operation *
 GNUNET_ESCROW_put (struct GNUNET_ESCROW_Handle *h,
                    const struct GNUNET_IDENTITY_Ego *ego,
-                   enum GNUNET_ESCROW_Key_Escrow_Method method)
+                   enum GNUNET_ESCROW_Key_Escrow_Method method,
+                   GNUNET_ESCROW_AnchorContinuation cb,
+                   void *cb_cls)
 {
+  struct GNUNET_ESCROW_Operation *op;
   struct GNUNET_ESCROW_KeyPluginFunctions *api;
 
+  op = GNUNET_new (struct GNUNET_ESCROW_Operation);
+  op->h = h;
+  op->cb_put = cb;
+
   api = init_plugin (h, method);
-  return api->start_key_escrow (ego);
+  api->start_key_escrow (h, ego, cb, cb_cls);
+
+  return op;
 }
 
 
 /**
  * Renew the escrow of the data related to the given escrow anchor
  * 
+ * @param h the handle for the escrow component
  * @param escrowAnchor the escrow anchor returned by the GNUNET_ESCROW_put method
  * @param method the escrow method to use
+ * @param cb function to call with the escrow anchor on completion
+ * @param cb_cls closure for @a cb
  * 
- * @return the escrow anchor needed to get the data back
+ * @return handle to abort the operation
  */
-void *
+struct GNUNET_ESCROW_Operation *
 GNUNET_ESCROW_renew (struct GNUNET_ESCROW_Handle *h,
-                     void *escrowAnchor,
-                     enum GNUNET_ESCROW_Key_Escrow_Method method)
+                     struct GNUNET_ESCROW_Anchor *escrowAnchor,
+                     enum GNUNET_ESCROW_Key_Escrow_Method method,
+                     GNUNET_ESCROW_AnchorContinuation cb,
+                     void *cb_cls)
 {
+  struct GNUNET_ESCROW_Operation *op;
   struct GNUNET_ESCROW_KeyPluginFunctions *api;
 
+  op = GNUNET_new (struct GNUNET_ESCROW_Operation);
+  op->h = h;
+  op->cb_renew = cb;
+
   api = init_plugin (h, method);
-  return api->renew_key_escrow (escrowAnchor);
+  api->renew_key_escrow (h, escrowAnchor, cb, cb_cls);
+  
+  return op;
 }
 
 
 /**
  * Get the escrowed data back
  * 
+ * @param h the handle for the escrow component
  * @param escrowAnchor the escrow anchor returned by the GNUNET_ESCROW_put method
  * @param egoName the name of the ego to get back
  * @param method the escrow method to use
+ * @param cb function to call with the restored ego on completion
+ * @param cb_cls closure for @a cb
  * 
- * @return a new identity ego restored from the escrow
+ * @return handle to abort the operation
  */
-const struct GNUNET_IDENTITY_Ego *
+struct GNUNET_ESCROW_Operation *
 GNUNET_ESCROW_get (struct GNUNET_ESCROW_Handle *h,
-                   void *escrowAnchor,
+                   struct GNUNET_ESCROW_Anchor *escrowAnchor,
                    char *egoName,
-                   enum GNUNET_ESCROW_Key_Escrow_Method method)
+                   enum GNUNET_ESCROW_Key_Escrow_Method method,
+                   GNUNET_ESCROW_EgoContinuation cb,
+                   void *cb_cls)
 {
+  struct GNUNET_ESCROW_Operation *op;
   struct GNUNET_ESCROW_KeyPluginFunctions *api;
 
+  op = GNUNET_new (struct GNUNET_ESCROW_Operation);
+  op->h = h;
+  op->cb_get = cb;
+
   api = init_plugin (h, method);
-  return api->restore_key (escrowAnchor, egoName);
+  api->restore_key (h, escrowAnchor, egoName, cb, cb_cls);
+
+  return op;
 }
 
 
 /**
  * Verify the escrowed data
  * 
+ * @param h the handle for the escrow component
  * @param ego the identity ego that was put into escrow
  * @param escrowAnchor the escrow anchor returned by the GNUNET_ESCROW_put method
  * @param method the escrow method to use
+ * @param cb function to call with the verification result on completion
+ * @param cb_cls closure for @a cb
  * 
- * @return GNUNET_ESCROW_VALID if the escrow could successfully by restored,
- *         GNUNET_ESCROW_RENEW_NEEDED if the escrow needs to be renewed,
- *         GNUNET_ESCROW_INVALID otherwise
+ * @return handle to abort the operation
  */
-int
+struct GNUNET_ESCROW_Operation *
 GNUNET_ESCROW_verify (struct GNUNET_ESCROW_Handle *h,
                       const struct GNUNET_IDENTITY_Ego *ego,
-                      void *escrowAnchor,
-                      enum GNUNET_ESCROW_Key_Escrow_Method method)
+                      struct GNUNET_ESCROW_Anchor *escrowAnchor,
+                      enum GNUNET_ESCROW_Key_Escrow_Method method,
+                      GNUNET_ESCROW_VerifyContinuation cb,
+                      void *cb_cls)
 {
+  struct GNUNET_ESCROW_Operation *op;
   struct GNUNET_ESCROW_KeyPluginFunctions *api;
 
+  op = GNUNET_new (struct GNUNET_ESCROW_Operation);
+  op->h = h;
+  op->cb_verify = cb;
+
   api = init_plugin (h, method);
-  return api->verify_key_escrow (ego, escrowAnchor);
+  api->verify_key_escrow (h, ego, escrowAnchor, cb, cb_cls);
+
+  return op;
 }
 
 
@@ -286,6 +309,7 @@ GNUNET_ESCROW_verify (struct GNUNET_ESCROW_Handle *h,
  * Deserialize an escrow anchor string (e.g. from command line) into a
  * GNUNET_ESCROW_Anchor struct
  * 
+ * @param h the handle for the escrow component
  * @param anchorString the encoded escrow anchor string
  * @param method the escrow method to use
  * 

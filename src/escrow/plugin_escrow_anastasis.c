@@ -45,62 +45,83 @@ struct EscrowPluginHandle ph;
 /**
  * Start the Anastasis escrow of the key
  * 
+ * @param h the handle for the escrow component
  * @param ego the identity ego containing the private key
- * @return the escrow anchor needed to restore the key
+ * @param cb function to call with the escrow anchor on completion
+ * @param cb_cls closure for @a cb
  */
-void *
-start_anastasis_key_escrow (const struct GNUNET_IDENTITY_Ego *ego)
+void
+start_anastasis_key_escrow (struct GNUNET_ESCROW_Handle *h,
+                            const struct GNUNET_IDENTITY_Ego *ego,
+                            GNUNET_ESCROW_AnchorContinuation cb,
+                            void *cb_cls)
 {
   // TODO: implement
-  return NULL;
+  cb (cb_cls, NULL);
 }
 
 
 /**
  * Renew the Anastasis escrow of the key
  * 
+ * @param h the handle for the escrow component
  * @param escrowAnchor the the escrow anchor returned by the start method
- * @return the escrow anchor needed to restore the key
+ * @param cb function to call with the (new) escrow anchor on completion
+ * @param cb_cls closure for @a cb
  */
-void *
-renew_anastasis_key_escrow (void *escrowAnchor)
+void
+renew_anastasis_key_escrow (struct GNUNET_ESCROW_Handle *h,
+                            struct GNUNET_ESCROW_Anchor *escrowAnchor,
+                            GNUNET_ESCROW_AnchorContinuation cb,
+                            void *cb_cls)
 {
   // TODO: implement
-  return NULL;
+  cb (cb_cls, NULL);
 }
 
 
 /**
  * Verify the Anastasis escrow of the key
  * 
+ * @param h the handle for the escrow component
  * @param ego the identity ego containing the private key
  * @param escrowAnchor the escrow anchor needed to restore the key
- * @return GNUNET_ESCROW_VALID if the escrow could successfully by restored,
- *         GNUNET_ESCROW_RENEW_NEEDED if the escrow needs to be renewed,
- *         GNUNET_ESCROW_INVALID otherwise
+ * @param cb function to call with the verification result on completion, i.e.
+ *  GNUNET_ESCROW_VALID if the escrow could successfully by restored,
+ *  GNUNET_ESCROW_RENEW_NEEDED if the escrow needs to be renewed,
+ *  GNUNET_ESCROW_INVALID otherwise
+ * @param cb_cls closure for @a cb
  */
-int
-verify_anastasis_key_escrow (const struct GNUNET_IDENTITY_Ego *ego,
-                             void *escrowAnchor)
+void
+verify_anastasis_key_escrow (struct GNUNET_ESCROW_Handle *h,
+                             const struct GNUNET_IDENTITY_Ego *ego,
+                             struct GNUNET_ESCROW_Anchor *escrowAnchor,
+                             GNUNET_ESCROW_VerifyContinuation cb,
+                             void *cb_cls)
 {
   // TODO: implement
-  return GNUNET_ESCROW_INVALID;
+  cb (cb_cls, GNUNET_ESCROW_INVALID);
 }
 
 
 /**
  * Restore the key from Anastasis escrow
  * 
+ * @param h the handle for the escrow component
  * @param escrowAnchor the escrow anchor needed to restore the key
  * @param egoName the name of the ego to restore
- * @return the identity ego containing the private key
+ * @param cb function to call with the restored ego on completion
+ * @param cb_cls closure for @a cb
  */
-const struct GNUNET_IDENTITY_Ego *
-restore_anastasis_key_escrow (void *escrowAnchor,
-                              char *egoName)
+void
+restore_anastasis_key_escrow (struct GNUNET_ESCROW_Handle *h,
+                              struct GNUNET_ESCROW_Anchor *escrowAnchor,
+                              char *egoName,
+                              GNUNET_ESCROW_EgoContinuation cb,
+                              void *cb_cls)
 {
   // TODO: implement
-  return NULL;
+  cb (cb_cls, NULL);
 }
 
 
