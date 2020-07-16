@@ -315,7 +315,7 @@ GNUNET_ESCROW_verify (struct GNUNET_ESCROW_Handle *h,
  * 
  * @return the deserialized data packed into a GNUNET_ESCROW_Anchor struct
  */
-const struct GNUNET_ESCROW_Anchor *
+struct GNUNET_ESCROW_Anchor *
 GNUNET_ESCROW_anchor_string_to_data (struct GNUNET_ESCROW_Handle *h,
                                      char *anchorString,
                                      enum GNUNET_ESCROW_Key_Escrow_Method method)

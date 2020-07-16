@@ -182,7 +182,7 @@ typedef void (*GNUNET_ESCROW_RestoreKeyFunction) (
  * @param anchorString the encoded escrow anchor string
  * @return the deserialized data packed into a GNUNET_ESCROW_Anchor struct
  */
-typedef const struct GNUNET_ESCROW_Anchor *(*GNUNET_ESCROW_AnchorStringToDataFunction) (
+typedef struct GNUNET_ESCROW_Anchor *(*GNUNET_ESCROW_AnchorStringToDataFunction) (
   char *anchorString);
 
 

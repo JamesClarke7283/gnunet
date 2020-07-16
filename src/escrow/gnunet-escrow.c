@@ -215,7 +215,7 @@ start_process ()
   {
     if (NULL != ego)
     {
-      fprintf (stderr, "The name %s is already in use for an ego\n", put_ego);
+      fprintf (stderr, "The name %s is already in use for an ego\n", get_ego);
       cleanup_task = GNUNET_SCHEDULER_add_now (&do_cleanup, NULL);
       return;
     }

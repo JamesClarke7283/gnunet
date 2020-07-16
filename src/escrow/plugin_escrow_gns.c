@@ -161,7 +161,7 @@ restore_gns_key_escrow (struct GNUNET_ESCROW_Handle *h,
  * @param anchorString the encoded escrow anchor string
  * @return the deserialized data packed into a GNUNET_ESCROW_Anchor struct
  */
-const struct GNUNET_ESCROW_Anchor *
+struct GNUNET_ESCROW_Anchor *
 gns_anchor_string_to_data (char *anchorString)
 {
   struct GNUNET_ESCROW_Anchor *anchor;
