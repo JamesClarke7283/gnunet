@@ -75,7 +75,7 @@ start_gns_key_escrow (struct GNUNET_ESCROW_Handle *h,
 
   // split the private key (SSS)
   sss_create_keyshares(&keyshares,
-                       (const uint8_t *)pk,
+                       pk->d,
                        GNUNET_ESCROW_GNS_NumberOfShares,
                        GNUNET_ESCROW_GNS_ShareThreshold);
 
