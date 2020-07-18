@@ -197,9 +197,10 @@ GNUNET_ESCROW_put (struct GNUNET_ESCROW_Handle *h,
   op = GNUNET_new (struct GNUNET_ESCROW_Operation);
   op->h = h;
   op->cb_put = cb;
+  op->cb_cls = cb_cls;
 
   api = init_plugin (h, method);
-  api->start_key_escrow (h, ego, cb, cb_cls);
+  api->start_key_escrow (op, ego);
 
   return op;
 }
@@ -231,7 +232,7 @@ GNUNET_ESCROW_renew (struct GNUNET_ESCROW_Handle *h,
   op->cb_renew = cb;
 
   api = init_plugin (h, method);
-  api->renew_key_escrow (h, escrowAnchor, cb, cb_cls);
+  api->renew_key_escrow (op, escrowAnchor);
   
   return op;
 }
@@ -265,7 +266,7 @@ GNUNET_ESCROW_get (struct GNUNET_ESCROW_Handle *h,
   op->cb_get = cb;
 
   api = init_plugin (h, method);
-  api->restore_key (h, escrowAnchor, egoName, cb, cb_cls);
+  api->restore_key (op, escrowAnchor, egoName);
 
   return op;
 }
@@ -299,7 +300,7 @@ GNUNET_ESCROW_verify (struct GNUNET_ESCROW_Handle *h,
   op->cb_verify = cb;
 
   api = init_plugin (h, method);
-  api->verify_key_escrow (h, ego, escrowAnchor, cb, cb_cls);
+  api->verify_key_escrow (op, ego, escrowAnchor);
 
   return op;
 }
@@ -323,5 +324,29 @@ GNUNET_ESCROW_anchor_string_to_data (struct GNUNET_ESCROW_Handle *h,
   struct GNUNET_ESCROW_KeyPluginFunctions *api;
 
   api = init_plugin (h, method);
-  return api->anchor_string_to_data (anchorString);
+  return api->anchor_string_to_data (h, anchorString);
 }
+
+
+/**
+ * Serialize an escrow anchor (struct GNUNET_ESCROW_Anchor) into a string
+ * 
+ * @param h the handle for the escrow component
+ * @param escrowAnchor the escrow anchor struct
+ * @param method the escrow method to use
+ * 
+ * @return the encoded escrow anchor string
+ */
+char *
+GNUNET_ESCROW_anchor_data_to_string (struct GNUNET_ESCROW_Handle *h,
+                                     struct GNUNET_ESCROW_Anchor *escrowAnchor,
+                                     enum GNUNET_ESCROW_Key_Escrow_Method method)
+{
+  struct GNUNET_ESCROW_KeyPluginFunctions *api;
+
+  api = init_plugin (h, method);
+  return api->anchor_data_to_string (h, escrowAnchor);
+}
+
+
+/* end of escrow_api.c */

@@ -1,7 +1,7 @@
 # This Makefile.am is in the public domain
 AM_CPPFLAGS = -I$(top_srcdir)/src/include
 
- plugindir = $(libdir)/gnunet
+plugindir = $(libdir)/gnunet
 
 if USE_COVERAGE
   AM_CFLAGS = --coverage -O0
@@ -46,9 +46,10 @@ libgnunet_plugin_escrow_plaintext_la_SOURCES = \
   escrow_plugin_helper.c \
   escrow_plugin_helper.h
 libgnunet_plugin_escrow_plaintext_la_LIBADD = \
-  $(top_builddir)/src/util/libgnunetutil.la \
+  libgnunetescrow.la \
+  $(top_builddir)/src/util/libgnunetutil.la $(XLIBS) \
   $(top_builddir)/src/identity/libgnunetidentity.la \
-  $(LTLIBINTL)
+  $(LTLIBINTL) $(MHD_LIBS)
 libgnunet_plugin_escrow_plaintext_la_LDFLAGS = \
  $(GN_PLUGIN_LDFLAGS)
 
@@ -57,10 +58,11 @@ libgnunet_plugin_escrow_gns_la_SOURCES = \
   escrow_plugin_helper.c \
   escrow_plugin_helper.h
 libgnunet_plugin_escrow_gns_la_LIBADD = \
-  $(top_builddir)/src/util/libgnunetutil.la \
+  libgnunetescrow.la \
+  $(top_builddir)/src/util/libgnunetutil.la $(XLIBS) \
   $(top_builddir)/src/identity/libgnunetidentity.la \
   -lsss \
-  $(LTLIBINTL)
+  $(LTLIBINTL) $(MHD_LIBS)
 libgnunet_plugin_escrow_gns_la_LDFLAGS = \
  $(GN_PLUGIN_LDFLAGS)
 
@@ -69,9 +71,10 @@ libgnunet_plugin_escrow_anastasis_la_SOURCES = \
   escrow_plugin_helper.c \
   escrow_plugin_helper.h
 libgnunet_plugin_escrow_anastasis_la_LIBADD = \
-  $(top_builddir)/src/util/libgnunetutil.la \
+  libgnunetescrow.la \
+  $(top_builddir)/src/util/libgnunetutil.la $(XLIBS) \
   $(top_builddir)/src/identity/libgnunetidentity.la \
-  $(LTLIBINTL)
+  $(LTLIBINTL) $(MHD_LIBS)
 libgnunet_plugin_escrow_anastasis_la_LDFLAGS = \
  $(GN_PLUGIN_LDFLAGS)
 
@@ -79,9 +82,9 @@ libgnunet_plugin_escrow_anastasis_la_LDFLAGS = \
 gnunet_escrow_SOURCES = \
  gnunet-escrow.c
 gnunet_escrow_LDADD = \
+  libgnunetescrow.la \
   $(top_builddir)/src/util/libgnunetutil.la \
   $(top_builddir)/src/namestore/libgnunetnamestore.la \
-  libgnunetescrow.la \
   $(top_builddir)/src/identity/libgnunetidentity.la \
   $(GN_LIBINTL)
 

@@ -28,6 +28,7 @@
 
 #include "gnunet_util_lib.h"
 #include "gnunet_escrow_lib.h"
+#include "../identity/identity.h"
 
 /**
  * return value
@@ -145,10 +146,14 @@ static void
 put_cb (void *cls,
         struct GNUNET_ESCROW_Anchor *escrowAnchor)
 {
-  struct GNUNET_ESCROW_Operation *op = cls;
+  char *anchorString;
 
-  // TODO: implement
-  return;
+  anchorString = GNUNET_ESCROW_anchor_data_to_string (escrow_handle,
+                                                      escrowAnchor,
+                                                      method);
+
+  fprintf (stdout, "Escrow finished! Please keep the following anchor \
+           in order to restore the key later!\n%s\n", anchorString);
 }
 
 
@@ -156,10 +161,20 @@ static void
 verify_cb (void *cls,
            int verificationResult)
 {
-  struct GNUNET_ESCROW_Operation *op = cls;
-
-  // TODO: implement
-  return;
+  switch (verificationResult)
+  {
+    case GNUNET_ESCROW_VALID:
+      fprintf (stdout, "Escrow is valid!\n");
+      break;
+    case GNUNET_ESCROW_INVALID:
+      fprintf (stdout, "Escrow is INvalid! Please perform a new escrow.\n");
+      break;
+    case GNUNET_ESCROW_RENEW_NEEDED:
+      fprintf (stdout, "Escrow needs a renew!\n");
+      break;
+    default:
+      fprintf (stderr, "invalid verificationResult!\n");
+  }
 }
 
 
@@ -167,10 +182,13 @@ static void
 get_cb (void *cls,
         const struct GNUNET_IDENTITY_Ego *ego)
 {
-  struct GNUNET_ESCROW_Operation *op = cls;
-
-  // TODO: implement
-  return;
+  if (NULL == ego)
+  {
+    ret = 1;
+    fprintf (stderr, _ ("escrow failed!"));
+    return;
+  }
+  fprintf (stdout, "Ego %s could successfully be restored!", ego->name);
 }
 
 
@@ -190,7 +208,7 @@ start_process ()
                                    ego,
                                    method,
                                    &put_cb,
-                                   escrow_op);
+                                   NULL);
     return;
   }
   /* verify */
@@ -207,7 +225,7 @@ start_process ()
                                       anchor,
                                       method,
                                       &verify_cb,
-                                      escrow_op);
+                                      NULL);
     return;
   }
   /* get */
@@ -224,7 +242,7 @@ start_process ()
                                    get_ego,
                                    method,
                                    &get_cb,
-                                   escrow_op);
+                                   NULL);
     return;
   }
 }
@@ -309,11 +327,11 @@ run (void *cls,
   }
 
   /* determine method */
-  if (strncmp (plaintext_string, method_name, strlen (plaintext_string)))
+  if (!strncmp (plaintext_string, method_name, strlen (plaintext_string)))
     method = GNUNET_ESCROW_KEY_PLAINTEXT;
-  else if (strncmp (gns_string, method_name, strlen (gns_string)))
+  else if (!strncmp (gns_string, method_name, strlen (gns_string)))
     method = GNUNET_ESCROW_KEY_GNS;
-  else if (strncmp (anastasis_string, method_name, strlen (anastasis_string)))
+  else if (!strncmp (anastasis_string, method_name, strlen (anastasis_string)))
     method = GNUNET_ESCROW_KEY_ANASTASIS;
   else
   {

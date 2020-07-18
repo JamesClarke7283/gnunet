@@ -140,6 +140,11 @@ struct GNUNET_ESCROW_Operation
   struct GNUNET_ESCROW_Handle *h;
 
   /**
+   * Handle to an identity operation.
+   */
+  struct GNUNET_IDENTITY_Operation *id_op;
+
+  /**
    * Continuation for a PUT operation.
    */
   GNUNET_ESCROW_AnchorContinuation cb_put;
@@ -158,6 +163,11 @@ struct GNUNET_ESCROW_Operation
    * Continuation for a VERIFY operation.
    */
   GNUNET_ESCROW_VerifyContinuation cb_verify;
+
+  /**
+   * Closure for a callback.
+   */
+  void *cb_cls;
 };
 
 
@@ -282,6 +292,21 @@ GNUNET_ESCROW_anchor_string_to_data (
   struct GNUNET_ESCROW_Handle *h,
   char *anchorString,
   enum GNUNET_ESCROW_Key_Escrow_Method method);
+
+
+/**
+ * Serialize an escrow anchor (struct GNUNET_ESCROW_Anchor) into a string
+ * 
+ * @param h the handle for the escrow component
+ * @param escrowAnchor the escrow anchor struct
+ * @param method the escrow method to use
+ * 
+ * @return the encoded escrow anchor string
+ */
+char *
+GNUNET_ESCROW_anchor_data_to_string (struct GNUNET_ESCROW_Handle *h,
+                                     struct GNUNET_ESCROW_Anchor *escrowAnchor,
+                                     enum GNUNET_ESCROW_Key_Escrow_Method method);
 
 
 #if 0 /* keep Emacsens' auto-indent happy */

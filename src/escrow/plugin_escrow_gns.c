@@ -50,16 +50,12 @@ struct EscrowPluginHandle ph;
 /**
  * Start the GNS escrow of the key
  * 
- * @param h the handle for the escrow component
+ * @param op the escrow operation
  * @param ego the identity ego containing the private key
- * @param cb function to call with the escrow anchor on completion
- * @param cb_cls closure for @a cb
  */
 void
-start_gns_key_escrow (struct GNUNET_ESCROW_Handle *h,
-                      const struct GNUNET_IDENTITY_Ego *ego,
-                      GNUNET_ESCROW_AnchorContinuation cb,
-                      void *cb_cls)
+start_gns_key_escrow (struct GNUNET_ESCROW_Operation *op,
+                      const struct GNUNET_IDENTITY_Ego *ego)
 {
   const struct GNUNET_CRYPTO_EcdsaPrivateKey *pk;
   sss_Keyshare keyshares;
@@ -68,7 +64,7 @@ start_gns_key_escrow (struct GNUNET_ESCROW_Handle *h,
 
   if (NULL == ego)
   {
-    cb (cb_cls, NULL);
+    op->cb_put (op->cb_cls, NULL);
     return;
   }
   pk = GNUNET_IDENTITY_ego_get_private_key (ego);
@@ -87,71 +83,56 @@ start_gns_key_escrow (struct GNUNET_ESCROW_Handle *h,
   // TODO: implement
   anchorDataSize = 0; // TODO!
   anchor = GNUNET_malloc (sizeof (struct GNUNET_ESCROW_Anchor) + anchorDataSize);
-  cb (cb_cls, anchor);
+  op->cb_put (op->cb_cls, anchor);
 }
 
 
 /**
  * Renew the GNS escrow of the key
  * 
- * @param h the handle for the escrow component
+ * @param op the escrow operation
  * @param escrowAnchor the the escrow anchor returned by the start method
- * @param cb function to call with the (new) escrow anchor on completion
- * @param cb_cls closure for @a cb
  */
 void
-renew_gns_key_escrow (struct GNUNET_ESCROW_Handle *h,
-                      struct GNUNET_ESCROW_Anchor *escrowAnchor,
-                      GNUNET_ESCROW_AnchorContinuation cb,
-                      void *cb_cls)
+renew_gns_key_escrow (struct GNUNET_ESCROW_Operation *op,
+                      struct GNUNET_ESCROW_Anchor *escrowAnchor)
 {
   // TODO: implement
-  cb (cb_cls, NULL);
+  op->cb_renew (op->cb_cls, NULL);
 }
 
 
 /**
  * Verify the GNS escrow of the key
  * 
- * @param h the handle for the escrow component
+ * @param op the escrow operation
  * @param ego the identity ego containing the private key
  * @param escrowAnchor the escrow anchor needed to restore the key
- * @param cb function to call with the verification result on completion, i.e.
- *  GNUNET_ESCROW_VALID if the escrow could successfully by restored,
- *  GNUNET_ESCROW_RENEW_NEEDED if the escrow needs to be renewed,
- *  GNUNET_ESCROW_INVALID otherwise
- * @param cb_cls closure for @a cb
  */
 void
-verify_gns_key_escrow (struct GNUNET_ESCROW_Handle *h,
+verify_gns_key_escrow (struct GNUNET_ESCROW_Operation *op,
                        const struct GNUNET_IDENTITY_Ego *ego,
-                       struct GNUNET_ESCROW_Anchor *escrowAnchor,
-                       GNUNET_ESCROW_VerifyContinuation cb,
-                       void *cb_cls)
+                       struct GNUNET_ESCROW_Anchor *escrowAnchor)
 {
   // TODO: implement
-  cb (cb_cls, GNUNET_ESCROW_INVALID);
+  op->cb_verify (op->cb_cls, GNUNET_ESCROW_INVALID);
 }
 
 
 /**
  * Restore the key from GNS escrow
  * 
- * @param h the handle for the escrow component
+ * @param op the escrow operation
  * @param escrowAnchor the escrow anchor needed to restore the key
  * @param egoName the name of the ego to restore
- * @param cb function to call with the restored ego on completion
- * @param cb_cls closure for @a cb
  */
 void
-restore_gns_key_escrow (struct GNUNET_ESCROW_Handle *h,
+restore_gns_key_escrow (struct GNUNET_ESCROW_Operation *op,
                         struct GNUNET_ESCROW_Anchor *escrowAnchor,
-                        char *egoName,
-                        GNUNET_ESCROW_EgoContinuation cb,
-                        void *cb_cls)
+                        char *egoName)
 {
   // TODO: implement
-  cb (cb_cls, NULL);
+  op->cb_get (op->cb_cls, NULL);
 }
 
 
@@ -159,10 +140,12 @@ restore_gns_key_escrow (struct GNUNET_ESCROW_Handle *h,
  * Deserialize an escrow anchor string into a GNUNET_ESCROW_Anchor struct
  * 
  * @param anchorString the encoded escrow anchor string
+ * 
  * @return the deserialized data packed into a GNUNET_ESCROW_Anchor struct
  */
 struct GNUNET_ESCROW_Anchor *
-gns_anchor_string_to_data (char *anchorString)
+gns_anchor_string_to_data (struct GNUNET_ESCROW_Handle *h,
+                           char *anchorString)
 {
   struct GNUNET_ESCROW_Anchor *anchor;
   uint32_t data_size;
@@ -179,7 +162,24 @@ gns_anchor_string_to_data (char *anchorString)
 
 
 /**
- * ContinueIdentityInitFunction for the GNS plugin
+ * Serialize an escrow anchor struct into a string
+ * 
+ * @param h the handle for the escrow component
+ * @param escrowAnchor the escrow anchor struct
+ * 
+ * @return the encoded escrow anchor string
+ */
+char *
+gns_anchor_data_to_string (struct GNUNET_ESCROW_Handle *h,
+                           struct GNUNET_ESCROW_Anchor *escrowAnchor)
+{
+  // TODO: implement
+  return NULL;
+}
+
+
+/**
+ * IdentityInitContinuation for the GNS plugin
  */
 void
 gns_cont_init ()
@@ -192,6 +192,7 @@ gns_cont_init ()
  * Entry point for the plugin.
  *
  * @param cls Config info
+ * 
  * @return the exported block API
  */
 void *
@@ -221,6 +222,7 @@ libgnunet_plugin_escrow_gns_init (void *cls)
  * Exit point from the plugin.
  *
  * @param cls the return value from #libgnunet_plugin_block_test_init()
+ * 
  * @return NULL
  */
 void *

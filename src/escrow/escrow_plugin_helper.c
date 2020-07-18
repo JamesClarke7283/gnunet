@@ -71,14 +71,14 @@ ESCROW_list_ego (void *cls,
                  void **ctx,
                  const char *identifier)
 {
+  struct EscrowPluginHandle *ph = cls;
   struct EgoEntry *ego_entry;
   struct GNUNET_CRYPTO_EcdsaPublicKey pk;
-  struct EscrowPluginHandle *ph = cls;
 
   if ((NULL == ego) && (ESCROW_PLUGIN_STATE_INIT == ph->state))
   {
     ph->state = ESCROW_PLUGIN_STATE_POST_INIT;
-    /* call ContinueIdentityInitFunction */
+    /* call IdentityInitContinuation */
     ph->cont ();
     return;
   }
