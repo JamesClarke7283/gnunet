@@ -173,7 +173,9 @@ typedef const char *(*GNUNET_RECLAIM_AttestationNumberToTypenameFunction) (
  * @param attest the attestation object
  * @return an attribute list
  */
-typedef struct GNUNET_RECLAIM_AttributeList *(*GNUNET_RECLAIM_AttestationGetAttributesFunction) (
+typedef struct
+  GNUNET_RECLAIM_AttributeList *(*
+GNUNET_RECLAIM_AttestationGetAttributesFunction) (
   void *cls,
   const struct GNUNET_RECLAIM_Attestation *attest);
 
