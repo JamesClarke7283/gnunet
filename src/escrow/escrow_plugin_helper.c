@@ -79,7 +79,7 @@ ESCROW_list_ego (void *cls,
   {
     ph->state = ESCROW_PLUGIN_STATE_POST_INIT;
     /* call IdentityInitContinuation */
-    ph->cont ();
+    ph->id_init_cont ();
     return;
   }
   GNUNET_assert (NULL != ego);
@@ -107,6 +107,11 @@ ESCROW_list_ego (void *cls,
         /* Rename */
         GNUNET_free (ego_entry->identifier);
         ego_entry->identifier = GNUNET_strdup (identifier);
+        /* TODO: this handles an edge case when the user restores an ego
+           that already exists. In that case, @param ego is the same for the
+           new as for the existing ego and this method thinks it is a rename. */
+        if (NULL != ph->ego_create_cont)
+          ph->ego_create_cont (ego);
         break;
       }
     }
@@ -121,6 +126,10 @@ ESCROW_list_ego (void *cls,
       GNUNET_CONTAINER_DLL_insert_tail (ph->ego_head,
                                         ph->ego_tail,
                                         ego_entry);
+      /* new ego is added to the list, call ego_create_cont if this was
+         because of an ESCROW_get operation, i.e. ego_create_cont != NULL */
+      if (NULL != ph->ego_create_cont)
+        ph->ego_create_cont (ego);
     }
   }
   else

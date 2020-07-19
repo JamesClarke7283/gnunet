@@ -117,7 +117,11 @@ static struct GNUNET_SCHEDULER_Task *cleanup_task;
 static void
 do_cleanup (void *cls)
 {
-  GNUNET_ESCROW_fini (escrow_handle);
+  cleanup_task = NULL;
+  if (NULL != escrow_handle)
+    GNUNET_ESCROW_fini (escrow_handle);
+  if (NULL != identity_handle)
+    GNUNET_IDENTITY_disconnect (identity_handle);
   if (NULL != put_ego)
   {
     GNUNET_free (put_ego);
@@ -135,7 +139,7 @@ do_cleanup (void *cls)
   }
   if (NULL != ego)
   {
-    GNUNET_free (ego);
+    //GNUNET_free (ego); // TODO: free correctly!
     ego = NULL;
   }
   method = 0;
@@ -153,7 +157,8 @@ put_cb (void *cls,
                                                       method);
 
   fprintf (stdout, "Escrow finished! Please keep the following anchor \
-           in order to restore the key later!\n%s\n", anchorString);
+in order to restore the key later!\n%s\n", anchorString);
+  cleanup_task = GNUNET_SCHEDULER_add_now (&do_cleanup, NULL);
 }
 
 
@@ -175,6 +180,7 @@ verify_cb (void *cls,
     default:
       fprintf (stderr, "invalid verificationResult!\n");
   }
+  cleanup_task = GNUNET_SCHEDULER_add_now (&do_cleanup, NULL);
 }
 
 
@@ -188,7 +194,8 @@ get_cb (void *cls,
     fprintf (stderr, _ ("escrow failed!"));
     return;
   }
-  fprintf (stdout, "Ego %s could successfully be restored!", ego->name);
+  fprintf (stdout, "Ego %s could successfully be restored!\n", ego->name);
+  cleanup_task = GNUNET_SCHEDULER_add_now (&do_cleanup, NULL);
 }
 
 
@@ -342,10 +349,13 @@ run (void *cls,
 
   escrow_handle = GNUNET_ESCROW_init (c);
   
-  /* parse anchor_string according to method */
-  anchor = GNUNET_ESCROW_anchor_string_to_data (escrow_handle,
-                                                anchor_string,
-                                                method);
+  if (NULL != anchor_string)
+  {
+    /* parse anchor_string according to method */
+    anchor = GNUNET_ESCROW_anchor_string_to_data (escrow_handle,
+                                                  anchor_string,
+                                                  method);
+  }
 
   /* connect to identity service in order to get the egos */
   identity_handle = GNUNET_IDENTITY_connect (c, &ego_cb, ego_name);

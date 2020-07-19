@@ -84,6 +84,13 @@ struct GNUNET_ESCROW_Anchor {
 typedef void (*GNUNET_ESCROW_IdentityInitContinuation) ();
 
 /**
+ * Function called after the creation of an ego in case that happened
+ * because of an escrow GET operation.
+ */
+typedef void (*GNUNET_ESCROW_EgoCreateContinuation) (
+  const struct GNUNET_IDENTITY_Ego *ego);
+
+/**
  * Continuation for PUT and RENEW operations.
  * 
  * @param cls closure

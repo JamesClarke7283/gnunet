@@ -122,8 +122,20 @@ verify_plaintext_key_escrow (struct GNUNET_ESCROW_Operation *op,
 }
 
 
+void
+ego_created (const struct GNUNET_IDENTITY_Ego *ego)
+{
+  ph.ego_create_cont = NULL;
+  ph.curr_op->cb_get (ph.curr_op->cb_cls, ego);
+  ph.curr_op = NULL;
+}
+
+
 /**
  * Creation operation finished.
+ * This method only handles errors that may have occured. On success,
+ * the callback is executed by the ESCROW_list_ego function, as the
+ * new ego is in our ego list only after ESCROW_list_ego has added it.
  *
  * @param cls pointer to operation handle
  * @param pk private key of the ego, or NULL on error
@@ -135,29 +147,23 @@ create_finished (void *cls,
                  const char *emsg)
 {
   struct GNUNET_ESCROW_Operation *op = cls;
-  struct EgoEntry *ego_list;
 
   if (NULL == pk)
   {
-    fprintf (stderr, _ ("Failed to create ego: %s\n"), emsg);
+    if (NULL != emsg)
+      fprintf (stderr,
+               "Identity create operation returned with error: %s\n",
+               emsg);
+    else
+      fprintf (stderr, "Failed to create ego!");
+    op->cb_get (op->cb_cls, NULL);
     return;
   }
 
-  /* find the ego in our ego list */
-  ego_list = ph.ego_head;
-  while (NULL != ego_list)
-  {
-    if (&ego_list->ego->pk == pk)
-    {
-      /* ego found */
-      op->cb_get (op->cb_cls, ego_list->ego);
-      return;
-    }
-    ego_list = ego_list->next;
-  }
-
-  /* ego not found (should not happen!) */
-  op->cb_get (op->cb_cls, NULL);
+  /* no error occured, op->cb_get will be called from ESCROW_list_ego after 
+     adding the new ego to our list */
+  ph.ego_create_cont = &ego_created;
+  ph.curr_op = op;
 }
 
 
@@ -278,7 +284,7 @@ libgnunet_plugin_escrow_plaintext_init (void *cls)
   api->anchor_string_to_data = &plaintext_anchor_string_to_data;
   api->anchor_data_to_string = &plaintext_anchor_data_to_string;
 
-  ph.cont = &plaintext_cont_init;
+  ph.id_init_cont = &plaintext_cont_init;
 
   identity_handle = GNUNET_IDENTITY_connect (cfg,
                                              &ESCROW_list_ego,

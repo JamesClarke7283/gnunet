@@ -208,7 +208,7 @@ libgnunet_plugin_escrow_gns_init (void *cls)
   api->restore_key = &restore_gns_key_escrow;
   api->anchor_string_to_data = &gns_anchor_string_to_data;
 
-  ph.cont = &gns_cont_init;
+  ph.id_init_cont = &gns_cont_init;
 
   identity_handle = GNUNET_IDENTITY_connect (cfg,
                                              &ESCROW_list_ego,

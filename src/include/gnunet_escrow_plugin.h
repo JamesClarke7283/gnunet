@@ -90,9 +90,19 @@ struct EgoEntry
 struct EscrowPluginHandle
 {
   /**
-   * The ContinueIdentityInit function.
+   * The identity init continuation.
    */
-  GNUNET_ESCROW_IdentityInitContinuation cont;
+  GNUNET_ESCROW_IdentityInitContinuation id_init_cont;
+
+  /**
+   * The ego create continuation.
+   */
+  GNUNET_ESCROW_EgoCreateContinuation ego_create_cont;
+
+  /**
+   * The current operation.
+   */
+  struct GNUNET_ESCROW_Operation *curr_op;
 
   /**
    * The state of the plugin (in the initialization phase).

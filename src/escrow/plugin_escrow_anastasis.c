@@ -178,7 +178,7 @@ libgnunet_plugin_escrow_anastasis_init (void *cls)
   api->restore_key = &restore_anastasis_key_escrow;
   api->anchor_string_to_data = &anastasis_anchor_string_to_data;
 
-  ph.cont = &anastasis_cont_init;
+  ph.id_init_cont = &anastasis_cont_init;
 
   identity_handle = GNUNET_IDENTITY_connect (cfg,
                                              &ESCROW_list_ego,
