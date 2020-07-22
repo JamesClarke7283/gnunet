@@ -122,6 +122,12 @@ do_cleanup (void *cls)
     GNUNET_ESCROW_fini (escrow_handle);
   if (NULL != identity_handle)
     GNUNET_IDENTITY_disconnect (identity_handle);
+  if (NULL != escrow_op)
+  {
+    GNUNET_ESCROW_cancel (escrow_op, method);
+    GNUNET_free (escrow_op);
+    escrow_op = NULL;
+  }
   if (NULL != put_ego)
   {
     GNUNET_free (put_ego);
@@ -152,6 +158,8 @@ put_cb (void *cls,
 {
   char *anchorString;
 
+  escrow_op = NULL;
+
   anchorString = GNUNET_ESCROW_anchor_data_to_string (escrow_handle,
                                                       escrowAnchor,
                                                       method);
@@ -166,6 +174,8 @@ static void
 verify_cb (void *cls,
            int verificationResult)
 {
+  escrow_op = NULL;
+
   switch (verificationResult)
   {
     case GNUNET_ESCROW_VALID:
@@ -188,6 +198,8 @@ static void
 get_cb (void *cls,
         const struct GNUNET_IDENTITY_Ego *ego)
 {
+  escrow_op = NULL;
+
   if (NULL == ego)
   {
     ret = 1;

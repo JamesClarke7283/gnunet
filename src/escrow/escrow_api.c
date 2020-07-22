@@ -75,7 +75,7 @@ static struct GNUNET_ESCROW_KeyPluginFunctions *anastasis_api;
  * 
  * @return pointer to the escrow plugin API
  */
-struct GNUNET_ESCROW_KeyPluginFunctions *
+const struct GNUNET_ESCROW_KeyPluginFunctions *
 init_plugin (struct GNUNET_ESCROW_Handle *h,
              enum GNUNET_ESCROW_Key_Escrow_Method method)
 {
@@ -173,6 +173,26 @@ GNUNET_ESCROW_fini (struct GNUNET_ESCROW_Handle *h)
 }
 
 
+void
+handle_start_escrow_result (void *cls,
+                            struct GNUNET_ESCROW_Anchor *escrowAnchor)
+{
+  struct GNUNET_ESCROW_Handle *h = cls;
+  struct GNUNET_ESCROW_Operation *op;
+
+  op = h->op_head;
+  if (NULL == op)
+  {
+    GNUNET_break (0);
+    return;
+  }
+  GNUNET_CONTAINER_DLL_remove (h->op_head, h->op_tail, op);
+  if (NULL != op->cb_get)
+    op->cb_put (op->cb_cls, escrowAnchor);
+  GNUNET_free (op);
+}
+
+
 /**
  * Put some data in escrow using the specified escrow method
  * 
@@ -192,15 +212,16 @@ GNUNET_ESCROW_put (struct GNUNET_ESCROW_Handle *h,
                    void *cb_cls)
 {
   struct GNUNET_ESCROW_Operation *op;
-  struct GNUNET_ESCROW_KeyPluginFunctions *api;
+  const struct GNUNET_ESCROW_KeyPluginFunctions *api;
 
   op = GNUNET_new (struct GNUNET_ESCROW_Operation);
   op->h = h;
   op->cb_put = cb;
   op->cb_cls = cb_cls;
+  GNUNET_CONTAINER_DLL_insert_tail (h->op_head, h->op_tail, op);
 
   api = init_plugin (h, method);
-  api->start_key_escrow (op, ego);
+  api->start_key_escrow (h, ego, &handle_start_escrow_result);
 
   return op;
 }
@@ -225,16 +246,37 @@ GNUNET_ESCROW_renew (struct GNUNET_ESCROW_Handle *h,
                      void *cb_cls)
 {
   struct GNUNET_ESCROW_Operation *op;
-  struct GNUNET_ESCROW_KeyPluginFunctions *api;
+  const struct GNUNET_ESCROW_KeyPluginFunctions *api;
 
   op = GNUNET_new (struct GNUNET_ESCROW_Operation);
   op->h = h;
   op->cb_renew = cb;
+  op->cb_cls = cb_cls;
 
   api = init_plugin (h, method);
   api->renew_key_escrow (op, escrowAnchor);
   
   return op;
+}
+
+
+static void
+handle_restore_key_result (void *cls,
+                           const struct GNUNET_IDENTITY_Ego *ego)
+{
+  struct GNUNET_ESCROW_Handle *h = cls;
+  struct GNUNET_ESCROW_Operation *op;
+
+  op = h->op_head;
+  if (NULL == op)
+  {
+    GNUNET_break (0);
+    return;
+  }
+  GNUNET_CONTAINER_DLL_remove (h->op_head, h->op_tail, op);
+  if (NULL != op->cb_get)
+    op->cb_get (op->cb_cls, ego);
+  GNUNET_free (op);
 }
 
 
@@ -259,16 +301,38 @@ GNUNET_ESCROW_get (struct GNUNET_ESCROW_Handle *h,
                    void *cb_cls)
 {
   struct GNUNET_ESCROW_Operation *op;
-  struct GNUNET_ESCROW_KeyPluginFunctions *api;
+  const struct GNUNET_ESCROW_KeyPluginFunctions *api;
 
   op = GNUNET_new (struct GNUNET_ESCROW_Operation);
   op->h = h;
   op->cb_get = cb;
+  op->cb_cls = cb_cls;
+  GNUNET_CONTAINER_DLL_insert_tail (h->op_head, h->op_tail, op);
 
   api = init_plugin (h, method);
-  api->restore_key (op, escrowAnchor, egoName);
+  api->restore_key (h, escrowAnchor, egoName, &handle_restore_key_result);
 
   return op;
+}
+
+
+void
+handle_verify_escrow_result (void *cls,
+                             int verificationResult)
+{
+  struct GNUNET_ESCROW_Handle *h = cls;
+  struct GNUNET_ESCROW_Operation *op;
+
+  op = h->op_head;
+  if (NULL == op)
+  {
+    GNUNET_break (0);
+    return;
+  }
+  GNUNET_CONTAINER_DLL_remove (h->op_head, h->op_tail, op);
+  if (NULL != op->cb_get)
+    op->cb_verify (op->cb_cls, verificationResult);
+  GNUNET_free (op);
 }
 
 
@@ -293,14 +357,16 @@ GNUNET_ESCROW_verify (struct GNUNET_ESCROW_Handle *h,
                       void *cb_cls)
 {
   struct GNUNET_ESCROW_Operation *op;
-  struct GNUNET_ESCROW_KeyPluginFunctions *api;
+  const struct GNUNET_ESCROW_KeyPluginFunctions *api;
 
   op = GNUNET_new (struct GNUNET_ESCROW_Operation);
   op->h = h;
   op->cb_verify = cb;
+  op->cb_cls = cb_cls;
+  GNUNET_CONTAINER_DLL_insert_tail (h->op_head, h->op_tail, op);
 
   api = init_plugin (h, method);
-  api->verify_key_escrow (op, ego, escrowAnchor);
+  api->verify_key_escrow (h, ego, escrowAnchor, &handle_verify_escrow_result);
 
   return op;
 }
@@ -321,7 +387,7 @@ GNUNET_ESCROW_anchor_string_to_data (struct GNUNET_ESCROW_Handle *h,
                                      char *anchorString,
                                      enum GNUNET_ESCROW_Key_Escrow_Method method)
 {
-  struct GNUNET_ESCROW_KeyPluginFunctions *api;
+  const struct GNUNET_ESCROW_KeyPluginFunctions *api;
 
   api = init_plugin (h, method);
   return api->anchor_string_to_data (h, anchorString);
@@ -342,10 +408,33 @@ GNUNET_ESCROW_anchor_data_to_string (struct GNUNET_ESCROW_Handle *h,
                                      struct GNUNET_ESCROW_Anchor *escrowAnchor,
                                      enum GNUNET_ESCROW_Key_Escrow_Method method)
 {
-  struct GNUNET_ESCROW_KeyPluginFunctions *api;
+  const struct GNUNET_ESCROW_KeyPluginFunctions *api;
 
   api = init_plugin (h, method);
   return api->anchor_data_to_string (h, escrowAnchor);
+}
+
+
+/**
+ * Cancel an escrow operation. Note that the operation MAY still
+ * be executed; this merely cancels the continuation.
+ *
+ * @param op operation to cancel
+ * @param method the escrow method to use
+ */
+void
+GNUNET_ESCROW_cancel (struct GNUNET_ESCROW_Operation *op,
+                      enum GNUNET_ESCROW_Key_Escrow_Method method)
+{
+  const struct GNUNET_ESCROW_KeyPluginFunctions *api;
+
+  api = init_plugin (op->h, method);
+  // TODO: api->cancel (...);
+
+  op->cb_put = NULL;
+  op->cb_renew = NULL;
+  op->cb_verify = NULL;
+  op->cb_get = NULL;
 }
 
 

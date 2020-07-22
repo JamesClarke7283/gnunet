@@ -47,12 +47,14 @@ struct EscrowPluginHandle ph;
 /**
  * Start the plaintext escrow of the key, i.e. simply hand out the key
  * 
- * @param op the escrow operation
+ * @param h the handle for the escrow component
  * @param ego the identity ego containing the private key
+ * @param cb the function called upon completion
  */
 void
-start_plaintext_key_escrow (struct GNUNET_ESCROW_Operation *op,
-                            const struct GNUNET_IDENTITY_Ego *ego)
+start_plaintext_key_escrow (struct GNUNET_ESCROW_Handle *h,
+                            const struct GNUNET_IDENTITY_Ego *ego,
+                            GNUNET_ESCROW_AnchorContinuation cb)
 {
   const struct GNUNET_CRYPTO_EcdsaPrivateKey *pk;
   struct GNUNET_ESCROW_Anchor *anchor;
@@ -61,7 +63,7 @@ start_plaintext_key_escrow (struct GNUNET_ESCROW_Operation *op,
 
   if (NULL == ego)
   {
-    op->cb_put (op->cb_cls, NULL);
+    cb (h, NULL);
     return;
   }
   pk = GNUNET_IDENTITY_ego_get_private_key (ego);
@@ -73,7 +75,7 @@ start_plaintext_key_escrow (struct GNUNET_ESCROW_Operation *op,
   anchor->size = anchorDataSize;
   GNUNET_memcpy (&anchor[1], pkString, anchorDataSize);
 
-  op->cb_put (op->cb_cls, anchor);
+  cb (h, anchor);
 }
 
 
@@ -94,14 +96,16 @@ renew_plaintext_key_escrow (struct GNUNET_ESCROW_Operation *op,
 /**
  * Verify the plaintext escrow of the key
  * 
- * @param op the escrow operation
+ * @param h the handle for the escrow component
  * @param ego the identity ego containing the private key
  * @param escrowAnchor the escrow anchor needed to restore the key
+ * @param cb the function called upon completion
  */
 void
-verify_plaintext_key_escrow (struct GNUNET_ESCROW_Operation *op,
+verify_plaintext_key_escrow (struct GNUNET_ESCROW_Handle *h,
                              const struct GNUNET_IDENTITY_Ego *ego,
-                             struct GNUNET_ESCROW_Anchor *escrowAnchor)
+                             struct GNUNET_ESCROW_Anchor *escrowAnchor,
+                             GNUNET_ESCROW_VerifyContinuation cb)
 {
   const struct GNUNET_CRYPTO_EcdsaPrivateKey *pk;
   char *pkString;
@@ -109,7 +113,7 @@ verify_plaintext_key_escrow (struct GNUNET_ESCROW_Operation *op,
 
   if (NULL == ego)
   {
-    op->cb_verify (op->cb_cls, GNUNET_ESCROW_INVALID);
+    cb (h, GNUNET_ESCROW_INVALID);
     return;
   }
   pk = GNUNET_IDENTITY_ego_get_private_key (ego);
@@ -118,7 +122,7 @@ verify_plaintext_key_escrow (struct GNUNET_ESCROW_Operation *op,
                                 (char *)&escrowAnchor[1],
                                 strlen (pkString)) == 0 ?
     GNUNET_ESCROW_VALID : GNUNET_ESCROW_INVALID;
-  op->cb_verify (op->cb_cls, verificationResult);
+  cb (h, verificationResult);
 }
 
 
@@ -126,14 +130,14 @@ void
 ego_created (const struct GNUNET_IDENTITY_Ego *ego)
 {
   ph.ego_create_cont = NULL;
-  ph.curr_op->cb_get (ph.curr_op->cb_cls, ego);
-  ph.curr_op = NULL;
+  ph.curr_restore_cb (ph.escrow_handle, ego);
+  ph.curr_restore_cb = NULL;
 }
 
 
 /**
  * Creation operation finished.
- * This method only handles errors that may have occured. On success,
+ * This method only handles errors that may have occurred. On success,
  * the callback is executed by the ESCROW_list_ego function, as the
  * new ego is in our ego list only after ESCROW_list_ego has added it.
  *
@@ -146,7 +150,7 @@ create_finished (void *cls,
                  const struct GNUNET_CRYPTO_EcdsaPrivateKey *pk,
                  const char *emsg)
 {
-  struct GNUNET_ESCROW_Operation *op = cls;
+  GNUNET_ESCROW_EgoContinuation cb = cls;
 
   if (NULL == pk)
   {
@@ -156,35 +160,40 @@ create_finished (void *cls,
                emsg);
     else
       fprintf (stderr, "Failed to create ego!");
-    op->cb_get (op->cb_cls, NULL);
+    cb (ph.escrow_handle, NULL);
     return;
   }
 
-  /* no error occured, op->cb_get will be called from ESCROW_list_ego after 
+  /* no error occurred, op->cb_get will be called from ESCROW_list_ego after 
      adding the new ego to our list */
   ph.ego_create_cont = &ego_created;
-  ph.curr_op = op;
+  ph.curr_restore_cb = cb;
 }
 
 
 /**
  * Restore the key from plaintext escrow
  * 
- * @param op the escrow operation
+ * @param h the handle for the escrow component
  * @param escrowAnchor the escrow anchor needed to restore the key
  * @param egoName the name of the ego to restore
+ * @param cb the function called upon completion
  */
 void
-restore_plaintext_key_escrow (struct GNUNET_ESCROW_Operation *op,
+restore_plaintext_key_escrow (struct GNUNET_ESCROW_Handle *h,
                               struct GNUNET_ESCROW_Anchor *escrowAnchor,
-                              char *egoName)
+                              char *egoName,
+                              GNUNET_ESCROW_EgoContinuation cb)
 {
   struct GNUNET_CRYPTO_EcdsaPrivateKey pk;
   struct GNUNET_IDENTITY_Operation *id_op;
 
+  // TODO: is this the right place for that?
+  ph.escrow_handle = h;
+
   if (NULL == escrowAnchor)
   {
-    op->cb_get (op->cb_cls, NULL);
+    cb (h, NULL);
     return;
   }
   if (GNUNET_OK !=
@@ -192,7 +201,7 @@ restore_plaintext_key_escrow (struct GNUNET_ESCROW_Operation *op,
                                                  strlen ((char *)&escrowAnchor[1]),
                                                  &pk))
   {
-    op->cb_get (op->cb_cls, NULL);
+    cb (h, NULL);
     return;
   }
   
@@ -200,9 +209,9 @@ restore_plaintext_key_escrow (struct GNUNET_ESCROW_Operation *op,
                                   egoName,
                                   &pk,
                                   &create_finished,
-                                  op);
+                                  cb);
 
-  op->id_op = id_op;
+  // TODO: return id_op?
 }
 
 
@@ -250,6 +259,16 @@ plaintext_anchor_data_to_string (struct GNUNET_ESCROW_Handle *h,
   GNUNET_memcpy (anchorString, &escrowAnchor[1], escrowAnchor->size);
 
   return anchorString;
+}
+
+
+/**
+ * Cancel ... TODO
+ */
+void
+cancel_plaintext_ ()
+{
+  return;
 }
 
 

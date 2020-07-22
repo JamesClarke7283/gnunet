@@ -100,9 +100,14 @@ struct EscrowPluginHandle
   GNUNET_ESCROW_EgoCreateContinuation ego_create_cont;
 
   /**
-   * The current operation.
+   * The current restore callback.
    */
-  struct GNUNET_ESCROW_Operation *curr_op;
+  GNUNET_ESCROW_EgoContinuation curr_restore_cb;
+
+  /**
+   * The handle to the escrow component.
+   */
+  struct GNUNET_ESCROW_Handle *escrow_handle;
 
   /**
    * The state of the plugin (in the initialization phase).
@@ -124,12 +129,14 @@ struct EscrowPluginHandle
 /**
  * Function called to start the escrow of the key
  * 
- * @param op the escrow operation
+ * @param h the handle for the escrow component
  * @param ego the identity ego containing the private key
+ * @param cb the function called upon completion
  */
 typedef void (*GNUNET_ESCROW_StartKeyEscrowFunction) (
-  struct GNUNET_ESCROW_Operation *op,
-  const struct GNUNET_IDENTITY_Ego *ego);
+  struct GNUNET_ESCROW_Handle *h,
+  const struct GNUNET_IDENTITY_Ego *ego,
+  GNUNET_ESCROW_AnchorContinuation cb);
 
 /**
  * Function called to renew the escrow of the key
@@ -144,26 +151,30 @@ typedef void (*GNUNET_ESCROW_RenewKeyEscrowFunction) (
 /**
  * Function called to verify the escrow of the key
  * 
- * @param op the escrow operation
+ * @param h the handle for the escrow component
  * @param ego the identity ego containing the private key
  * @param escrowAnchor the escrow anchor needed to restore the key
+ * @param cb the function called upon completion
  */
 typedef void (*GNUNET_ESCROW_VerifyKeyEscrowFunction) (
-  struct GNUNET_ESCROW_Operation *op,
+  struct GNUNET_ESCROW_Handle *h,
   const struct GNUNET_IDENTITY_Ego *ego,
-  struct GNUNET_ESCROW_Anchor *escrowAnchor);
+  struct GNUNET_ESCROW_Anchor *escrowAnchor,
+  GNUNET_ESCROW_VerifyContinuation cb);
 
 /**
  * Function called to restore a key from an escrow
  * 
- * @param op the escrow operation
+ * @param h the handle for the escrow component
  * @param escrowAnchor the escrow anchor needed to restore the key
  * @param egoName the name of the ego to restore
+ * @param cb the function called upon completion
  */
 typedef void (*GNUNET_ESCROW_RestoreKeyFunction) (
-  struct GNUNET_ESCROW_Operation *op,
+  struct GNUNET_ESCROW_Handle *h,
   struct GNUNET_ESCROW_Anchor *escrowAnchor,
-  char *egoName);
+  char *egoName,
+  GNUNET_ESCROW_EgoContinuation cb);
 
 
 /**

@@ -133,6 +133,16 @@ struct GNUNET_ESCROW_Handle
    * Configuration to use.
    */
   const struct GNUNET_CONFIGURATION_Handle *cfg;
+
+  /**
+   * Head of active operations.
+   */
+  struct GNUNET_ESCROW_Operation *op_head;
+
+  /**
+   * Tail of active operations.
+   */
+  struct GNUNET_ESCROW_Operation *op_tail;
 };
 
 
@@ -147,9 +157,14 @@ struct GNUNET_ESCROW_Operation
   struct GNUNET_ESCROW_Handle *h;
 
   /**
-   * Handle to an identity operation.
+   * We keep operations in a DLL.
    */
-  struct GNUNET_IDENTITY_Operation *id_op;
+  struct GNUNET_ESCROW_Operation *next;
+
+  /**
+   * We keep operations in a DLL.
+   */
+  struct GNUNET_ESCROW_Operation *prev;
 
   /**
    * Continuation for a PUT operation.
@@ -314,6 +329,18 @@ char *
 GNUNET_ESCROW_anchor_data_to_string (struct GNUNET_ESCROW_Handle *h,
                                      struct GNUNET_ESCROW_Anchor *escrowAnchor,
                                      enum GNUNET_ESCROW_Key_Escrow_Method method);
+
+
+/**
+ * Cancel an escrow operation. Note that the operation MAY still
+ * be executed; this merely cancels the continuation.
+ *
+ * @param op operation to cancel
+ * @param method the escrow method to use
+ */
+void
+GNUNET_ESCROW_cancel (struct GNUNET_ESCROW_Operation *op,
+                      enum GNUNET_ESCROW_Key_Escrow_Method method);
 
 
 #if 0 /* keep Emacsens' auto-indent happy */
