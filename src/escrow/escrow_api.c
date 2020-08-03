@@ -234,40 +234,6 @@ GNUNET_ESCROW_put (struct GNUNET_ESCROW_Handle *h,
 }
 
 
-/**
- * Renew the escrow of the data related to the given escrow anchor
- * 
- * @param h the handle for the escrow component
- * @param escrowAnchor the escrow anchor returned by the GNUNET_ESCROW_put method
- * @param method the escrow method to use
- * @param cb function to call with the escrow anchor on completion
- * @param cb_cls closure for @a cb
- * 
- * @return handle to abort the operation
- */
-struct GNUNET_ESCROW_Operation *
-GNUNET_ESCROW_renew (struct GNUNET_ESCROW_Handle *h,
-                     struct GNUNET_ESCROW_Anchor *escrowAnchor,
-                     enum GNUNET_ESCROW_Key_Escrow_Method method,
-                     GNUNET_ESCROW_AnchorContinuation cb,
-                     void *cb_cls)
-{
-  struct GNUNET_ESCROW_Operation *op;
-  const struct GNUNET_ESCROW_KeyPluginFunctions *api;
-
-  op = GNUNET_new (struct GNUNET_ESCROW_Operation);
-  op->h = h;
-  op->method = method;
-  op->cb_renew = cb;
-  op->cb_cls = cb_cls;
-
-  api = init_plugin (h, method);
-  api->renew_key_escrow (op, escrowAnchor);
-  
-  return op;
-}
-
-
 static void
 handle_restore_key_result (void *cls)
 {
@@ -458,7 +424,6 @@ GNUNET_ESCROW_cancel (struct GNUNET_ESCROW_Operation *op)
       api->cancel_plugin_operation (op->plugin_op_wrap);
       // TODO: check which callback is not NULL?
       op->cb_put = NULL;
-      op->cb_renew = NULL;
       op->cb_verify = NULL;
       op->cb_get = NULL;
       GNUNET_free (op);

@@ -69,21 +69,6 @@ start_anastasis_key_escrow (struct GNUNET_ESCROW_Handle *h,
 
 
 /**
- * Renew the Anastasis escrow of the key
- * 
- * @param op the escrow operation
- * @param escrowAnchor the the escrow anchor returned by the start method
- */
-void
-renew_anastasis_key_escrow (struct GNUNET_ESCROW_Operation *op,
-                            struct GNUNET_ESCROW_Anchor *escrowAnchor)
-{
-  // TODO: implement
-  op->cb_renew (NULL);
-}
-
-
-/**
  * Verify the Anastasis escrow of the key
  * 
  * @param h the handle for the escrow component
@@ -219,7 +204,6 @@ libgnunet_plugin_escrow_anastasis_init (void *cls)
 
   api = GNUNET_new (struct GNUNET_ESCROW_KeyPluginFunctions);
   api->start_key_escrow = &start_anastasis_key_escrow;
-  api->renew_key_escrow = &renew_anastasis_key_escrow;
   api->verify_key_escrow = &verify_anastasis_key_escrow;
   api->restore_key = &restore_anastasis_key_escrow;
   api->anchor_string_to_data = &anastasis_anchor_string_to_data;

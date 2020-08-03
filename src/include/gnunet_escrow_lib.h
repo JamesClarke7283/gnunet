@@ -56,8 +56,7 @@ enum GNUNET_ESCROW_Key_Escrow_Method {
  */
 enum GNUNET_ESCROW_Verification_Result {
   GNUNET_ESCROW_VALID,
-  GNUNET_ESCROW_INVALID,
-  GNUNET_ESCROW_RENEW_NEEDED
+  GNUNET_ESCROW_INVALID
 };
 
 
@@ -91,7 +90,7 @@ typedef void (*GNUNET_ESCROW_EgoCreateContinuation) (
   const struct GNUNET_IDENTITY_Ego *ego);
 
 /**
- * Continuation for PUT and RENEW operations.
+ * Continuation for PUT operations.
  * 
  * @param cls closure
  * @param escrowAnchor the escrow anchor needed to get the data back
@@ -114,7 +113,6 @@ typedef void (*GNUNET_ESCROW_EgoContinuation) (
  * @param cls closure
  * @param verificationResult the result of the verification, i.e.
  *   GNUNET_ESCROW_VALID if the escrow could successfully by restored,
- *   GNUNET_ESCROW_RENEW_NEEDED if the escrow needs to be renewed,
  *   GNUNET_ESCROW_INVALID otherwise
  */
 typedef void (*GNUNET_ESCROW_VerifyContinuation) (
@@ -194,11 +192,6 @@ struct GNUNET_ESCROW_Operation
   GNUNET_ESCROW_AnchorContinuation cb_put;
 
   /**
-   * Continuation for a RENEW operation.
-   */
-  GNUNET_ESCROW_AnchorContinuation cb_renew;
-
-  /**
    * Continuation for a GET operation.
    */
   GNUNET_ESCROW_EgoContinuation cb_get;
@@ -252,26 +245,6 @@ struct GNUNET_ESCROW_Operation *
 GNUNET_ESCROW_put (
   struct GNUNET_ESCROW_Handle *h,
   const struct GNUNET_IDENTITY_Ego *ego,
-  enum GNUNET_ESCROW_Key_Escrow_Method method,
-  GNUNET_ESCROW_AnchorContinuation cb,
-  void *cb_cls);
-
-
-/**
- * Renew the escrow of the data related to the given escrow anchor
- * 
- * @param h the handle for the escrow component
- * @param escrowAnchor the escrow anchor returned by the GNUNET_ESCROW_put method
- * @param method the escrow method to use
- * @param cb function to call with the escrow anchor on completion
- * @param cb_cls closure for @a cb
- * 
- * @return handle to abort the operation
- */
-struct GNUNET_ESCROW_Operation *
-GNUNET_ESCROW_renew (
-  struct GNUNET_ESCROW_Handle *h,
-  struct GNUNET_ESCROW_Anchor *escrowAnchor,
   enum GNUNET_ESCROW_Key_Escrow_Method method,
   GNUNET_ESCROW_AnchorContinuation cb,
   void *cb_cls);

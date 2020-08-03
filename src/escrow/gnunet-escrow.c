@@ -183,9 +183,6 @@ verify_cb (int verificationResult)
     case GNUNET_ESCROW_INVALID:
       fprintf (stdout, "Escrow is INvalid! Please perform a new escrow.\n");
       break;
-    case GNUNET_ESCROW_RENEW_NEEDED:
-      fprintf (stdout, "Escrow needs a renew!\n");
-      break;
     default:
       fprintf (stderr, "invalid verificationResult!\n");
   }

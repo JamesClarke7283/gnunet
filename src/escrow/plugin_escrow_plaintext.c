@@ -137,20 +137,6 @@ start_plaintext_key_escrow (struct GNUNET_ESCROW_Handle *h,
 
 
 /**
- * Renew the plaintext escrow of the key, i.e. simply hand out the key
- * 
- * @param op the escrow operation
- * @param escrowAnchor the the escrow anchor returned by the start method
- */
-void
-renew_plaintext_key_escrow (struct GNUNET_ESCROW_Operation *op,
-                            struct GNUNET_ESCROW_Anchor *escrowAnchor)
-{
-  op->cb_renew (escrowAnchor);
-}
-
-
-/**
  * Verify the plaintext escrow of the key
  * 
  * @param h the handle for the escrow component
@@ -446,7 +432,6 @@ libgnunet_plugin_escrow_plaintext_init (void *cls)
 
   api = GNUNET_new (struct GNUNET_ESCROW_KeyPluginFunctions);
   api->start_key_escrow = &start_plaintext_key_escrow;
-  api->renew_key_escrow = &renew_plaintext_key_escrow;
   api->verify_key_escrow = &verify_plaintext_key_escrow;
   api->restore_key = &restore_plaintext_key_escrow;
   api->anchor_string_to_data = &plaintext_anchor_string_to_data;

@@ -94,16 +94,6 @@ typedef struct ESCROW_PluginOperationWrapper *(*GNUNET_ESCROW_StartKeyEscrowFunc
   GNUNET_SCHEDULER_TaskCallback cb);
 
 /**
- * Function called to renew the escrow of the key
- * 
- * @param op the escrow operation
- * @param escrowAnchor the the escrow anchor returned by the start method
- */
-typedef void (*GNUNET_ESCROW_RenewKeyEscrowFunction) (
-  struct GNUNET_ESCROW_Operation *op,
-  struct GNUNET_ESCROW_Anchor *escrowAnchor);
-
-/**
  * Function called to verify the escrow of the key
  * 
  * @param h the handle for the escrow component
@@ -183,11 +173,6 @@ struct GNUNET_ESCROW_KeyPluginFunctions
    * Start key escrow
    */
   GNUNET_ESCROW_StartKeyEscrowFunction start_key_escrow;
-
-  /**
-   * Renew key escrow
-   */
-  GNUNET_ESCROW_RenewKeyEscrowFunction renew_key_escrow;
 
   /**
    * Verify key escrow
