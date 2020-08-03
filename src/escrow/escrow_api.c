@@ -178,7 +178,7 @@ GNUNET_ESCROW_fini (struct GNUNET_ESCROW_Handle *h)
 void
 handle_start_escrow_result (void *cls)
 {
-  struct GNUNET_ESCROW_Plugin_AnchorContinuationWrapper *w = cls;
+  struct ESCROW_Plugin_AnchorContinuationWrapper *w = cls;
   struct GNUNET_ESCROW_Operation *op;
 
   for (op = w->h->op_head; NULL != op; op = op->next)
@@ -206,7 +206,6 @@ handle_start_escrow_result (void *cls)
  * @param ego the identity ego to put in escrow
  * @param method the escrow method to use
  * @param cb function to call with the escrow anchor on completion
- * @param cb_cls closure for @a cb
  * 
  * @return handle to abort the operation
  */
@@ -214,8 +213,7 @@ struct GNUNET_ESCROW_Operation *
 GNUNET_ESCROW_put (struct GNUNET_ESCROW_Handle *h,
                    const struct GNUNET_IDENTITY_Ego *ego,
                    enum GNUNET_ESCROW_Key_Escrow_Method method,
-                   GNUNET_ESCROW_AnchorContinuation cb,
-                   void *cb_cls)
+                   GNUNET_ESCROW_AnchorContinuation cb)
 {
   struct GNUNET_ESCROW_Operation *op;
   const struct GNUNET_ESCROW_KeyPluginFunctions *api;
@@ -224,7 +222,6 @@ GNUNET_ESCROW_put (struct GNUNET_ESCROW_Handle *h,
   op->h = h;
   op->method = method;
   op->cb_put = cb;
-  op->cb_cls = cb_cls;
   GNUNET_CONTAINER_DLL_insert_tail (h->op_head, h->op_tail, op);
 
   api = init_plugin (h, method);
@@ -237,7 +234,7 @@ GNUNET_ESCROW_put (struct GNUNET_ESCROW_Handle *h,
 static void
 handle_restore_key_result (void *cls)
 {
-  struct GNUNET_ESCROW_Plugin_EgoContinuationWrapper *w = cls;
+  struct ESCROW_Plugin_EgoContinuationWrapper *w = cls;
   struct GNUNET_ESCROW_Operation *op;
 
   for (op = w->h->op_head; NULL != op; op = op->next)
@@ -266,7 +263,6 @@ handle_restore_key_result (void *cls)
  * @param egoName the name of the ego to get back
  * @param method the escrow method to use
  * @param cb function to call with the restored ego on completion
- * @param cb_cls closure for @a cb
  * 
  * @return handle to abort the operation
  */
@@ -275,8 +271,7 @@ GNUNET_ESCROW_get (struct GNUNET_ESCROW_Handle *h,
                    struct GNUNET_ESCROW_Anchor *escrowAnchor,
                    char *egoName,
                    enum GNUNET_ESCROW_Key_Escrow_Method method,
-                   GNUNET_ESCROW_EgoContinuation cb,
-                   void *cb_cls)
+                   GNUNET_ESCROW_EgoContinuation cb)
 {
   struct GNUNET_ESCROW_Operation *op;
   const struct GNUNET_ESCROW_KeyPluginFunctions *api;
@@ -285,7 +280,6 @@ GNUNET_ESCROW_get (struct GNUNET_ESCROW_Handle *h,
   op->h = h;
   op->method = method;
   op->cb_get = cb;
-  op->cb_cls = cb_cls;
   GNUNET_CONTAINER_DLL_insert_tail (h->op_head, h->op_tail, op);
 
   api = init_plugin (h, method);
@@ -298,7 +292,7 @@ GNUNET_ESCROW_get (struct GNUNET_ESCROW_Handle *h,
 void
 handle_verify_escrow_result (void *cls)
 {
-  struct GNUNET_ESCROW_Plugin_VerifyContinuationWrapper *w = cls;
+  struct ESCROW_Plugin_VerifyContinuationWrapper *w = cls;
   struct GNUNET_ESCROW_Operation *op;
 
   for (op = w->h->op_head; NULL != op; op = op->next)
@@ -329,7 +323,6 @@ handle_verify_escrow_result (void *cls)
  * @param escrowAnchor the escrow anchor returned by the GNUNET_ESCROW_put method
  * @param method the escrow method to use
  * @param cb function to call with the verification result on completion
- * @param cb_cls closure for @a cb
  * 
  * @return handle to abort the operation
  */
@@ -338,8 +331,7 @@ GNUNET_ESCROW_verify (struct GNUNET_ESCROW_Handle *h,
                       const struct GNUNET_IDENTITY_Ego *ego,
                       struct GNUNET_ESCROW_Anchor *escrowAnchor,
                       enum GNUNET_ESCROW_Key_Escrow_Method method,
-                      GNUNET_ESCROW_VerifyContinuation cb,
-                      void *cb_cls)
+                      GNUNET_ESCROW_VerifyContinuation cb)
 {
   struct GNUNET_ESCROW_Operation *op;
   const struct GNUNET_ESCROW_KeyPluginFunctions *api;
@@ -348,7 +340,6 @@ GNUNET_ESCROW_verify (struct GNUNET_ESCROW_Handle *h,
   op->h = h;
   op->method = method;
   op->cb_verify = cb;
-  op->cb_cls = cb_cls;
   GNUNET_CONTAINER_DLL_insert_tail (h->op_head, h->op_tail, op);
 
   api = init_plugin (h, method);

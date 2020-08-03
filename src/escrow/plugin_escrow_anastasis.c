@@ -56,9 +56,9 @@ start_anastasis_key_escrow (struct GNUNET_ESCROW_Handle *h,
                             const struct GNUNET_IDENTITY_Ego *ego,
                             GNUNET_SCHEDULER_TaskCallback cb)
 {
-  struct GNUNET_ESCROW_Plugin_AnchorContinuationWrapper *w;
+  struct ESCROW_Plugin_AnchorContinuationWrapper *w;
 
-  w = GNUNET_new (struct GNUNET_ESCROW_Plugin_AnchorContinuationWrapper);
+  w = GNUNET_new (struct ESCROW_Plugin_AnchorContinuationWrapper);
   w->h = h;
 
   // TODO: implement
@@ -84,9 +84,9 @@ verify_anastasis_key_escrow (struct GNUNET_ESCROW_Handle *h,
                              struct GNUNET_ESCROW_Anchor *escrowAnchor,
                              GNUNET_SCHEDULER_TaskCallback cb)
 {
-  struct GNUNET_ESCROW_Plugin_VerifyContinuationWrapper *w;
+  struct ESCROW_Plugin_VerifyContinuationWrapper *w;
 
-  w = GNUNET_new (struct GNUNET_ESCROW_Plugin_VerifyContinuationWrapper);
+  w = GNUNET_new (struct ESCROW_Plugin_VerifyContinuationWrapper);
   w->h = h;
 
   // TODO: implement
@@ -112,9 +112,9 @@ restore_anastasis_key_escrow (struct GNUNET_ESCROW_Handle *h,
                               char *egoName,
                               GNUNET_SCHEDULER_TaskCallback cb)
 {
-  struct GNUNET_ESCROW_Plugin_EgoContinuationWrapper *w;
+  struct ESCROW_Plugin_EgoContinuationWrapper *w;
 
-  w = GNUNET_new (struct GNUNET_ESCROW_Plugin_EgoContinuationWrapper);
+  w = GNUNET_new (struct ESCROW_Plugin_EgoContinuationWrapper);
   w->h = h;
 
   // TODO: implement

@@ -65,7 +65,7 @@ struct ESCROW_PlaintextPluginOperation
   /**
    * Ego continuation wrapper
    */
-  struct GNUNET_ESCROW_Plugin_EgoContinuationWrapper *ego_cont_wrap;
+  struct ESCROW_Plugin_EgoContinuationWrapper *ego_cont_wrap;
 };
 
 /**
@@ -99,7 +99,7 @@ start_plaintext_key_escrow (struct GNUNET_ESCROW_Handle *h,
   uint32_t anchorDataSize;
   struct ESCROW_PluginOperationWrapper *plugin_op_wrap;
   struct ESCROW_PlaintextPluginOperation *p_op;
-  struct GNUNET_ESCROW_Plugin_AnchorContinuationWrapper *w;
+  struct ESCROW_Plugin_AnchorContinuationWrapper *w;
 
   // create a new plaintext plugin operation (in a wrapper) and insert it into the DLL
   plugin_op_wrap = GNUNET_new (struct ESCROW_PluginOperationWrapper);
@@ -111,7 +111,7 @@ start_plaintext_key_escrow (struct GNUNET_ESCROW_Handle *h,
   p_op = (struct ESCROW_PlaintextPluginOperation *)plugin_op_wrap->plugin_op;
   p_op->h = h;
 
-  w = GNUNET_new (struct GNUNET_ESCROW_Plugin_AnchorContinuationWrapper);
+  w = GNUNET_new (struct ESCROW_Plugin_AnchorContinuationWrapper);
   w->h = h;
 
   if (NULL == ego)
@@ -157,7 +157,7 @@ verify_plaintext_key_escrow (struct GNUNET_ESCROW_Handle *h,
   int verificationResult;
   struct ESCROW_PluginOperationWrapper *plugin_op_wrap;
   struct ESCROW_PlaintextPluginOperation *p_op;
-  struct GNUNET_ESCROW_Plugin_VerifyContinuationWrapper *w;
+  struct ESCROW_Plugin_VerifyContinuationWrapper *w;
   
   // create a new plaintext plugin operation (in a wrapper) and insert it into the DLL
   plugin_op_wrap = GNUNET_new (struct ESCROW_PluginOperationWrapper);
@@ -169,7 +169,7 @@ verify_plaintext_key_escrow (struct GNUNET_ESCROW_Handle *h,
   p_op = (struct ESCROW_PlaintextPluginOperation *)plugin_op_wrap->plugin_op;
   p_op->h = h;
 
-  w = GNUNET_new (struct GNUNET_ESCROW_Plugin_VerifyContinuationWrapper);
+  w = GNUNET_new (struct ESCROW_Plugin_VerifyContinuationWrapper);
   w->h = h;
 
   if (NULL == ego)
@@ -282,7 +282,7 @@ restore_plaintext_key_escrow (struct GNUNET_ESCROW_Handle *h,
   struct GNUNET_IDENTITY_Operation *id_op;
   struct ESCROW_PluginOperationWrapper *plugin_op_wrap;
   struct ESCROW_PlaintextPluginOperation *p_op;
-  struct GNUNET_ESCROW_Plugin_EgoContinuationWrapper *w;
+  struct ESCROW_Plugin_EgoContinuationWrapper *w;
 
   // create a new plaintext plugin operation (in a wrapper) and insert it into the DLL
   plugin_op_wrap = GNUNET_new (struct ESCROW_PluginOperationWrapper);
@@ -296,7 +296,7 @@ restore_plaintext_key_escrow (struct GNUNET_ESCROW_Handle *h,
   // set cont here (has to be scheduled from the IDENTITY service when it finished)
   p_op->cont = cb;
 
-  w = GNUNET_new (struct GNUNET_ESCROW_Plugin_EgoContinuationWrapper);
+  w = GNUNET_new (struct ESCROW_Plugin_EgoContinuationWrapper);
   w->h = h;
 
   p_op->ego_cont_wrap = w;

@@ -50,7 +50,7 @@ extern "C" {
  * As this type of function is called from the scheduler, which only takes
  * one argument as closure, this struct is used to pass more arguments.
  */
-struct GNUNET_ESCROW_Plugin_AnchorContinuationWrapper
+struct ESCROW_Plugin_AnchorContinuationWrapper
 {
   struct GNUNET_ESCROW_Handle *h;
   struct GNUNET_ESCROW_Anchor *escrowAnchor;
@@ -62,7 +62,7 @@ struct GNUNET_ESCROW_Plugin_AnchorContinuationWrapper
  * As this type of function is called from the scheduler, which only takes
  * one argument as closure, this struct is used to pass more arguments.
  */
-struct GNUNET_ESCROW_Plugin_EgoContinuationWrapper
+struct ESCROW_Plugin_EgoContinuationWrapper
 {
   struct GNUNET_ESCROW_Handle *h;
   const struct GNUNET_IDENTITY_Ego *ego;
@@ -74,7 +74,7 @@ struct GNUNET_ESCROW_Plugin_EgoContinuationWrapper
  * As this type of function is called from the scheduler, which only takes
  * one argument as closure, this struct is used to pass more arguments.
  */
-struct GNUNET_ESCROW_Plugin_VerifyContinuationWrapper
+struct ESCROW_Plugin_VerifyContinuationWrapper
 {
   struct GNUNET_ESCROW_Handle *h;
   int verificationResult;

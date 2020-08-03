@@ -32,9 +32,19 @@
 #include <sss.h>
 #include <inttypes.h>
 
-#define GNUNET_ESCROW_GNS_NumberOfShares 6
-#define GNUNET_ESCROW_GNS_ShareThreshold 3
 
+struct ESCROW_GnsPluginOperation
+{
+  /**
+   * Handle for the escrow component
+   */
+  struct GNUNET_ESCROW_Handle *h;
+
+  /**
+   * Scheduler task the SCHEDULE operation returns (needed for cancellation)
+   */
+  struct GNUNET_SCHEDULER_Task *sched_task;
+};
 
 /**
  * Identity handle
@@ -65,24 +75,57 @@ start_gns_key_escrow (struct GNUNET_ESCROW_Handle *h,
   sss_Keyshare keyshares;
   struct GNUNET_ESCROW_Anchor *anchor;
   int anchorDataSize;
-  struct GNUNET_ESCROW_Plugin_AnchorContinuationWrapper *w;
+  struct ESCROW_PluginOperationWrapper *plugin_op_wrap;
+  struct ESCROW_GnsPluginOperation *p_op;
+  struct ESCROW_Plugin_AnchorContinuationWrapper *w;
+  unsigned long long shares, share_threshold;
 
-  w = GNUNET_new (struct GNUNET_ESCROW_Plugin_AnchorContinuationWrapper);
+  // create a new GNS plugin operation (in a wrapper) and insert it into the DLL
+  plugin_op_wrap = GNUNET_new (struct ESCROW_PluginOperationWrapper);
+  plugin_op_wrap->plugin_op = GNUNET_new (struct ESCROW_GnsPluginOperation);
+  GNUNET_CONTAINER_DLL_insert_tail (ph.plugin_op_head,
+                                    ph.plugin_op_tail,
+                                    plugin_op_wrap);
+
+  p_op = (struct ESCROW_GnsPluginOperation *)plugin_op_wrap->plugin_op;
+  p_op->h = h;
+
+  w = GNUNET_new (struct ESCROW_Plugin_AnchorContinuationWrapper);
   w->h = h;
 
   if (NULL == ego)
   {
     w->escrowAnchor = NULL;
-    GNUNET_SCHEDULER_add_now (cb, w);
-    return NULL; // TODO!
+    p_op->sched_task = GNUNET_SCHEDULER_add_now (cb, w);
+    return plugin_op_wrap;
   }
   pk = GNUNET_IDENTITY_ego_get_private_key (ego);
 
   // split the private key (SSS)
-  sss_create_keyshares(&keyshares,
-                       pk->d,
-                       GNUNET_ESCROW_GNS_NumberOfShares,
-                       GNUNET_ESCROW_GNS_ShareThreshold);
+  if (GNUNET_OK != GNUNET_CONFIGURATION_get_value_number (h->cfg,
+                                                          "escrow",
+                                                          "gns_shares",
+                                                          &shares))
+  {
+    fprintf (stderr, "Number of shares not specified in config!");
+    w->escrowAnchor = NULL;
+    p_op->sched_task = GNUNET_SCHEDULER_add_now (cb, w);
+    return plugin_op_wrap;
+  }
+  if (GNUNET_OK != GNUNET_CONFIGURATION_get_value_number (h->cfg,
+                                                          "escrow",
+                                                          "gns_share_threshold",
+                                                          &share_threshold))
+  {
+    fprintf (stderr, "Share threshold not specified in config");
+    w->escrowAnchor = NULL;
+    p_op->sched_task = GNUNET_SCHEDULER_add_now (cb, w);
+    return plugin_op_wrap;
+  }
+  sss_create_keyshares (&keyshares,
+                        pk->d,
+                        (uint8_t)shares,
+                        (uint8_t)share_threshold);
 
   // create the escrow identities
 
@@ -92,9 +135,11 @@ start_gns_key_escrow (struct GNUNET_ESCROW_Handle *h,
   // TODO: implement
   anchorDataSize = 0; // TODO!
   anchor = GNUNET_malloc (sizeof (struct GNUNET_ESCROW_Anchor) + anchorDataSize);
+  
   w->escrowAnchor = anchor;
-  GNUNET_SCHEDULER_add_now (cb, w);
-  return NULL; // TODO!
+
+  p_op->sched_task = GNUNET_SCHEDULER_add_now (cb, w);
+  return plugin_op_wrap;
 }
 
 
@@ -114,15 +159,27 @@ verify_gns_key_escrow (struct GNUNET_ESCROW_Handle *h,
                        struct GNUNET_ESCROW_Anchor *escrowAnchor,
                        GNUNET_SCHEDULER_TaskCallback cb)
 {
-  struct GNUNET_ESCROW_Plugin_VerifyContinuationWrapper *w;
+  struct ESCROW_PluginOperationWrapper *plugin_op_wrap;
+  struct ESCROW_GnsPluginOperation *p_op;
+  struct ESCROW_Plugin_VerifyContinuationWrapper *w;
 
-  w = GNUNET_new (struct GNUNET_ESCROW_Plugin_VerifyContinuationWrapper);
+  // create a new GNS plugin operation (in a wrapper) and insert it into the DLL
+  plugin_op_wrap = GNUNET_new (struct ESCROW_PluginOperationWrapper);
+  plugin_op_wrap->plugin_op = GNUNET_new (struct ESCROW_GnsPluginOperation);
+  GNUNET_CONTAINER_DLL_insert_tail (ph.plugin_op_head,
+                                    ph.plugin_op_tail,
+                                    plugin_op_wrap);
+
+  p_op = (struct ESCROW_GnsPluginOperation *)plugin_op_wrap->plugin_op;
+  p_op->h = h;
+
+  w = GNUNET_new (struct ESCROW_Plugin_VerifyContinuationWrapper);
   w->h = h;
 
   // TODO: implement
   w->verificationResult = GNUNET_ESCROW_INVALID;
-  GNUNET_SCHEDULER_add_now (cb, w);
-  return NULL;
+  p_op->sched_task = GNUNET_SCHEDULER_add_now (cb, w);
+  return plugin_op_wrap;
 }
 
 
@@ -142,15 +199,27 @@ restore_gns_key_escrow (struct GNUNET_ESCROW_Handle *h,
                         char *egoName,
                         GNUNET_SCHEDULER_TaskCallback cb)
 {
-  struct GNUNET_ESCROW_Plugin_EgoContinuationWrapper *w;
+  struct ESCROW_PluginOperationWrapper *plugin_op_wrap;
+  struct ESCROW_GnsPluginOperation *p_op;
+  struct ESCROW_Plugin_EgoContinuationWrapper *w;
 
-  w = GNUNET_new (struct GNUNET_ESCROW_Plugin_EgoContinuationWrapper);
+  // create a new GNS plugin operation (in a wrapper) and insert it into the DLL
+  plugin_op_wrap = GNUNET_new (struct ESCROW_PluginOperationWrapper);
+  plugin_op_wrap->plugin_op = GNUNET_new (struct ESCROW_GnsPluginOperation);
+  GNUNET_CONTAINER_DLL_insert_tail (ph.plugin_op_head,
+                                    ph.plugin_op_tail,
+                                    plugin_op_wrap);
+
+  p_op = (struct ESCROW_GnsPluginOperation *)plugin_op_wrap->plugin_op;
+  p_op->h = h;
+
+  w = GNUNET_new (struct ESCROW_Plugin_EgoContinuationWrapper);
   w->h = h;
 
   // TODO: implement
   w->ego = NULL;
-  GNUNET_SCHEDULER_add_now (cb, w);
-  return NULL;
+  p_op->sched_task = GNUNET_SCHEDULER_add_now (cb, w);
+  return plugin_op_wrap;
 }
 
 

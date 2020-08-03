@@ -198,10 +198,10 @@ get_cb (const struct GNUNET_IDENTITY_Ego *ego)
   if (NULL == ego)
   {
     ret = 1;
-    fprintf (stderr, _ ("escrow failed!"));
-    return;
+    fprintf (stderr, _ ("escrow failed!\n"));
   }
-  fprintf (stdout, "Ego %s could successfully be restored!\n", ego->name);
+  else
+    fprintf (stdout, "Ego %s could successfully be restored!\n", ego->name);
   cleanup_task = GNUNET_SCHEDULER_add_now (&do_cleanup, NULL);
 }
 
@@ -221,8 +221,7 @@ start_process ()
     escrow_op = GNUNET_ESCROW_put (escrow_handle,
                                    ego,
                                    method,
-                                   &put_cb,
-                                   NULL);
+                                   &put_cb);
     return;
   }
   /* verify */
@@ -238,8 +237,7 @@ start_process ()
                                       ego,
                                       anchor,
                                       method,
-                                      &verify_cb,
-                                      NULL);
+                                      &verify_cb);
     return;
   }
   /* get */
@@ -255,8 +253,7 @@ start_process ()
                                    anchor,
                                    get_ego,
                                    method,
-                                   &get_cb,
-                                   NULL);
+                                   &get_cb);
     return;
   }
 }
