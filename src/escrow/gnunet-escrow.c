@@ -68,7 +68,7 @@ static char *get_ego;
 /**
  * The ego
  */
-struct GNUNET_IDENTITY_Ego *ego;
+const struct GNUNET_IDENTITY_Ego *ego;
 
 /**
  * Anchor string
@@ -124,7 +124,7 @@ do_cleanup (void *cls)
     GNUNET_IDENTITY_disconnect (identity_handle);
   if (NULL != escrow_op)
   {
-    GNUNET_ESCROW_cancel (escrow_op, method);
+    GNUNET_ESCROW_cancel (escrow_op);
     GNUNET_free (escrow_op);
     escrow_op = NULL;
   }
@@ -145,16 +145,16 @@ do_cleanup (void *cls)
   }
   if (NULL != ego)
   {
-    //GNUNET_free (ego); // TODO: free correctly!
+    /* does not have to be freed, as this is done when
+       cleaning up the ego list in the plugin */
     ego = NULL;
   }
-  method = 0;
+  method = -1;
 }
 
 
 static void
-put_cb (void *cls,
-        struct GNUNET_ESCROW_Anchor *escrowAnchor)
+put_cb (struct GNUNET_ESCROW_Anchor *escrowAnchor)
 {
   char *anchorString;
 
@@ -171,8 +171,7 @@ in order to restore the key later!\n%s\n", anchorString);
 
 
 static void
-verify_cb (void *cls,
-           int verificationResult)
+verify_cb (int verificationResult)
 {
   escrow_op = NULL;
 
@@ -195,8 +194,7 @@ verify_cb (void *cls,
 
 
 static void
-get_cb (void *cls,
-        const struct GNUNET_IDENTITY_Ego *ego)
+get_cb (const struct GNUNET_IDENTITY_Ego *ego)
 {
   escrow_op = NULL;
 
@@ -330,11 +328,23 @@ run (void *cls,
       return;
     }
     /* verify */
+    if (NULL == anchor_string)
+    {
+      ret = 1;
+      fprintf (stderr, _ ("-a is needed for -V!\n"));
+      return;
+    }
     ego_name = verify_ego;
   }
   else if (NULL != get_ego)
   {
     /* get */
+    if (NULL == anchor_string)
+    {
+      ret = 1;
+      fprintf (stderr, _ ("-a is needed for -G!\n"));
+      return;
+    }
     ego_name = get_ego;
   }
   else

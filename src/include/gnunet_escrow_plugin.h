@@ -33,6 +33,8 @@
 #include "gnunet_util_lib.h"
 #include "gnunet_escrow_lib.h"
 #include "gnunet_identity_service.h"
+#include "../escrow/escrow.h"
+#include "gnunet_scheduler_lib.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -41,88 +43,41 @@ extern "C" {
 #endif
 #endif
 
-/**
- * State while collecting all egos
- */
-#define ESCROW_PLUGIN_STATE_INIT 0
 
 /**
- * Done collecting egos
+ * Wrapper for the Plugin_AnchorContinuation.
+ * 
+ * As this type of function is called from the scheduler, which only takes
+ * one argument as closure, this struct is used to pass more arguments.
  */
-#define ESCROW_PLUGIN_STATE_POST_INIT 1
-
-
-/**
- * The ego list
- */
-struct EgoEntry
+struct GNUNET_ESCROW_Plugin_AnchorContinuationWrapper
 {
-  /**
-   * DLL
-   */
-  struct EgoEntry *next;
-
-  /**
-   * DLL
-   */
-  struct EgoEntry *prev;
-
-  /**
-   * Ego Identifier
-   */
-  char *identifier;
-
-  /**
-   * Public key string
-   */
-  char *keystring;
-
-  /**
-   * The Ego
-   */
-  struct GNUNET_IDENTITY_Ego *ego;
+  struct GNUNET_ESCROW_Handle *h;
+  struct GNUNET_ESCROW_Anchor *escrowAnchor;
 };
 
+/**
+ * Wrapper for the Plugin_EgoContinuation.
+ * 
+ * As this type of function is called from the scheduler, which only takes
+ * one argument as closure, this struct is used to pass more arguments.
+ */
+struct GNUNET_ESCROW_Plugin_EgoContinuationWrapper
+{
+  struct GNUNET_ESCROW_Handle *h;
+  const struct GNUNET_IDENTITY_Ego *ego;
+};
 
 /**
- * Handle for a plugin instance
+ * Wrapper for the Plugin_VerifyContinuation.
+ * 
+ * As this type of function is called from the scheduler, which only takes
+ * one argument as closure, this struct is used to pass more arguments.
  */
-struct EscrowPluginHandle
+struct GNUNET_ESCROW_Plugin_VerifyContinuationWrapper
 {
-  /**
-   * The identity init continuation.
-   */
-  GNUNET_ESCROW_IdentityInitContinuation id_init_cont;
-
-  /**
-   * The ego create continuation.
-   */
-  GNUNET_ESCROW_EgoCreateContinuation ego_create_cont;
-
-  /**
-   * The current restore callback.
-   */
-  GNUNET_ESCROW_EgoContinuation curr_restore_cb;
-
-  /**
-   * The handle to the escrow component.
-   */
-  struct GNUNET_ESCROW_Handle *escrow_handle;
-
-  /**
-   * The state of the plugin (in the initialization phase).
-   */
-  int state;
-
-  /**
-   * The head of the ego list.
-   */
-  struct EgoEntry *ego_head;
-
-  /**
-   * The tail of the ego list
-   */
-  struct EgoEntry *ego_tail;
+  struct GNUNET_ESCROW_Handle *h;
+  int verificationResult;
 };
 
 
@@ -133,10 +88,10 @@ struct EscrowPluginHandle
  * @param ego the identity ego containing the private key
  * @param cb the function called upon completion
  */
-typedef void (*GNUNET_ESCROW_StartKeyEscrowFunction) (
+typedef struct ESCROW_PluginOperationWrapper *(*GNUNET_ESCROW_StartKeyEscrowFunction) (
   struct GNUNET_ESCROW_Handle *h,
   const struct GNUNET_IDENTITY_Ego *ego,
-  GNUNET_ESCROW_AnchorContinuation cb);
+  GNUNET_SCHEDULER_TaskCallback cb);
 
 /**
  * Function called to renew the escrow of the key
@@ -156,11 +111,11 @@ typedef void (*GNUNET_ESCROW_RenewKeyEscrowFunction) (
  * @param escrowAnchor the escrow anchor needed to restore the key
  * @param cb the function called upon completion
  */
-typedef void (*GNUNET_ESCROW_VerifyKeyEscrowFunction) (
+typedef struct ESCROW_PluginOperationWrapper *(*GNUNET_ESCROW_VerifyKeyEscrowFunction) (
   struct GNUNET_ESCROW_Handle *h,
   const struct GNUNET_IDENTITY_Ego *ego,
   struct GNUNET_ESCROW_Anchor *escrowAnchor,
-  GNUNET_ESCROW_VerifyContinuation cb);
+  GNUNET_SCHEDULER_TaskCallback cb);
 
 /**
  * Function called to restore a key from an escrow
@@ -170,11 +125,11 @@ typedef void (*GNUNET_ESCROW_VerifyKeyEscrowFunction) (
  * @param egoName the name of the ego to restore
  * @param cb the function called upon completion
  */
-typedef void (*GNUNET_ESCROW_RestoreKeyFunction) (
+typedef struct ESCROW_PluginOperationWrapper *(*GNUNET_ESCROW_RestoreKeyFunction) (
   struct GNUNET_ESCROW_Handle *h,
   struct GNUNET_ESCROW_Anchor *escrowAnchor,
   char *egoName,
-  GNUNET_ESCROW_EgoContinuation cb);
+  GNUNET_SCHEDULER_TaskCallback cb);
 
 
 /**
@@ -202,6 +157,15 @@ typedef struct GNUNET_ESCROW_Anchor *(*GNUNET_ESCROW_AnchorStringToDataFunction)
 typedef char *(*GNUNET_ESCROW_AnchorDataToStringFunction) (
   struct GNUNET_ESCROW_Handle *h,
   struct GNUNET_ESCROW_Anchor *escrowAnchor);
+
+
+/**
+ * Function called to cancel a plugin operation
+ * 
+ * @param plugin_op_wrap plugin operation wrapper containing the plugin operation
+ */
+typedef void (*GNUNET_ESCROW_CancelPluginOperationFunction) (
+  struct ESCROW_PluginOperationWrapper *plugin_op_wrap);
 
 
 /**
@@ -244,6 +208,11 @@ struct GNUNET_ESCROW_KeyPluginFunctions
    * Serialize anchor data to string
    */
   GNUNET_ESCROW_AnchorDataToStringFunction anchor_data_to_string;
+
+  /**
+   * Cancel plugin operation
+   */
+  GNUNET_ESCROW_CancelPluginOperationFunction cancel_plugin_operation;
 };
 
 

@@ -71,7 +71,7 @@ ESCROW_list_ego (void *cls,
                  void **ctx,
                  const char *identifier)
 {
-  struct EscrowPluginHandle *ph = cls;
+  struct ESCROW_PluginHandle *ph = cls;
   struct EgoEntry *ego_entry;
   struct GNUNET_CRYPTO_EcdsaPublicKey pk;
 
@@ -161,7 +161,7 @@ ESCROW_list_ego (void *cls,
  * @param ph handle for the plugin
  */
 void
-ESCROW_cleanup_ego_list (struct EscrowPluginHandle *ph)
+ESCROW_cleanup_ego_list (struct ESCROW_PluginHandle *ph)
 {
   struct EgoEntry *ego_entry;
 

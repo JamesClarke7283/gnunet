@@ -97,7 +97,6 @@ typedef void (*GNUNET_ESCROW_EgoCreateContinuation) (
  * @param escrowAnchor the escrow anchor needed to get the data back
  */
 typedef void (*GNUNET_ESCROW_AnchorContinuation) (
-  void *cls,
   struct GNUNET_ESCROW_Anchor *escrowAnchor);
 
 /**
@@ -107,7 +106,6 @@ typedef void (*GNUNET_ESCROW_AnchorContinuation) (
  * @param ego a new identity ego restored from the escrow
  */
 typedef void (*GNUNET_ESCROW_EgoContinuation) (
-  void *cls,
   const struct GNUNET_IDENTITY_Ego *ego);
 
 /**
@@ -120,7 +118,6 @@ typedef void (*GNUNET_ESCROW_EgoContinuation) (
  *   GNUNET_ESCROW_INVALID otherwise
  */
 typedef void (*GNUNET_ESCROW_VerifyContinuation) (
-  void *cls,
   int verificationResult);
 
 
@@ -165,6 +162,31 @@ struct GNUNET_ESCROW_Operation
    * We keep operations in a DLL.
    */
   struct GNUNET_ESCROW_Operation *prev;
+
+  /**
+   * The used escrow method.
+   */
+  enum GNUNET_ESCROW_Key_Escrow_Method method;
+
+  /**
+   * The respective plugin operation
+   */
+  struct ESCROW_PluginOperationWrapper *plugin_op_wrap;
+
+  /**
+   * The escrow anchor.
+   */
+  struct GNUNET_ESCROW_Anchor *escrow_anchor;
+
+  /**
+   * The ego.
+   */
+  struct GNUNET_IDENTITY_Ego *ego;
+
+  /**
+   * The verification result.
+   */
+  enum GNUNET_ESCROW_Verification_Result verification_result;
 
   /**
    * Continuation for a PUT operation.
@@ -336,11 +358,9 @@ GNUNET_ESCROW_anchor_data_to_string (struct GNUNET_ESCROW_Handle *h,
  * be executed; this merely cancels the continuation.
  *
  * @param op operation to cancel
- * @param method the escrow method to use
  */
 void
-GNUNET_ESCROW_cancel (struct GNUNET_ESCROW_Operation *op,
-                      enum GNUNET_ESCROW_Key_Escrow_Method method);
+GNUNET_ESCROW_cancel (struct GNUNET_ESCROW_Operation *op);
 
 
 #if 0 /* keep Emacsens' auto-indent happy */

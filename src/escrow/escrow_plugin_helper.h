@@ -78,4 +78,4 @@ ESCROW_list_ego (void *cls,
  * @param ph handle for the plugin
  */
 void
-ESCROW_cleanup_ego_list (struct EscrowPluginHandle *ph);
+ESCROW_cleanup_ego_list (struct ESCROW_PluginHandle *ph);

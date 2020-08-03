@@ -39,7 +39,7 @@ static struct GNUNET_IDENTITY_Handle *identity_handle;
 /**
  * Handle for the plugin instance
  */
-struct EscrowPluginHandle ph;
+struct ESCROW_PluginHandle ph;
 
 
 /**
@@ -48,14 +48,23 @@ struct EscrowPluginHandle ph;
  * @param h the handle for the escrow component
  * @param ego the identity ego containing the private key
  * @param cb the function called upon completion
+ * 
+ * @return plugin operation wrapper
  */
-void
+struct ESCROW_PluginOperationWrapper *
 start_anastasis_key_escrow (struct GNUNET_ESCROW_Handle *h,
                             const struct GNUNET_IDENTITY_Ego *ego,
-                            GNUNET_ESCROW_AnchorContinuation cb)
+                            GNUNET_SCHEDULER_TaskCallback cb)
 {
+  struct GNUNET_ESCROW_Plugin_AnchorContinuationWrapper *w;
+
+  w = GNUNET_new (struct GNUNET_ESCROW_Plugin_AnchorContinuationWrapper);
+  w->h = h;
+
   // TODO: implement
-  cb (h, NULL);
+  w->escrowAnchor = NULL;
+  GNUNET_SCHEDULER_add_now (cb, w);
+  return NULL;
 }
 
 
@@ -70,7 +79,7 @@ renew_anastasis_key_escrow (struct GNUNET_ESCROW_Operation *op,
                             struct GNUNET_ESCROW_Anchor *escrowAnchor)
 {
   // TODO: implement
-  op->cb_renew (op->cb_cls, NULL);
+  op->cb_renew (NULL);
 }
 
 
@@ -81,15 +90,24 @@ renew_anastasis_key_escrow (struct GNUNET_ESCROW_Operation *op,
  * @param ego the identity ego containing the private key
  * @param escrowAnchor the escrow anchor needed to restore the key
  * @param cb the function called upon completion
+ * 
+ * @return plugin operation wrapper
  */
-void
+struct ESCROW_PluginOperationWrapper *
 verify_anastasis_key_escrow (struct GNUNET_ESCROW_Handle *h,
                              const struct GNUNET_IDENTITY_Ego *ego,
                              struct GNUNET_ESCROW_Anchor *escrowAnchor,
-                             GNUNET_ESCROW_VerifyContinuation cb)
+                             GNUNET_SCHEDULER_TaskCallback cb)
 {
+  struct GNUNET_ESCROW_Plugin_VerifyContinuationWrapper *w;
+
+  w = GNUNET_new (struct GNUNET_ESCROW_Plugin_VerifyContinuationWrapper);
+  w->h = h;
+
   // TODO: implement
-  cb (h, GNUNET_ESCROW_INVALID);
+  w->verificationResult = GNUNET_ESCROW_INVALID;
+  GNUNET_SCHEDULER_add_now (cb, w);
+  return NULL;
 }
 
 
@@ -100,15 +118,24 @@ verify_anastasis_key_escrow (struct GNUNET_ESCROW_Handle *h,
  * @param escrowAnchor the escrow anchor needed to restore the key
  * @param egoName the name of the ego to restore
  * @param cb the function called upon completion
+ * 
+ * @return plugin operation wrapper
  */
-void
+struct ESCROW_PluginOperationWrapper *
 restore_anastasis_key_escrow (struct GNUNET_ESCROW_Handle *h,
                               struct GNUNET_ESCROW_Anchor *escrowAnchor,
                               char *egoName,
-                              GNUNET_ESCROW_EgoContinuation cb)
+                              GNUNET_SCHEDULER_TaskCallback cb)
 {
+  struct GNUNET_ESCROW_Plugin_EgoContinuationWrapper *w;
+
+  w = GNUNET_new (struct GNUNET_ESCROW_Plugin_EgoContinuationWrapper);
+  w->h = h;
+
   // TODO: implement
-  cb (h, NULL);
+  w->ego = NULL;
+  GNUNET_SCHEDULER_add_now (cb, w);
+  return NULL;
 }
 
 
@@ -155,6 +182,19 @@ anastasis_anchor_data_to_string (struct GNUNET_ESCROW_Handle *h,
 
 
 /**
+ * Cancel an Anastasis plugin operation.
+ * 
+ * @param plugin_op_wrap the plugin operation wrapper containing the operation
+ */
+void
+cancel_anastasis_operation (struct ESCROW_PluginOperationWrapper *plugin_op_wrap)
+{
+  // TODO: implement
+  return;
+}
+
+
+/**
  * IdentityInitContinuation for the Anastasis plugin
  */
 void
@@ -183,6 +223,7 @@ libgnunet_plugin_escrow_anastasis_init (void *cls)
   api->verify_key_escrow = &verify_anastasis_key_escrow;
   api->restore_key = &restore_anastasis_key_escrow;
   api->anchor_string_to_data = &anastasis_anchor_string_to_data;
+  api->cancel_plugin_operation = &cancel_anastasis_operation;
 
   ph.id_init_cont = &anastasis_cont_init;
 
