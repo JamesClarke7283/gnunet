@@ -146,4 +146,41 @@ struct ESCROW_PluginOperationWrapper
 };
 
 
+/**
+ * Wrapper for the Plugin_AnchorContinuation.
+ * 
+ * As this type of function is called from the scheduler, which only takes
+ * one argument as closure, this struct is used to pass more arguments.
+ */
+struct ESCROW_Plugin_AnchorContinuationWrapper
+{
+  struct GNUNET_ESCROW_Handle *h;
+  struct GNUNET_ESCROW_Anchor *escrowAnchor;
+};
+
+/**
+ * Wrapper for the Plugin_EgoContinuation.
+ * 
+ * As this type of function is called from the scheduler, which only takes
+ * one argument as closure, this struct is used to pass more arguments.
+ */
+struct ESCROW_Plugin_EgoContinuationWrapper
+{
+  struct GNUNET_ESCROW_Handle *h;
+  const struct GNUNET_IDENTITY_Ego *ego;
+};
+
+/**
+ * Wrapper for the Plugin_VerifyContinuation.
+ * 
+ * As this type of function is called from the scheduler, which only takes
+ * one argument as closure, this struct is used to pass more arguments.
+ */
+struct ESCROW_Plugin_VerifyContinuationWrapper
+{
+  struct GNUNET_ESCROW_Handle *h;
+  int verificationResult;
+};
+
+
 #endif
