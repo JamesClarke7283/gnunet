@@ -50,6 +50,8 @@ extern "C" {
  * @param h the handle for the escrow component
  * @param ego the identity ego containing the private key
  * @param cb the function called upon completion
+ * 
+ * @return a wrapper for the plugin operation
  */
 typedef struct ESCROW_PluginOperationWrapper *(*GNUNET_ESCROW_StartKeyEscrowFunction) (
   struct GNUNET_ESCROW_Handle *h,
@@ -63,6 +65,8 @@ typedef struct ESCROW_PluginOperationWrapper *(*GNUNET_ESCROW_StartKeyEscrowFunc
  * @param ego the identity ego containing the private key
  * @param escrowAnchor the escrow anchor needed to restore the key
  * @param cb the function called upon completion
+ * 
+ * @return a wrapper for the plugin operation
  */
 typedef struct ESCROW_PluginOperationWrapper *(*GNUNET_ESCROW_VerifyKeyEscrowFunction) (
   struct GNUNET_ESCROW_Handle *h,
@@ -77,12 +81,31 @@ typedef struct ESCROW_PluginOperationWrapper *(*GNUNET_ESCROW_VerifyKeyEscrowFun
  * @param escrowAnchor the escrow anchor needed to restore the key
  * @param egoName the name of the ego to restore
  * @param cb the function called upon completion
+ * 
+ * @return a wrapper for the plugin operation
  */
 typedef struct ESCROW_PluginOperationWrapper *(*GNUNET_ESCROW_RestoreKeyFunction) (
   struct GNUNET_ESCROW_Handle *h,
   struct GNUNET_ESCROW_Anchor *escrowAnchor,
   char *egoName,
   GNUNET_SCHEDULER_TaskCallback cb);
+
+
+/**
+ * Function called to get the status of an escrow, i.e.
+ *   -> when the last successful escrow was
+ *   -> when the next recommended escrow is
+ * 
+ * @param h the handle for the escrow component
+ * @param ego the identity ego of which the status has to be obtained
+ * @param escrowAnchor the escrow anchor needed to restore the key
+ * 
+ * @return the status of the escrow packed into a GNUNET_ESCROW_Status struct
+ */
+typedef struct GNUNET_ESCROW_Status *(*GNUNET_ESCROW_GetEscrowStatusFunction) (
+  struct GNUNET_ESCROW_Handle *h,
+  const struct GNUNET_IDENTITY_Ego *ego,
+  struct GNUNET_ESCROW_Anchor *escrowAnchor);
 
 
 /**
@@ -146,6 +169,11 @@ struct GNUNET_ESCROW_KeyPluginFunctions
    * Restore key escrow
    */
   GNUNET_ESCROW_RestoreKeyFunction restore_key;
+
+  /**
+   * Get the status of an escrow
+   */
+  GNUNET_ESCROW_GetEscrowStatusFunction get_status;
 
   /**
    * Deserialize anchor string to data

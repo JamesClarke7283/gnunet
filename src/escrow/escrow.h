@@ -154,7 +154,14 @@ struct ESCROW_PluginOperationWrapper
  */
 struct ESCROW_Plugin_AnchorContinuationWrapper
 {
+  /**
+   * Handle for the escrow component
+   */
   struct GNUNET_ESCROW_Handle *h;
+
+  /**
+   * The escrow anchor
+   */
   struct GNUNET_ESCROW_Anchor *escrowAnchor;
 };
 
@@ -166,7 +173,14 @@ struct ESCROW_Plugin_AnchorContinuationWrapper
  */
 struct ESCROW_Plugin_EgoContinuationWrapper
 {
+  /**
+   * Handle for the escrow component
+   */
   struct GNUNET_ESCROW_Handle *h;
+
+  /**
+   * The restored ego
+   */
   const struct GNUNET_IDENTITY_Ego *ego;
 };
 
@@ -178,7 +192,14 @@ struct ESCROW_Plugin_EgoContinuationWrapper
  */
 struct ESCROW_Plugin_VerifyContinuationWrapper
 {
+  /**
+   * Handle for the escrow component
+   */
   struct GNUNET_ESCROW_Handle *h;
+
+  /**
+   * The result of the verification
+   */
   int verificationResult;
 };
 

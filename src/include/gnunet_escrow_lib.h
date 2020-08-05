@@ -77,6 +77,22 @@ struct GNUNET_ESCROW_Anchor {
 
 
 /**
+ * Struct for the escrow status
+ */
+struct GNUNET_ESCROW_Status {
+  /**
+   * The time of the last successful escrow.
+   */
+  struct GNUNET_TIME_Absolute last_escrow_time;
+
+  /**
+   * The time of the next recommended escrow.
+   */
+  struct GNUNET_TIME_Absolute next_recommended_escrow_time;
+};
+
+
+/**
  * Function called after the initialization of the identity service.
  * Passed via cls to the callback of GNUNET_IDENTITY_connect
  */
@@ -281,6 +297,26 @@ GNUNET_ESCROW_verify (
   struct GNUNET_ESCROW_Anchor *escrowAnchor,
   enum GNUNET_ESCROW_Key_Escrow_Method method,
   GNUNET_ESCROW_VerifyContinuation cb);
+
+
+/**
+ * Get the status of an escrow, i.e.
+ *   -> when the last escrow was
+ *   -> when the next escrow is recommended
+ * 
+ * @param h the handle for the escrow component
+ * @param ego the identity ego of which the escrow status has to be determined
+ * @param escrowAnchor the escrow anchor returned by the GNUNET_ESCROW_put method
+ * @param method the escrow method to use
+ * 
+ * @return the status of the escrow packed into a GNUNET_ESCROW_Status struct
+ */
+struct GNUNET_ESCROW_Status *
+GNUNET_ESCROW_get_status (
+  struct GNUNET_ESCROW_Handle *h,
+  const struct GNUNET_IDENTITY_Ego *ego,
+  struct GNUNET_ESCROW_Anchor *escrowAnchor,
+  enum GNUNET_ESCROW_Key_Escrow_Method method);
 
 
 /**

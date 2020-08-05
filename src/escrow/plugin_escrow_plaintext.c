@@ -331,6 +331,32 @@ restore_plaintext_key_escrow (struct GNUNET_ESCROW_Handle *h,
 
 
 /**
+ * Get the status of a plaintext escrow
+ * 
+ * @param h the handle for the escrow component
+ * @param ego the identity ego of which the status has to be obtained
+ * @param escrowAnchor the escrow anchor needed to restore the key
+ * 
+ * @return the status of the escrow packed into a GNUNET_ESCROW_Status struct
+ */
+struct GNUNET_ESCROW_Status *
+plaintext_get_status (struct GNUNET_ESCROW_Handle *h,
+                      const struct GNUNET_IDENTITY_Ego *ego,
+                      struct GNUNET_ESCROW_Anchor *escrowAnchor)
+{
+  struct GNUNET_ESCROW_Status *status;
+  
+  status = GNUNET_new (struct GNUNET_ESCROW_Status);
+  // TODO: get the correct time values
+  status->last_escrow_time = GNUNET_TIME_absolute_get ();
+  status->next_recommended_escrow_time = GNUNET_TIME_absolute_get ();
+  // END TODO
+  
+  return status;
+}
+
+
+/**
  * Deserialize an escrow anchor string into a GNUNET_ESCROW_Anchor struct
  * 
  * @param h the handle for the escrow component
@@ -434,6 +460,7 @@ libgnunet_plugin_escrow_plaintext_init (void *cls)
   api->start_key_escrow = &start_plaintext_key_escrow;
   api->verify_key_escrow = &verify_plaintext_key_escrow;
   api->restore_key = &restore_plaintext_key_escrow;
+  api->get_status = &plaintext_get_status;
   api->anchor_string_to_data = &plaintext_anchor_string_to_data;
   api->anchor_data_to_string = &plaintext_anchor_data_to_string;
   api->cancel_plugin_operation = &cancel_plaintext_operation;

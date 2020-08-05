@@ -66,6 +66,11 @@ static char *verify_ego;
 static char *get_ego;
 
 /**
+ * -s option
+ */
+static char *status_ego;
+
+/**
  * The ego
  */
 const struct GNUNET_IDENTITY_Ego *ego;
@@ -101,6 +106,11 @@ static struct GNUNET_ESCROW_Handle *escrow_handle;
 static struct GNUNET_ESCROW_Operation *escrow_op;
 
 /**
+ * Escrow status
+ */
+static struct GNUNET_ESCROW_Status *escrow_status;
+
+/**
  * Handle to the identity service
  */
 static struct GNUNET_IDENTITY_Handle *identity_handle;
@@ -128,6 +138,21 @@ do_cleanup (void *cls)
     GNUNET_free (escrow_op);
     escrow_op = NULL;
   }
+  if (NULL != method_name)
+  {
+    GNUNET_free (method_name);
+    method_name = NULL;
+  }
+  if (NULL != anchor_string)
+  {
+    GNUNET_free (anchor_string);
+    anchor_string = NULL;
+  }
+  if (NULL != anchor)
+  {
+    GNUNET_free (anchor);
+    anchor = NULL;
+  }
   if (NULL != put_ego)
   {
     GNUNET_free (put_ego);
@@ -142,6 +167,16 @@ do_cleanup (void *cls)
   {
     GNUNET_free (get_ego);
     get_ego = NULL;
+  }
+  if (NULL != status_ego)
+  {
+    GNUNET_free (status_ego);
+    status_ego = NULL;
+  }
+  if (NULL != escrow_status)
+  {
+    GNUNET_free (escrow_status);
+    escrow_status = NULL;
   }
   if (NULL != ego)
   {
@@ -256,6 +291,26 @@ start_process ()
                                    &get_cb);
     return;
   }
+  /* status */
+  if (NULL != status_ego)
+  {
+    if (NULL == ego)
+    {
+      fprintf (stderr, "Ego %s not found\n", status_ego);
+      cleanup_task = GNUNET_SCHEDULER_add_now (&do_cleanup, NULL);
+      return;
+    }
+    escrow_status = GNUNET_ESCROW_get_status (escrow_handle,
+                                              ego,
+                                              anchor,
+                                              method);
+    // TODO: formatting/interpretation
+    fprintf (stdout, "Last escrow:\t\t\t%s\nNext recommended escrow:\t%s\n",
+             GNUNET_STRINGS_absolute_time_to_string (escrow_status->last_escrow_time),
+             GNUNET_STRINGS_absolute_time_to_string (escrow_status->next_recommended_escrow_time));
+    cleanup_task = GNUNET_SCHEDULER_add_now (&do_cleanup, NULL);
+    return;
+  }
 }
 
 
@@ -304,10 +359,10 @@ run (void *cls,
 
   if (NULL != put_ego)
   {
-    if (NULL != verify_ego || NULL != get_ego)
+    if (NULL != verify_ego || NULL != get_ego || NULL != status_ego)
     {
       ret = 1;
-      fprintf (stderr, _ ("-P may only be used without -V or -G!\n"));
+      fprintf (stderr, _ ("-P may only be used without -V, -G or -S!\n"));
       return;
     }
     /* put */
@@ -315,10 +370,10 @@ run (void *cls,
   }
   else if (NULL != verify_ego)
   {
-    if (NULL != get_ego)
+    if (NULL != get_ego || NULL != status_ego)
     {
       ret = 1;
-      fprintf (stderr, _ ("-V may only be used without -P or -G!\n"));
+      fprintf (stderr, _ ("-V may only be used without -P, -G or -S!\n"));
       return;
     }
     /* verify */
@@ -332,6 +387,12 @@ run (void *cls,
   }
   else if (NULL != get_ego)
   {
+    if (NULL != status_ego)
+    {
+      ret = 1;
+      fprintf (stderr, _ ("-G may only be used without -P, -V or -S!\n"));
+      return;
+    }
     /* get */
     if (NULL == anchor_string)
     {
@@ -341,11 +402,22 @@ run (void *cls,
     }
     ego_name = get_ego;
   }
+  else if (NULL != status_ego)
+  {
+    /* status */
+    if (NULL == anchor_string)
+    {
+      ret = 1;
+      fprintf (stderr, _ ("-a is needed for -S!\n"));
+      return;
+    }
+    ego_name = status_ego;
+  }
   else
   {
     /* nothing */
     ret = 1;
-    fprintf (stderr, _ ("-P, -V or -G option must be specified!\n"));
+    fprintf (stderr, _ ("-P, -V, -G or -S option must be specified!\n"));
     return;
   }
 
@@ -397,6 +469,11 @@ main (int argc, char *const argv[])
                                  "NAME",
                                  gettext_noop ("Get the ego NAME back from escrow"),
                                  &get_ego),
+    GNUNET_GETOPT_option_string ('S',
+                                 "status",
+                                 "NAME",
+                                 gettext_noop ("Get the status of the escrow of ego NAME"),
+                                 &status_ego),
     GNUNET_GETOPT_option_string ('a',
                                  "anchor",
                                  "ANCHOR",

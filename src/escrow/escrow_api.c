@@ -350,6 +350,31 @@ GNUNET_ESCROW_verify (struct GNUNET_ESCROW_Handle *h,
 
 
 /**
+ * Get the status of an escrow, i.e.
+ *   -> when the last escrow was
+ *   -> when the next escrow is recommended
+ * 
+ * @param h the handle for the escrow component
+ * @param ego the identity ego of which the escrow status has to be determined
+ * @param escrowAnchor the escrow anchor returned by the GNUNET_ESCROW_put method
+ * @param method the escrow method to use
+ * 
+ * @return the status of the escrow packed into a GNUNET_ESCROW_Status struct
+ */
+struct GNUNET_ESCROW_Status *
+GNUNET_ESCROW_get_status (struct GNUNET_ESCROW_Handle *h,
+                          const struct GNUNET_IDENTITY_Ego *ego,
+                          struct GNUNET_ESCROW_Anchor *escrowAnchor,
+                          enum GNUNET_ESCROW_Key_Escrow_Method method)
+{
+  const struct GNUNET_ESCROW_KeyPluginFunctions *api;
+
+  api = init_plugin (h, method);
+  return api->get_status (h, ego, escrowAnchor);
+}
+
+
+/**
  * Deserialize an escrow anchor string (e.g. from command line) into a
  * GNUNET_ESCROW_Anchor struct
  * 
