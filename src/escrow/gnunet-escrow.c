@@ -128,16 +128,15 @@ static void
 do_cleanup (void *cls)
 {
   cleanup_task = NULL;
+  if (NULL != escrow_op)
+  {
+    GNUNET_ESCROW_cancel (escrow_op);
+    escrow_op = NULL;
+  }
   if (NULL != escrow_handle)
     GNUNET_ESCROW_fini (escrow_handle);
   if (NULL != identity_handle)
     GNUNET_IDENTITY_disconnect (identity_handle);
-  if (NULL != escrow_op)
-  {
-    GNUNET_ESCROW_cancel (escrow_op);
-    GNUNET_free (escrow_op);
-    escrow_op = NULL;
-  }
   if (NULL != method_name)
   {
     GNUNET_free (method_name);

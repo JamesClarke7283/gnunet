@@ -197,14 +197,12 @@ handle_start_escrow_result (void *cls)
   if (NULL == op)
   {
     GNUNET_break (0);
-    GNUNET_free (w);
     return;
   }
   GNUNET_CONTAINER_DLL_remove (w->h->op_head, w->h->op_tail, op);
   if (NULL != op->cb_put)
     op->cb_put (op->cb_cls, w->escrowAnchor);
   GNUNET_free (op);
-  GNUNET_free (w);
 }
 
 
@@ -256,14 +254,12 @@ handle_restore_key_result (void *cls)
   if (NULL == op)
   {
     GNUNET_break (0);
-    GNUNET_free (w);
     return;
   }
   GNUNET_CONTAINER_DLL_remove (w->h->op_head, w->h->op_tail, op);
   if (NULL != op->cb_get)
     op->cb_get (op->cb_cls, w->ego);
   GNUNET_free (op);
-  GNUNET_free (w);
 }
 
 
@@ -317,7 +313,6 @@ handle_verify_escrow_result (void *cls)
   if (NULL == op)
   {
     GNUNET_break (0);
-    GNUNET_free (w);
     return;
   }
   GNUNET_CONTAINER_DLL_remove (w->h->op_head, w->h->op_tail, op);
@@ -326,7 +321,6 @@ handle_verify_escrow_result (void *cls)
   GNUNET_free (op->plugin_op_wrap->plugin_op);
   GNUNET_free (op->plugin_op_wrap);
   GNUNET_free (op);
-  GNUNET_free (w);
 }
 
 
