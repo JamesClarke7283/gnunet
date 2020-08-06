@@ -115,6 +115,20 @@ init_plugin (struct GNUNET_ESCROW_Handle *h,
 
 
 /**
+ * Get a fresh operation id to distinguish between escrow operations
+ *
+ * @param h the escrow handle
+ * 
+ * @return next operation id to use
+ */
+static uint32_t
+get_op_id (struct GNUNET_ESCROW_Handle *h)
+{
+  return h->last_op_id_used++;
+}
+
+
+/**
  * Initialize the escrow component.
  * 
  * @param cfg the configuration to use
@@ -191,7 +205,7 @@ handle_start_escrow_result (void *cls)
   struct GNUNET_ESCROW_Operation *op;
 
   for (op = w->h->op_head; NULL != op; op = op->next)
-    if (1) // TODO: find condition (e.g. unique ID)
+    if (op->id == w->op_id)
       break;
 
   if (NULL == op)
@@ -229,13 +243,14 @@ GNUNET_ESCROW_put (struct GNUNET_ESCROW_Handle *h,
 
   op = GNUNET_new (struct GNUNET_ESCROW_Operation);
   op->h = h;
+  op->id = get_op_id (h);
   op->method = method;
   op->cb_put = cb;
   op->cb_cls = cb_cls;
   GNUNET_CONTAINER_DLL_insert_tail (h->op_head, h->op_tail, op);
 
   api = init_plugin (h, method);
-  op->plugin_op_wrap = api->start_key_escrow (h, ego, &handle_start_escrow_result);
+  op->plugin_op_wrap = api->start_key_escrow (h, ego, &handle_start_escrow_result, op->id);
 
   return op;
 }
@@ -248,7 +263,7 @@ handle_restore_key_result (void *cls)
   struct GNUNET_ESCROW_Operation *op;
 
   for (op = w->h->op_head; NULL != op; op = op->next)
-    if (1) // TODO: find condition (e.g. unique ID)
+    if (op->id == w->op_id)
       break;
 
   if (NULL == op)
@@ -288,13 +303,14 @@ GNUNET_ESCROW_get (struct GNUNET_ESCROW_Handle *h,
 
   op = GNUNET_new (struct GNUNET_ESCROW_Operation);
   op->h = h;
+  op->id = get_op_id (h);
   op->method = method;
   op->cb_get = cb;
   op->cb_cls = cb_cls;
   GNUNET_CONTAINER_DLL_insert_tail (h->op_head, h->op_tail, op);
 
   api = init_plugin (h, method);
-  op->plugin_op_wrap = api->restore_key (h, escrowAnchor, egoName, &handle_restore_key_result);
+  op->plugin_op_wrap = api->restore_key (h, escrowAnchor, egoName, &handle_restore_key_result, op->id);
 
   return op;
 }
@@ -307,7 +323,7 @@ handle_verify_escrow_result (void *cls)
   struct GNUNET_ESCROW_Operation *op;
 
   for (op = w->h->op_head; NULL != op; op = op->next)
-    if (1) // TODO: find condition (e.g. unique ID)
+    if (op->id == w->op_id)
       break;
 
   if (NULL == op)
@@ -318,8 +334,6 @@ handle_verify_escrow_result (void *cls)
   GNUNET_CONTAINER_DLL_remove (w->h->op_head, w->h->op_tail, op);
   if (NULL != op->cb_verify)
     op->cb_verify (op->cb_cls, w->verificationResult);
-  GNUNET_free (op->plugin_op_wrap->plugin_op);
-  GNUNET_free (op->plugin_op_wrap);
   GNUNET_free (op);
 }
 
@@ -349,13 +363,14 @@ GNUNET_ESCROW_verify (struct GNUNET_ESCROW_Handle *h,
 
   op = GNUNET_new (struct GNUNET_ESCROW_Operation);
   op->h = h;
+  op->id = get_op_id (h);
   op->method = method;
   op->cb_verify = cb;
   op->cb_cls = cb_cls;
   GNUNET_CONTAINER_DLL_insert_tail (h->op_head, h->op_tail, op);
 
   api = init_plugin (h, method);
-  op->plugin_op_wrap = api->verify_key_escrow (h, ego, escrowAnchor, &handle_verify_escrow_result);
+  op->plugin_op_wrap = api->verify_key_escrow (h, ego, escrowAnchor, &handle_verify_escrow_result, op->id);
 
   return op;
 }

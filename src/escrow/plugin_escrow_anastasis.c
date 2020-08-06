@@ -48,18 +48,21 @@ struct ESCROW_PluginHandle ph;
  * @param h the handle for the escrow component
  * @param ego the identity ego containing the private key
  * @param cb the function called upon completion
+ * @param op_id unique ID of the respective ESCROW_Operation
  * 
  * @return plugin operation wrapper
  */
 struct ESCROW_PluginOperationWrapper *
 start_anastasis_key_escrow (struct GNUNET_ESCROW_Handle *h,
                             const struct GNUNET_IDENTITY_Ego *ego,
-                            GNUNET_SCHEDULER_TaskCallback cb)
+                            GNUNET_SCHEDULER_TaskCallback cb,
+                            uint32_t op_id)
 {
   struct ESCROW_Plugin_AnchorContinuationWrapper *w;
 
   w = GNUNET_new (struct ESCROW_Plugin_AnchorContinuationWrapper);
   w->h = h;
+  w->op_id = op_id;
 
   // TODO: implement
   w->escrowAnchor = NULL;
@@ -75,6 +78,7 @@ start_anastasis_key_escrow (struct GNUNET_ESCROW_Handle *h,
  * @param ego the identity ego containing the private key
  * @param escrowAnchor the escrow anchor needed to restore the key
  * @param cb the function called upon completion
+ * @param op_id unique ID of the respective ESCROW_Operation
  * 
  * @return plugin operation wrapper
  */
@@ -82,12 +86,14 @@ struct ESCROW_PluginOperationWrapper *
 verify_anastasis_key_escrow (struct GNUNET_ESCROW_Handle *h,
                              const struct GNUNET_IDENTITY_Ego *ego,
                              struct GNUNET_ESCROW_Anchor *escrowAnchor,
-                             GNUNET_SCHEDULER_TaskCallback cb)
+                             GNUNET_SCHEDULER_TaskCallback cb,
+                             uint32_t op_id)
 {
   struct ESCROW_Plugin_VerifyContinuationWrapper *w;
 
   w = GNUNET_new (struct ESCROW_Plugin_VerifyContinuationWrapper);
   w->h = h;
+  w->op_id = op_id;
 
   // TODO: implement
   w->verificationResult = GNUNET_ESCROW_INVALID;
@@ -103,6 +109,7 @@ verify_anastasis_key_escrow (struct GNUNET_ESCROW_Handle *h,
  * @param escrowAnchor the escrow anchor needed to restore the key
  * @param egoName the name of the ego to restore
  * @param cb the function called upon completion
+ * @param op_id unique ID of the respective ESCROW_Operation
  * 
  * @return plugin operation wrapper
  */
@@ -110,12 +117,14 @@ struct ESCROW_PluginOperationWrapper *
 restore_anastasis_key_escrow (struct GNUNET_ESCROW_Handle *h,
                               struct GNUNET_ESCROW_Anchor *escrowAnchor,
                               char *egoName,
-                              GNUNET_SCHEDULER_TaskCallback cb)
+                              GNUNET_SCHEDULER_TaskCallback cb,
+                              uint32_t op_id)
 {
   struct ESCROW_Plugin_EgoContinuationWrapper *w;
 
   w = GNUNET_new (struct ESCROW_Plugin_EgoContinuationWrapper);
   w->h = h;
+  w->op_id = op_id;
 
   // TODO: implement
   w->ego = NULL;

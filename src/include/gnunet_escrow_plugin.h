@@ -50,13 +50,15 @@ extern "C" {
  * @param h the handle for the escrow component
  * @param ego the identity ego containing the private key
  * @param cb the function called upon completion
+ * @param op_id unique ID of the respective ESCROW_Operation
  * 
  * @return a wrapper for the plugin operation
  */
 typedef struct ESCROW_PluginOperationWrapper *(*GNUNET_ESCROW_StartKeyEscrowFunction) (
   struct GNUNET_ESCROW_Handle *h,
   const struct GNUNET_IDENTITY_Ego *ego,
-  GNUNET_SCHEDULER_TaskCallback cb);
+  GNUNET_SCHEDULER_TaskCallback cb,
+  uint32_t op_id);
 
 /**
  * Function called to verify the escrow of the key
@@ -65,6 +67,7 @@ typedef struct ESCROW_PluginOperationWrapper *(*GNUNET_ESCROW_StartKeyEscrowFunc
  * @param ego the identity ego containing the private key
  * @param escrowAnchor the escrow anchor needed to restore the key
  * @param cb the function called upon completion
+ * @param op_id unique ID of the respective ESCROW_Operation
  * 
  * @return a wrapper for the plugin operation
  */
@@ -72,7 +75,8 @@ typedef struct ESCROW_PluginOperationWrapper *(*GNUNET_ESCROW_VerifyKeyEscrowFun
   struct GNUNET_ESCROW_Handle *h,
   const struct GNUNET_IDENTITY_Ego *ego,
   struct GNUNET_ESCROW_Anchor *escrowAnchor,
-  GNUNET_SCHEDULER_TaskCallback cb);
+  GNUNET_SCHEDULER_TaskCallback cb,
+  uint32_t op_id);
 
 /**
  * Function called to restore a key from an escrow
@@ -81,6 +85,7 @@ typedef struct ESCROW_PluginOperationWrapper *(*GNUNET_ESCROW_VerifyKeyEscrowFun
  * @param escrowAnchor the escrow anchor needed to restore the key
  * @param egoName the name of the ego to restore
  * @param cb the function called upon completion
+ * @param op_id unique ID of the respective ESCROW_Operation
  * 
  * @return a wrapper for the plugin operation
  */
@@ -88,7 +93,8 @@ typedef struct ESCROW_PluginOperationWrapper *(*GNUNET_ESCROW_RestoreKeyFunction
   struct GNUNET_ESCROW_Handle *h,
   struct GNUNET_ESCROW_Anchor *escrowAnchor,
   char *egoName,
-  GNUNET_SCHEDULER_TaskCallback cb);
+  GNUNET_SCHEDULER_TaskCallback cb,
+  uint32_t op_id);
 
 
 /**

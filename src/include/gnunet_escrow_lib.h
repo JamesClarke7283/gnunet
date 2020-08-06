@@ -157,6 +157,11 @@ struct GNUNET_ESCROW_Handle
    * Tail of active operations.
    */
   struct GNUNET_ESCROW_Operation *op_tail;
+
+  /**
+   * The last operation id used for an ESCROW operation.
+   */
+  uint32_t last_op_id_used;
 };
 
 
@@ -169,6 +174,11 @@ struct GNUNET_ESCROW_Operation
    * Main escrow handle.
    */
   struct GNUNET_ESCROW_Handle *h;
+
+  /**
+   * ID of the operation.
+   */
+  uint32_t id;
 
   /**
    * We keep operations in a DLL.

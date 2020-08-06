@@ -169,6 +169,11 @@ struct ESCROW_Plugin_AnchorContinuationWrapper
    * The escrow anchor
    */
   struct GNUNET_ESCROW_Anchor *escrowAnchor;
+
+  /**
+   * The unique ID of the respective ESCROW_Operation
+   */
+  uint32_t op_id;
 };
 
 /**
@@ -188,6 +193,11 @@ struct ESCROW_Plugin_EgoContinuationWrapper
    * The restored ego
    */
   const struct GNUNET_IDENTITY_Ego *ego;
+
+  /**
+   * The unique ID of the respective ESCROW_Operation
+   */
+  uint32_t op_id;
 };
 
 /**
@@ -207,6 +217,11 @@ struct ESCROW_Plugin_VerifyContinuationWrapper
    * The result of the verification
    */
   int verificationResult;
+
+  /**
+   * The unique ID of the respective ESCROW_Operation
+   */
+  uint32_t op_id;
 };
 
 

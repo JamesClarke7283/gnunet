@@ -133,13 +133,15 @@ start_cont (void *cls)
  * @param h the handle for the escrow component
  * @param ego the identity ego containing the private key
  * @param cb the function called upon completion
+ * @param op_id unique ID of the respective ESCROW_Operation
  * 
  * @return plugin operation wrapper
  */
 struct ESCROW_PluginOperationWrapper *
 start_plaintext_key_escrow (struct GNUNET_ESCROW_Handle *h,
                             const struct GNUNET_IDENTITY_Ego *ego,
-                            ESCROW_Plugin_Continuation cb)
+                            ESCROW_Plugin_Continuation cb,
+                            uint32_t op_id)
 {
   const struct GNUNET_CRYPTO_EcdsaPrivateKey *pk;
   struct GNUNET_ESCROW_Anchor *anchor;
@@ -162,6 +164,7 @@ start_plaintext_key_escrow (struct GNUNET_ESCROW_Handle *h,
 
   w = GNUNET_new (struct ESCROW_Plugin_AnchorContinuationWrapper);
   w->h = h;
+  w->op_id = op_id;
   p_op->anchor_wrap = w;
 
   if (NULL == ego)
@@ -206,6 +209,7 @@ verify_cont (void *cls)
  * @param ego the identity ego containing the private key
  * @param escrowAnchor the escrow anchor needed to restore the key
  * @param cb the function called upon completion
+ * @param op_id unique ID of the respective ESCROW_Operation
  * 
  * @return plugin operation wrapper
  */
@@ -213,7 +217,8 @@ struct ESCROW_PluginOperationWrapper *
 verify_plaintext_key_escrow (struct GNUNET_ESCROW_Handle *h,
                              const struct GNUNET_IDENTITY_Ego *ego,
                              struct GNUNET_ESCROW_Anchor *escrowAnchor,
-                             ESCROW_Plugin_Continuation cb)
+                             ESCROW_Plugin_Continuation cb,
+                             uint32_t op_id)
 {
   const struct GNUNET_CRYPTO_EcdsaPrivateKey *pk;
   char *pkString;
@@ -235,6 +240,7 @@ verify_plaintext_key_escrow (struct GNUNET_ESCROW_Handle *h,
 
   w = GNUNET_new (struct ESCROW_Plugin_VerifyContinuationWrapper);
   w->h = h;
+  w->op_id = op_id;
   p_op->verify_wrap = w;
 
   if (NULL == ego)
@@ -344,6 +350,7 @@ handle_restore_error (void *cls)
  * @param escrowAnchor the escrow anchor needed to restore the key
  * @param egoName the name of the ego to restore
  * @param cb the function called upon completion
+ * @param op_id unique ID of the respective ESCROW_Operation
  * 
  * @return plugin operation wrapper
  */
@@ -351,7 +358,8 @@ struct ESCROW_PluginOperationWrapper *
 restore_plaintext_key_escrow (struct GNUNET_ESCROW_Handle *h,
                               struct GNUNET_ESCROW_Anchor *escrowAnchor,
                               char *egoName,
-                              ESCROW_Plugin_Continuation cb)
+                              ESCROW_Plugin_Continuation cb,
+                              uint32_t op_id)
 {
   struct GNUNET_CRYPTO_EcdsaPrivateKey pk;
   struct GNUNET_IDENTITY_Operation *id_op;
@@ -373,6 +381,7 @@ restore_plaintext_key_escrow (struct GNUNET_ESCROW_Handle *h,
 
   w = GNUNET_new (struct ESCROW_Plugin_EgoContinuationWrapper);
   w->h = h;
+  w->op_id = op_id;
   p_op->ego_wrap = w;
 
   if (NULL == escrowAnchor)
