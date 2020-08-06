@@ -550,6 +550,7 @@ libgnunet_plugin_escrow_plaintext_init (void *cls)
   api->anchor_data_to_string = &plaintext_anchor_data_to_string;
   api->cancel_plugin_operation = &cancel_plaintext_operation;
 
+  ph.state = ESCROW_PLUGIN_STATE_INIT;
   ph.id_init_cont = &plaintext_cont_init;
 
   // set ego_create_cont here so it is called every time an ego is created

@@ -344,6 +344,7 @@ libgnunet_plugin_escrow_gns_init (void *cls)
   api->anchor_string_to_data = &gns_anchor_string_to_data;
   api->cancel_plugin_operation = &cancel_gns_operation;
 
+  ph.state = ESCROW_PLUGIN_STATE_INIT;
   ph.id_init_cont = &gns_cont_init;
 
   identity_handle = GNUNET_IDENTITY_connect (cfg,

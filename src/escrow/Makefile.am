@@ -89,7 +89,9 @@ gnunet_escrow_LDADD = \
   $(GN_LIBINTL)
 
 check_SCRIPTS = \
-  test_escrow.sh
+  test_plaintext_escrow.sh \
+  test_gns_escrow.sh
+  # test_anastasis_escrow.sh
 
 if ENABLE_TEST_RUN
  AM_TESTS_ENVIRONMENT=export GNUNET_PREFIX=$${GNUNET_PREFIX:-@libdir@};export PATH=$${GNUNET_PREFIX:-@prefix@}/bin:$$PATH;unset XDG_DATA_HOME;unset XDG_CONFIG_HOME;

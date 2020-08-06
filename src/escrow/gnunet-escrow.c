@@ -217,9 +217,11 @@ verify_cb (void *cls,
       fprintf (stdout, "Escrow is valid!\n");
       break;
     case GNUNET_ESCROW_INVALID:
+      ret = 2;
       fprintf (stdout, "Escrow is INvalid! Please perform a new escrow.\n");
       break;
     default:
+      ret = 1;
       fprintf (stderr, "invalid verificationResult!\n");
   }
   cleanup_task = GNUNET_SCHEDULER_add_now (&do_cleanup, NULL);
@@ -251,6 +253,7 @@ start_process ()
   {
     if (NULL == ego)
     {
+      ret = 1;
       fprintf (stderr, "Ego %s not found\n", put_ego);
       cleanup_task = GNUNET_SCHEDULER_add_now (&do_cleanup, NULL);
       return;
@@ -267,6 +270,7 @@ start_process ()
   {
     if (NULL == ego)
     {
+      ret = 1;
       fprintf (stderr, "Ego %s not found\n", verify_ego);
       cleanup_task = GNUNET_SCHEDULER_add_now (&do_cleanup, NULL);
       return;
@@ -284,6 +288,7 @@ start_process ()
   {
     if (NULL != ego)
     {
+      ret = 1;
       fprintf (stderr, "The name %s is already in use for an ego\n", get_ego);
       cleanup_task = GNUNET_SCHEDULER_add_now (&do_cleanup, NULL);
       return;
@@ -301,6 +306,7 @@ start_process ()
   {
     if (NULL == ego)
     {
+      ret = 1;
       fprintf (stderr, "Ego %s not found\n", status_ego);
       cleanup_task = GNUNET_SCHEDULER_add_now (&do_cleanup, NULL);
       return;

@@ -75,6 +75,7 @@ ESCROW_list_ego (void *cls,
   struct EgoEntry *ego_entry;
   struct GNUNET_CRYPTO_EcdsaPublicKey pk;
 
+  // TODO: error when this method is called at cleanup if init is not yet finished
   if ((NULL == ego) && (ESCROW_PLUGIN_STATE_INIT == ph->state))
   {
     ph->state = ESCROW_PLUGIN_STATE_POST_INIT;
