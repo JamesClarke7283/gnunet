@@ -112,6 +112,7 @@ typedef void (*GNUNET_ESCROW_EgoCreateContinuation) (
  * @param escrowAnchor the escrow anchor needed to get the data back
  */
 typedef void (*GNUNET_ESCROW_AnchorContinuation) (
+  void *cls,
   struct GNUNET_ESCROW_Anchor *escrowAnchor);
 
 /**
@@ -121,6 +122,7 @@ typedef void (*GNUNET_ESCROW_AnchorContinuation) (
  * @param ego a new identity ego restored from the escrow
  */
 typedef void (*GNUNET_ESCROW_EgoContinuation) (
+  void *cls,
   const struct GNUNET_IDENTITY_Ego *ego);
 
 /**
@@ -132,6 +134,7 @@ typedef void (*GNUNET_ESCROW_EgoContinuation) (
  *   GNUNET_ESCROW_INVALID otherwise
  */
 typedef void (*GNUNET_ESCROW_VerifyContinuation) (
+  void *cls,
   int verificationResult);
 
 
@@ -195,7 +198,7 @@ struct GNUNET_ESCROW_Operation
   /**
    * The ego.
    */
-  struct GNUNET_IDENTITY_Ego *ego;
+  const struct GNUNET_IDENTITY_Ego *ego;
 
   /**
    * The verification result.
@@ -216,6 +219,11 @@ struct GNUNET_ESCROW_Operation
    * Continuation for a VERIFY operation.
    */
   GNUNET_ESCROW_VerifyContinuation cb_verify;
+
+  /**
+   * Closure for the callback
+   */
+  void *cb_cls;
 };
 
 
@@ -248,6 +256,7 @@ GNUNET_ESCROW_fini (
  * @param ego the identity ego to put in escrow
  * @param method the escrow method to use
  * @param cb function to call with the escrow anchor on completion
+ * @param cb_cls closure for @a cb
  * 
  * @return handle to abort the operation
  */
@@ -256,7 +265,8 @@ GNUNET_ESCROW_put (
   struct GNUNET_ESCROW_Handle *h,
   const struct GNUNET_IDENTITY_Ego *ego,
   enum GNUNET_ESCROW_Key_Escrow_Method method,
-  GNUNET_ESCROW_AnchorContinuation cb);
+  GNUNET_ESCROW_AnchorContinuation cb,
+  void *cb_cls);
 
 
 /**
@@ -267,6 +277,7 @@ GNUNET_ESCROW_put (
  * @param egoName the name of the ego to get back
  * @param method the escrow method to use
  * @param cb function to call with the restored ego on completion
+ * @param cb_cls closure for @a cb
  * 
  * @return handle to abort the operation
  */
@@ -276,7 +287,8 @@ GNUNET_ESCROW_get (
   struct GNUNET_ESCROW_Anchor *escrowAnchor,
   char *egoName,
   enum GNUNET_ESCROW_Key_Escrow_Method method,
-  GNUNET_ESCROW_EgoContinuation cb);
+  GNUNET_ESCROW_EgoContinuation cb,
+  void *cb_cls);
 
 
 /**
@@ -287,6 +299,7 @@ GNUNET_ESCROW_get (
  * @param escrowAnchor the escrow anchor returned by the GNUNET_ESCROW_put method
  * @param method the escrow method to use
  * @param cb function to call with the verification result on completion
+ * @param cb_cls closure for @a cb
  * 
  * @return handle to abort the operation
  */
@@ -296,7 +309,8 @@ GNUNET_ESCROW_verify (
   const struct GNUNET_IDENTITY_Ego *ego,
   struct GNUNET_ESCROW_Anchor *escrowAnchor,
   enum GNUNET_ESCROW_Key_Escrow_Method method,
-  GNUNET_ESCROW_VerifyContinuation cb);
+  GNUNET_ESCROW_VerifyContinuation cb,
+  void *cb_cls);
 
 
 /**

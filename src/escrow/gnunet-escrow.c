@@ -189,7 +189,8 @@ do_cleanup (void *cls)
 
 
 static void
-put_cb (struct GNUNET_ESCROW_Anchor *escrowAnchor)
+put_cb (void *cls,
+        struct GNUNET_ESCROW_Anchor *escrowAnchor)
 {
   char *anchorString;
 
@@ -206,7 +207,8 @@ in order to restore the key later!\n%s\n", anchorString);
 
 
 static void
-verify_cb (int verificationResult)
+verify_cb (void *cls,
+           int verificationResult)
 {
   escrow_op = NULL;
 
@@ -226,7 +228,8 @@ verify_cb (int verificationResult)
 
 
 static void
-get_cb (const struct GNUNET_IDENTITY_Ego *ego)
+get_cb (void *cls,
+        const struct GNUNET_IDENTITY_Ego *ego)
 {
   escrow_op = NULL;
 
@@ -256,7 +259,8 @@ start_process ()
     escrow_op = GNUNET_ESCROW_put (escrow_handle,
                                    ego,
                                    method,
-                                   &put_cb);
+                                   &put_cb,
+                                   NULL);
     return;
   }
   /* verify */
@@ -272,7 +276,8 @@ start_process ()
                                       ego,
                                       anchor,
                                       method,
-                                      &verify_cb);
+                                      &verify_cb,
+                                      NULL);
     return;
   }
   /* get */
@@ -288,7 +293,8 @@ start_process ()
                                    anchor,
                                    get_ego,
                                    method,
-                                   &get_cb);
+                                   &get_cb,
+                                   NULL);
     return;
   }
   /* status */

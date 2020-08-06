@@ -42,12 +42,6 @@ struct ESCROW_PlaintextPluginOperation
   struct GNUNET_ESCROW_Handle *h;
 
   /**
-   * Continuation for a plugin operation (e.g. used for restore, as this
-   * callback has to be called from the IDENTITY service after finishing)
-   */
-  GNUNET_SCHEDULER_TaskCallback cont;
-
-  /**
    * Scheduler task the SCHEDULE operation returns (needed for cancellation)
    */
   struct GNUNET_SCHEDULER_Task *sched_task;
@@ -63,9 +57,25 @@ struct ESCROW_PlaintextPluginOperation
   const struct GNUNET_CRYPTO_EcdsaPrivateKey *pk;
 
   /**
+   * Continuation for a plugin operation (e.g. used for restore, as this
+   * callback has to be called from the IDENTITY service after finishing)
+   */
+  ESCROW_Plugin_Continuation cont;
+
+  /**
    * Ego continuation wrapper
    */
-  struct ESCROW_Plugin_EgoContinuationWrapper *ego_cont_wrap;
+  struct ESCROW_Plugin_EgoContinuationWrapper *ego_wrap;
+
+  /**
+   * Anchor continuation wrapper
+   */
+  struct ESCROW_Plugin_AnchorContinuationWrapper *anchor_wrap;
+
+  /**
+   * Verify continuation wrapper
+   */
+  struct ESCROW_Plugin_VerifyContinuationWrapper *verify_wrap;
 };
 
 /**
@@ -80,6 +90,44 @@ struct ESCROW_PluginHandle ph;
 
 
 /**
+ * Clean up a plugin operation, i.e. remove it from the list and
+ * free the respective memory
+ */
+void
+cleanup_plugin_operation (struct ESCROW_PluginOperationWrapper *plugin_op_wrap)
+{
+  struct ESCROW_PlaintextPluginOperation *p_op;
+
+  p_op = (struct ESCROW_PlaintextPluginOperation*)plugin_op_wrap->plugin_op;
+
+  GNUNET_CONTAINER_DLL_remove (ph.plugin_op_head,
+                               ph.plugin_op_tail,
+                               plugin_op_wrap);
+  if (NULL != p_op->anchor_wrap)
+    GNUNET_free (p_op->anchor_wrap);
+  if (NULL != p_op->ego_wrap)
+    GNUNET_free (p_op->ego_wrap);
+  if (NULL != p_op->verify_wrap)
+    GNUNET_free (p_op->verify_wrap);
+  GNUNET_free (p_op);
+  GNUNET_free (plugin_op_wrap);
+}
+
+
+void
+start_cont (void *cls)
+{
+  struct ESCROW_PluginOperationWrapper *plugin_op_wrap = cls;
+  struct ESCROW_PlaintextPluginOperation *p_op;
+  
+  p_op = (struct ESCROW_PlaintextPluginOperation*)plugin_op_wrap->plugin_op;
+  p_op->cont (p_op->anchor_wrap);
+
+  cleanup_plugin_operation (plugin_op_wrap);
+}
+
+
+/**
  * Start the plaintext escrow of the key, i.e. simply hand out the key
  * 
  * @param h the handle for the escrow component
@@ -91,7 +139,7 @@ struct ESCROW_PluginHandle ph;
 struct ESCROW_PluginOperationWrapper *
 start_plaintext_key_escrow (struct GNUNET_ESCROW_Handle *h,
                             const struct GNUNET_IDENTITY_Ego *ego,
-                            GNUNET_SCHEDULER_TaskCallback cb)
+                            ESCROW_Plugin_Continuation cb)
 {
   const struct GNUNET_CRYPTO_EcdsaPrivateKey *pk;
   struct GNUNET_ESCROW_Anchor *anchor;
@@ -110,14 +158,16 @@ start_plaintext_key_escrow (struct GNUNET_ESCROW_Handle *h,
 
   p_op = (struct ESCROW_PlaintextPluginOperation *)plugin_op_wrap->plugin_op;
   p_op->h = h;
+  p_op->cont = cb;
 
   w = GNUNET_new (struct ESCROW_Plugin_AnchorContinuationWrapper);
   w->h = h;
+  p_op->anchor_wrap = w;
 
   if (NULL == ego)
   {
     w->escrowAnchor = NULL;
-    p_op->sched_task = GNUNET_SCHEDULER_add_now (cb, w);
+    p_op->sched_task = GNUNET_SCHEDULER_add_now (&start_cont, plugin_op_wrap);
     return plugin_op_wrap;
   }
   pk = GNUNET_IDENTITY_ego_get_private_key (ego);
@@ -131,8 +181,21 @@ start_plaintext_key_escrow (struct GNUNET_ESCROW_Handle *h,
 
   w->escrowAnchor = anchor;
 
-  p_op->sched_task = GNUNET_SCHEDULER_add_now (cb, w);
+  p_op->sched_task = GNUNET_SCHEDULER_add_now (&start_cont, plugin_op_wrap);
   return plugin_op_wrap;
+}
+
+
+void
+verify_cont (void *cls)
+{
+  struct ESCROW_PluginOperationWrapper *plugin_op_wrap = cls;
+  struct ESCROW_PlaintextPluginOperation *p_op;
+  
+  p_op = (struct ESCROW_PlaintextPluginOperation*)plugin_op_wrap->plugin_op;
+  p_op->cont (p_op->verify_wrap);
+
+  cleanup_plugin_operation (plugin_op_wrap);
 }
 
 
@@ -150,7 +213,7 @@ struct ESCROW_PluginOperationWrapper *
 verify_plaintext_key_escrow (struct GNUNET_ESCROW_Handle *h,
                              const struct GNUNET_IDENTITY_Ego *ego,
                              struct GNUNET_ESCROW_Anchor *escrowAnchor,
-                             GNUNET_SCHEDULER_TaskCallback cb)
+                             ESCROW_Plugin_Continuation cb)
 {
   const struct GNUNET_CRYPTO_EcdsaPrivateKey *pk;
   char *pkString;
@@ -168,14 +231,16 @@ verify_plaintext_key_escrow (struct GNUNET_ESCROW_Handle *h,
 
   p_op = (struct ESCROW_PlaintextPluginOperation *)plugin_op_wrap->plugin_op;
   p_op->h = h;
+  p_op->cont = cb;
 
   w = GNUNET_new (struct ESCROW_Plugin_VerifyContinuationWrapper);
   w->h = h;
+  p_op->verify_wrap = w;
 
   if (NULL == ego)
   {
     w->verificationResult = GNUNET_ESCROW_INVALID;
-    p_op->sched_task = GNUNET_SCHEDULER_add_now (cb, w);
+    p_op->sched_task = GNUNET_SCHEDULER_add_now (&verify_cont, plugin_op_wrap);
     return plugin_op_wrap;
   }
   pk = GNUNET_IDENTITY_ego_get_private_key (ego);
@@ -186,7 +251,7 @@ verify_plaintext_key_escrow (struct GNUNET_ESCROW_Handle *h,
     GNUNET_ESCROW_VALID : GNUNET_ESCROW_INVALID;
 
   w->verificationResult = verificationResult;
-  p_op->sched_task = GNUNET_SCHEDULER_add_now (cb, w);
+  p_op->sched_task = GNUNET_SCHEDULER_add_now (&verify_cont, plugin_op_wrap);
   return plugin_op_wrap;
 }
 
@@ -208,15 +273,12 @@ ego_created (const struct GNUNET_IDENTITY_Ego *ego)
     if (0 == strcmp (ego_pk_string, curr_pk_string))
     {
       // the ego was created due to a restore operation that is not yet finished
+      curr_p_op->ego_wrap->ego = ego;
+      curr_p_op->cont (curr_p_op->ego_wrap);
+
+      cleanup_plugin_operation (curr);
+
       GNUNET_free (curr_pk_string);
-      GNUNET_CONTAINER_DLL_remove (ph.plugin_op_head,
-                                   ph.plugin_op_tail,
-                                   curr);
-      curr_p_op->ego_cont_wrap->ego = ego;
-      curr_p_op->sched_task = GNUNET_SCHEDULER_add_now (curr_p_op->cont,
-                                                        curr_p_op->ego_cont_wrap);
-      GNUNET_free (curr_p_op);
-      GNUNET_free (curr);
       GNUNET_free (ego_pk_string);
       return;
     }
@@ -251,14 +313,27 @@ create_finished (void *cls,
                emsg);
     else
       fprintf (stderr, "Failed to create ego!");
-    p_op->ego_cont_wrap->ego = NULL;
-    p_op->sched_task = GNUNET_SCHEDULER_add_now (p_op->cont, p_op->ego_cont_wrap);
+    p_op->ego_wrap->ego = NULL;
+    p_op->cont (p_op->ego_wrap);
     return;
   }
 
   /* no error occurred, p_op->restore_cont will be called in ego_created, which
      is called from ESCROW_list_ego after adding the new ego to our list */
   p_op->pk = pk;
+}
+
+
+void
+handle_restore_error (void *cls)
+{
+  struct ESCROW_PluginOperationWrapper *plugin_op_wrap = cls;
+  struct ESCROW_PlaintextPluginOperation *p_op;
+  
+  p_op = (struct ESCROW_PlaintextPluginOperation*)plugin_op_wrap->plugin_op;
+  p_op->cont (p_op->ego_wrap);
+
+  cleanup_plugin_operation (plugin_op_wrap);
 }
 
 
@@ -276,7 +351,7 @@ struct ESCROW_PluginOperationWrapper *
 restore_plaintext_key_escrow (struct GNUNET_ESCROW_Handle *h,
                               struct GNUNET_ESCROW_Anchor *escrowAnchor,
                               char *egoName,
-                              GNUNET_SCHEDULER_TaskCallback cb)
+                              ESCROW_Plugin_Continuation cb)
 {
   struct GNUNET_CRYPTO_EcdsaPrivateKey pk;
   struct GNUNET_IDENTITY_Operation *id_op;
@@ -298,14 +373,14 @@ restore_plaintext_key_escrow (struct GNUNET_ESCROW_Handle *h,
 
   w = GNUNET_new (struct ESCROW_Plugin_EgoContinuationWrapper);
   w->h = h;
-
-  p_op->ego_cont_wrap = w;
+  p_op->ego_wrap = w;
 
   if (NULL == escrowAnchor)
   {
     // TODO: correct error handling?
     w->ego = NULL;
-    p_op->sched_task = GNUNET_SCHEDULER_add_now (cb, w);
+    // schedule handle_restore_error, which calls the callback and cleans up
+    p_op->sched_task = GNUNET_SCHEDULER_add_now (&handle_restore_error, plugin_op_wrap);
     return plugin_op_wrap;
   }
   if (GNUNET_OK !=
@@ -314,7 +389,8 @@ restore_plaintext_key_escrow (struct GNUNET_ESCROW_Handle *h,
                                                  &pk))
   {
     w->ego = NULL;
-    p_op->sched_task = GNUNET_SCHEDULER_add_now (cb, w);
+    // schedule handle_restore_error, which calls the callback and cleans up
+    p_op->sched_task = GNUNET_SCHEDULER_add_now (&handle_restore_error, plugin_op_wrap);
     return plugin_op_wrap;
   }
   

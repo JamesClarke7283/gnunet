@@ -147,6 +147,12 @@ struct ESCROW_PluginOperationWrapper
 
 
 /**
+ * 
+ */
+typedef void (*ESCROW_Plugin_Continuation) (void *cls);
+
+
+/**
  * Wrapper for the Plugin_AnchorContinuation.
  * 
  * As this type of function is called from the scheduler, which only takes
