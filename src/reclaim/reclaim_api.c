@@ -747,7 +747,8 @@ handle_attribute_result (void *cls, const struct AttributeResultMessage *msg)
 
   {
     struct GNUNET_RECLAIM_Attribute *attr;
-    attr = GNUNET_RECLAIM_attribute_deserialize ((char *) &msg[1], attr_len);
+    GNUNET_RECLAIM_attribute_deserialize ((char *) &msg[1], attr_len,
+                                          &attr);
     if (NULL != it)
     {
       if (NULL != it->proc)
@@ -1572,6 +1573,8 @@ GNUNET_RECLAIM_ticket_consume (
   ctm->ticket = *ticket;
   if (NULL != h->mq)
     GNUNET_MQ_send_copy (h->mq, op->env);
+  else
+    reconnect (h);
   return op;
 }
 

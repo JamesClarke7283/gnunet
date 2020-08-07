@@ -70,7 +70,12 @@ const struct GNUNET_CONFIGURATION_Handle *cfg;
 /**
  * HTTP methods allows for this plugin
  */
-static char*allow_methods;
+static char *allow_methods;
+
+/**
+ * Handle to PEERINFO
+ */
+static struct GNUNET_PEERINFO_Handle *peerinfo_handle;
 
 /**
  * @brief struct returned by the initialization function of the plugin
@@ -175,6 +180,16 @@ static struct PrintContext *pc_tail;
 struct RequestHandle
 {
   /**
+   * DLL
+   */
+  struct RequestHandle *next;
+
+  /**
+   * DLL
+   */
+  struct RequestHandle *prev;
+
+  /**
    * JSON temporary array
    */
   json_t *temp_array;
@@ -204,10 +219,6 @@ struct RequestHandle
    */
   struct GNUNET_PEERINFO_IteratorContext *list_it;
 
-  /**
-   * Handle to PEERINFO
-   */
-  struct GNUNET_PEERINFO_Handle *peerinfo_handle;
 
   /**
    * Rest connection
@@ -250,6 +261,15 @@ struct RequestHandle
   int response_code;
 };
 
+/**
+ * DLL
+ */
+static struct RequestHandle *requests_head;
+
+/**
+ * DLL
+ */
+static struct RequestHandle *requests_tail;
 
 /**
  * Cleanup lookup handle
@@ -294,12 +314,14 @@ cleanup_handle (void *cls)
     GNUNET_PEERINFO_iterate_cancel (handle->list_it);
     handle->list_it = NULL;
   }
-  if (NULL != handle->peerinfo_handle)
+  if (NULL != peerinfo_handle)
   {
-    GNUNET_PEERINFO_disconnect (handle->peerinfo_handle);
-    handle->peerinfo_handle = NULL;
+    GNUNET_PEERINFO_disconnect (peerinfo_handle);
+    peerinfo_handle = NULL;
   }
-
+  GNUNET_CONTAINER_DLL_remove (requests_head,
+                               requests_tail,
+                               handle);
   GNUNET_free (handle);
 }
 
@@ -664,7 +686,7 @@ peerinfo_get (struct GNUNET_REST_RequestHandle *con_handle,
     // specific_peer = GNUNET_PEER_resolve2(peer_id);
   }
 
-  handle->list_it = GNUNET_PEERINFO_iterate (handle->peerinfo_handle,
+  handle->list_it = GNUNET_PEERINFO_iterate (peerinfo_handle,
                                              include_friend_only,
                                              specific_peer,
                                              &peerinfo_list_iteration,
@@ -699,32 +721,6 @@ options_cont (struct GNUNET_REST_RequestHandle *con_handle,
 
 
 /**
- * Handle rest request
- *
- * @param handle the request handle
- */
-static void
-init_cont (struct RequestHandle *handle)
-{
-  struct GNUNET_REST_RequestHandlerError err;
-  static const struct GNUNET_REST_RequestHandler handlers[] = {
-    { MHD_HTTP_METHOD_GET, GNUNET_REST_API_NS_PEERINFO, &peerinfo_get },
-    { MHD_HTTP_METHOD_OPTIONS, GNUNET_REST_API_NS_PEERINFO, &options_cont },
-    GNUNET_REST_HANDLER_END
-  };
-
-  if (GNUNET_NO == GNUNET_REST_handle_request (handle->rest_handle,
-                                               handlers,
-                                               &err,
-                                               handle))
-  {
-    handle->response_code = err.error_code;
-    GNUNET_SCHEDULER_add_now (&do_error, handle);
-  }
-}
-
-
-/**
  * Function processing the REST call
  *
  * @param method HTTP method
@@ -735,12 +731,18 @@ init_cont (struct RequestHandle *handle)
  * @param proc_cls closure for callback function
  * @return GNUNET_OK if request accepted
  */
-static void
+static enum GNUNET_GenericReturnValue
 rest_process_request (struct GNUNET_REST_RequestHandle *rest_handle,
                       GNUNET_REST_ResultProcessor proc,
                       void *proc_cls)
 {
   struct RequestHandle *handle = GNUNET_new (struct RequestHandle);
+  struct GNUNET_REST_RequestHandlerError err;
+  static const struct GNUNET_REST_RequestHandler handlers[] = {
+    { MHD_HTTP_METHOD_GET, GNUNET_REST_API_NS_PEERINFO, &peerinfo_get },
+    { MHD_HTTP_METHOD_OPTIONS, GNUNET_REST_API_NS_PEERINFO, &options_cont },
+    GNUNET_REST_HANDLER_END
+  };
 
   handle->response_code = 0;
   handle->timeout = GNUNET_TIME_relative_multiply (GNUNET_TIME_UNIT_SECONDS,
@@ -752,15 +754,24 @@ rest_process_request (struct GNUNET_REST_RequestHandle *rest_handle,
   handle->url = GNUNET_strdup (rest_handle->url);
   if (handle->url[strlen (handle->url) - 1] == '/')
     handle->url[strlen (handle->url) - 1] = '\0';
-  GNUNET_log (GNUNET_ERROR_TYPE_DEBUG, "Connecting...\n");
-  handle->peerinfo_handle = GNUNET_PEERINFO_connect (cfg);
-  init_cont (handle);
   handle->timeout_task =
     GNUNET_SCHEDULER_add_delayed (handle->timeout,
                                   &do_error,
                                   handle);
-
+  GNUNET_CONTAINER_DLL_insert (requests_head,
+                               requests_tail,
+                               handle);
+  GNUNET_log (GNUNET_ERROR_TYPE_DEBUG, "Connecting...\n");
+  if (GNUNET_NO == GNUNET_REST_handle_request (handle->rest_handle,
+                                               handlers,
+                                               &err,
+                                               handle))
+  {
+    cleanup_handle (handle);
+    return GNUNET_NO;
+  }
   GNUNET_log (GNUNET_ERROR_TYPE_DEBUG, "Connected\n");
+  return GNUNET_YES;
 }
 
 
@@ -792,6 +803,7 @@ libgnunet_plugin_rest_peerinfo_init (void *cls)
                    MHD_HTTP_METHOD_PUT,
                    MHD_HTTP_METHOD_DELETE,
                    MHD_HTTP_METHOD_OPTIONS);
+  peerinfo_handle = GNUNET_PEERINFO_connect (cfg);
 
   GNUNET_log (GNUNET_ERROR_TYPE_DEBUG,
               _ ("Peerinfo REST API initialized\n"));
@@ -812,6 +824,10 @@ libgnunet_plugin_rest_peerinfo_done (void *cls)
   struct Plugin *plugin = api->cls;
 
   plugin->cfg = NULL;
+  while (NULL != requests_head)
+    cleanup_handle (requests_head);
+  if (NULL != peerinfo_handle)
+    GNUNET_PEERINFO_disconnect (peerinfo_handle);
 
   GNUNET_free (allow_methods);
   GNUNET_free (api);
