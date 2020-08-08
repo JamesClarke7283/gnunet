@@ -56,7 +56,7 @@ extern "C" {
  */
 typedef struct ESCROW_PluginOperationWrapper *(*GNUNET_ESCROW_StartKeyEscrowFunction) (
   struct GNUNET_ESCROW_Handle *h,
-  const struct GNUNET_IDENTITY_Ego *ego,
+  struct GNUNET_IDENTITY_Ego *ego,
   GNUNET_SCHEDULER_TaskCallback cb,
   uint32_t op_id);
 
@@ -104,14 +104,12 @@ typedef struct ESCROW_PluginOperationWrapper *(*GNUNET_ESCROW_RestoreKeyFunction
  * 
  * @param h the handle for the escrow component
  * @param ego the identity ego of which the status has to be obtained
- * @param escrowAnchor the escrow anchor needed to restore the key
  * 
  * @return the status of the escrow packed into a GNUNET_ESCROW_Status struct
  */
 typedef struct GNUNET_ESCROW_Status *(*GNUNET_ESCROW_GetEscrowStatusFunction) (
   struct GNUNET_ESCROW_Handle *h,
-  const struct GNUNET_IDENTITY_Ego *ego,
-  struct GNUNET_ESCROW_Anchor *escrowAnchor);
+  struct GNUNET_IDENTITY_Ego *ego);
 
 
 /**

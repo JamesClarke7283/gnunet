@@ -108,6 +108,9 @@ init_plugin (struct GNUNET_ESCROW_Handle *h,
       anastasis_api = GNUNET_PLUGIN_load ("libgnunet_plugin_escrow_anastasis",
                                           (void *)h->cfg);
       return anastasis_api;
+    case GNUNET_ESCROW_KEY_NONE: // error case
+      fprintf (stderr, "incorrect escrow method!");
+      return NULL;
   }
   // should never be reached
   return NULL;
@@ -141,7 +144,7 @@ GNUNET_ESCROW_init (const struct GNUNET_CONFIGURATION_Handle *cfg)
   struct GNUNET_ESCROW_Handle *h;
 
   h = GNUNET_new (struct GNUNET_ESCROW_Handle);
-  h->cfg = cfg;
+  h->cfg = GNUNET_CONFIGURATION_dup (cfg);
   h->op_head = NULL;
   h->op_tail = NULL;
   return h;
@@ -193,6 +196,9 @@ GNUNET_ESCROW_fini (struct GNUNET_ESCROW_Handle *h)
     GNUNET_ESCROW_cancel (op);
   }
 
+  /* free the configuration */
+  GNUNET_free (h->cfg);
+
   /* free the escrow handle */
   GNUNET_free (h);
 }
@@ -233,7 +239,7 @@ handle_start_escrow_result (void *cls)
  */
 struct GNUNET_ESCROW_Operation *
 GNUNET_ESCROW_put (struct GNUNET_ESCROW_Handle *h,
-                   const struct GNUNET_IDENTITY_Ego *ego,
+                   struct GNUNET_IDENTITY_Ego *ego,
                    enum GNUNET_ESCROW_Key_Escrow_Method method,
                    GNUNET_ESCROW_AnchorContinuation cb,
                    void *cb_cls)
@@ -383,21 +389,19 @@ GNUNET_ESCROW_verify (struct GNUNET_ESCROW_Handle *h,
  * 
  * @param h the handle for the escrow component
  * @param ego the identity ego of which the escrow status has to be determined
- * @param escrowAnchor the escrow anchor returned by the GNUNET_ESCROW_put method
  * @param method the escrow method to use
  * 
  * @return the status of the escrow packed into a GNUNET_ESCROW_Status struct
  */
 struct GNUNET_ESCROW_Status *
 GNUNET_ESCROW_get_status (struct GNUNET_ESCROW_Handle *h,
-                          const struct GNUNET_IDENTITY_Ego *ego,
-                          struct GNUNET_ESCROW_Anchor *escrowAnchor,
+                          struct GNUNET_IDENTITY_Ego *ego,
                           enum GNUNET_ESCROW_Key_Escrow_Method method)
 {
   const struct GNUNET_ESCROW_KeyPluginFunctions *api;
 
   api = init_plugin (h, method);
-  return api->get_status (h, ego, escrowAnchor);
+  return api->get_status (h, ego);
 }
 
 

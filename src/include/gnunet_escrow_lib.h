@@ -45,6 +45,7 @@ extern "C" {
  * Enum for the different key escrow methods
  */
 enum GNUNET_ESCROW_Key_Escrow_Method {
+  GNUNET_ESCROW_KEY_NONE, // error value
   GNUNET_ESCROW_KEY_PLAINTEXT,
   GNUNET_ESCROW_KEY_GNS,
   GNUNET_ESCROW_KEY_ANASTASIS
@@ -89,6 +90,11 @@ struct GNUNET_ESCROW_Status {
    * The time of the next recommended escrow.
    */
   struct GNUNET_TIME_Absolute next_recommended_escrow_time;
+
+  /**
+   * The used escrow method.
+   */
+  enum GNUNET_ESCROW_Key_Escrow_Method last_method;
 };
 
 
@@ -146,7 +152,7 @@ struct GNUNET_ESCROW_Handle
   /**
    * Configuration to use.
    */
-  const struct GNUNET_CONFIGURATION_Handle *cfg;
+  struct GNUNET_CONFIGURATION_Handle *cfg;
 
   /**
    * Head of active operations.
@@ -273,7 +279,7 @@ GNUNET_ESCROW_fini (
 struct GNUNET_ESCROW_Operation *
 GNUNET_ESCROW_put (
   struct GNUNET_ESCROW_Handle *h,
-  const struct GNUNET_IDENTITY_Ego *ego,
+  struct GNUNET_IDENTITY_Ego *ego,
   enum GNUNET_ESCROW_Key_Escrow_Method method,
   GNUNET_ESCROW_AnchorContinuation cb,
   void *cb_cls);
@@ -330,7 +336,6 @@ GNUNET_ESCROW_verify (
  * 
  * @param h the handle for the escrow component
  * @param ego the identity ego of which the escrow status has to be determined
- * @param escrowAnchor the escrow anchor returned by the GNUNET_ESCROW_put method
  * @param method the escrow method to use
  * 
  * @return the status of the escrow packed into a GNUNET_ESCROW_Status struct
@@ -338,8 +343,7 @@ GNUNET_ESCROW_verify (
 struct GNUNET_ESCROW_Status *
 GNUNET_ESCROW_get_status (
   struct GNUNET_ESCROW_Handle *h,
-  const struct GNUNET_IDENTITY_Ego *ego,
-  struct GNUNET_ESCROW_Anchor *escrowAnchor,
+  struct GNUNET_IDENTITY_Ego *ego,
   enum GNUNET_ESCROW_Key_Escrow_Method method);
 
 

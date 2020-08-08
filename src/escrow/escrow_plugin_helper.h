@@ -67,9 +67,9 @@
  */
 void
 ESCROW_list_ego (void *cls,
-                        struct GNUNET_IDENTITY_Ego *ego,
-                        void **ctx,
-                        const char *identifier);
+                 struct GNUNET_IDENTITY_Ego *ego,
+                 void **ctx,
+                 const char *identifier);
 
 
 /**
@@ -79,3 +79,30 @@ ESCROW_list_ego (void *cls,
  */
 void
 ESCROW_cleanup_ego_list (struct ESCROW_PluginHandle *ph);
+
+
+/**
+ * Update the status of an escrow in the configuration.
+ * 
+ * @param h handle for the escrow component
+ * @param ego the ego of which the escrow status is updated
+ * @param plugin_name the name of the used plugin
+ * 
+ * @return GNUNET_OK on success
+ */
+int
+ESCROW_update_escrow_status (struct GNUNET_ESCROW_Handle *h,
+                             struct GNUNET_IDENTITY_Ego *ego,
+                             const char *plugin_name);
+
+/**
+ * Get the status of an escrow from the configuration.
+ * 
+ * @param h handle for the escrow component
+ * @param ego the ego of which the escrow status has to be obtained
+ * 
+ * @return the status of the escrow, packed into a GNUNET_ESCROW_Status struct
+ */
+struct GNUNET_ESCROW_Status *
+ESCROW_get_escrow_status (struct GNUNET_ESCROW_Handle *h,
+                          struct GNUNET_IDENTITY_Ego *ego);

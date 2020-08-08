@@ -54,7 +54,7 @@ struct ESCROW_PluginHandle ph;
  */
 struct ESCROW_PluginOperationWrapper *
 start_anastasis_key_escrow (struct GNUNET_ESCROW_Handle *h,
-                            const struct GNUNET_IDENTITY_Ego *ego,
+                            struct GNUNET_IDENTITY_Ego *ego,
                             GNUNET_SCHEDULER_TaskCallback cb,
                             uint32_t op_id)
 {
@@ -138,24 +138,14 @@ restore_anastasis_key_escrow (struct GNUNET_ESCROW_Handle *h,
  * 
  * @param h the handle for the escrow component
  * @param ego the identity ego of which the status has to be obtained
- * @param escrowAnchor the escrow anchor needed to restore the key
  * 
  * @return the status of the escrow packed into a GNUNET_ESCROW_Status struct
  */
 struct GNUNET_ESCROW_Status *
 anastasis_get_status (struct GNUNET_ESCROW_Handle *h,
-                      const struct GNUNET_IDENTITY_Ego *ego,
-                      struct GNUNET_ESCROW_Anchor *escrowAnchor)
+                      struct GNUNET_IDENTITY_Ego *ego)
 {
-  struct GNUNET_ESCROW_Status *status;
-  
-  status = GNUNET_new (struct GNUNET_ESCROW_Status);
-  // TODO: get the correct time values
-  status->last_escrow_time = GNUNET_TIME_absolute_get ();
-  status->next_recommended_escrow_time = GNUNET_TIME_absolute_get ();
-  // END TODO
-  
-  return status;
+  return ESCROW_get_escrow_status (h, ego);
 }
 
 

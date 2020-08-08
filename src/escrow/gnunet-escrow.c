@@ -73,7 +73,7 @@ static char *status_ego;
 /**
  * The ego
  */
-const struct GNUNET_IDENTITY_Ego *ego;
+struct GNUNET_IDENTITY_Ego *ego;
 
 /**
  * Anchor string
@@ -313,12 +313,13 @@ start_process ()
     }
     escrow_status = GNUNET_ESCROW_get_status (escrow_handle,
                                               ego,
-                                              anchor,
                                               method);
     // TODO: formatting/interpretation
-    fprintf (stdout, "Last escrow:\t\t\t%s\nNext recommended escrow:\t%s\n",
-             GNUNET_STRINGS_absolute_time_to_string (escrow_status->last_escrow_time),
+    fprintf (stdout, "Last escrow:\t\t\t%s\n",
+             GNUNET_STRINGS_absolute_time_to_string (escrow_status->last_escrow_time));
+    fprintf (stdout, "Next recommended escrow:\t%s\n",
              GNUNET_STRINGS_absolute_time_to_string (escrow_status->next_recommended_escrow_time));
+    fprintf (stdout, "Last method:\t\t\t%d\n", escrow_status->last_method);
     cleanup_task = GNUNET_SCHEDULER_add_now (&do_cleanup, NULL);
     return;
   }
@@ -416,12 +417,6 @@ run (void *cls,
   else if (NULL != status_ego)
   {
     /* status */
-    if (NULL == anchor_string)
-    {
-      ret = 1;
-      fprintf (stderr, _ ("-a is needed for -S!\n"));
-      return;
-    }
     ego_name = status_ego;
   }
   else
