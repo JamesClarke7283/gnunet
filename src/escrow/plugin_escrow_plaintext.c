@@ -357,12 +357,11 @@ handle_restore_error (void *cls)
 struct ESCROW_PluginOperationWrapper *
 restore_plaintext_key_escrow (struct GNUNET_ESCROW_Handle *h,
                               struct GNUNET_ESCROW_Anchor *escrowAnchor,
-                              char *egoName,
+                              const char *egoName,
                               ESCROW_Plugin_Continuation cb,
                               uint32_t op_id)
 {
   struct GNUNET_CRYPTO_EcdsaPrivateKey pk;
-  struct GNUNET_IDENTITY_Operation *id_op;
   struct ESCROW_PluginOperationWrapper *plugin_op_wrap;
   struct ESCROW_PlaintextPluginOperation *p_op;
   struct ESCROW_Plugin_EgoContinuationWrapper *w;
@@ -403,13 +402,11 @@ restore_plaintext_key_escrow (struct GNUNET_ESCROW_Handle *h,
     return plugin_op_wrap;
   }
   
-  id_op = GNUNET_IDENTITY_create (identity_handle,
-                                  egoName,
-                                  &pk,
-                                  &create_finished,
-                                  p_op);
-
-  p_op->id_op = id_op;
+  p_op->id_op = GNUNET_IDENTITY_create (identity_handle,
+                                        egoName,
+                                        &pk,
+                                        &create_finished,
+                                        p_op);
   
   return plugin_op_wrap;
 }

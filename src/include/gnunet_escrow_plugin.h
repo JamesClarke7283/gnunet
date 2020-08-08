@@ -92,7 +92,7 @@ typedef struct ESCROW_PluginOperationWrapper *(*GNUNET_ESCROW_VerifyKeyEscrowFun
 typedef struct ESCROW_PluginOperationWrapper *(*GNUNET_ESCROW_RestoreKeyFunction) (
   struct GNUNET_ESCROW_Handle *h,
   struct GNUNET_ESCROW_Anchor *escrowAnchor,
-  char *egoName,
+  const char *egoName,
   GNUNET_SCHEDULER_TaskCallback cb,
   uint32_t op_id);
 

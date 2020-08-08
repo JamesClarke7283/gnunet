@@ -293,7 +293,7 @@ handle_restore_key_result (void *cls)
 struct GNUNET_ESCROW_Operation *
 GNUNET_ESCROW_get (struct GNUNET_ESCROW_Handle *h,
                    struct GNUNET_ESCROW_Anchor *escrowAnchor,
-                   char *egoName,
+                   const char *egoName,
                    enum GNUNET_ESCROW_Key_Escrow_Method method,
                    GNUNET_ESCROW_EgoContinuation cb,
                    void *cb_cls)

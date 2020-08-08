@@ -116,7 +116,7 @@ verify_anastasis_key_escrow (struct GNUNET_ESCROW_Handle *h,
 struct ESCROW_PluginOperationWrapper *
 restore_anastasis_key_escrow (struct GNUNET_ESCROW_Handle *h,
                               struct GNUNET_ESCROW_Anchor *escrowAnchor,
-                              char *egoName,
+                              const char *egoName,
                               GNUNET_SCHEDULER_TaskCallback cb,
                               uint32_t op_id)
 {

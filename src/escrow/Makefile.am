@@ -61,6 +61,7 @@ libgnunet_plugin_escrow_gns_la_LIBADD = \
   libgnunetescrow.la \
   $(top_builddir)/src/util/libgnunetutil.la $(XLIBS) \
   $(top_builddir)/src/identity/libgnunetidentity.la \
+  $(top_builddir)/src/namestore/libgnunetnamestore.la \
   -lsss \
   $(LTLIBINTL) $(MHD_LIBS)
 libgnunet_plugin_escrow_gns_la_LDFLAGS = \
