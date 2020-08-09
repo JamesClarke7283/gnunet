@@ -196,6 +196,7 @@ cleanup_plugin_operation (struct ESCROW_PluginOperationWrapper *plugin_op_wrap)
     GNUNET_CONTAINER_DLL_remove (p_op->id_ops_head,
                                  p_op->id_ops_tail,
                                  curr_id_op);
+    GNUNET_IDENTITY_cancel (curr_id_op->id_op);
     GNUNET_free (curr_id_op->id_op);
     GNUNET_free (curr_id_op);
   }
@@ -269,11 +270,14 @@ distribute_keyshares (struct ESCROW_GnsPluginOperation *p_op,
 
 
 void
-escrow_ids_finished (struct ESCROW_GnsPluginOperation *p_op)
+escrow_ids_finished (struct ESCROW_PluginOperationWrapper *plugin_op_wrap)
 {
+  struct ESCROW_GnsPluginOperation *p_op;
   sss_Keyshare *keyshares;
   struct GNUNET_ESCROW_Anchor *anchor;
   int anchorDataSize;
+
+  p_op = (struct ESCROW_GnsPluginOperation *)plugin_op_wrap->plugin_op;
 
   /* split the private key (SSS) */
   keyshares = split_private_key (p_op);
@@ -295,6 +299,7 @@ escrow_ids_finished (struct ESCROW_GnsPluginOperation *p_op)
 
   /* call the continuation */
   p_op->cont (p_op->anchor_wrap);
+  cleanup_plugin_operation (plugin_op_wrap);
 }
 
 
@@ -303,9 +308,12 @@ escrow_id_created (void *cls,
                    const struct GNUNET_CRYPTO_EcdsaPrivateKey *pk,
                    const char *emsg)
 {
-  struct ESCROW_GnsPluginOperation *p_op = cls;
+  struct ESCROW_PluginOperationWrapper *plugin_op_wrap = cls;
+  struct ESCROW_GnsPluginOperation *p_op;
   struct IdentityOperationEntry *curr_id_op;
   struct PkEntry *pk_entry;
+
+  p_op = (struct ESCROW_GnsPluginOperation *)plugin_op_wrap->plugin_op;
 
   if (NULL == pk)
   {
@@ -317,6 +325,8 @@ escrow_id_created (void *cls,
       fprintf (stderr, "Failed to create ego!");
     p_op->anchor_wrap->escrowAnchor = NULL;
     p_op->cont (p_op->anchor_wrap);
+    // this also cancels all running identity operations
+    cleanup_plugin_operation (plugin_op_wrap);
     return;
   }
 
@@ -342,7 +352,7 @@ escrow_id_created (void *cls,
   p_op->escrow_id_counter++;
   if (p_op->escrow_id_counter == p_op->shares)
   {
-    escrow_ids_finished (p_op);
+    escrow_ids_finished (plugin_op_wrap);
   }
 }
 
@@ -392,30 +402,88 @@ get_escrow_id_name (const char *name,
 }
 
 
+static int
+escrow_id_exists (const char *name,
+                  const struct GNUNET_CRYPTO_EcdsaPrivateKey *pk)
+{
+  struct EgoEntry *curr;
+
+  for (curr = ph.ego_head; NULL != curr; curr = curr->next)
+  {
+    if (0 == strcmp (name, curr->identifier))
+    {
+      if (curr->ego->pk.d == pk->d) // TODO: correct equality check?
+        return GNUNET_YES;
+      else // the escrow id's name exists for an ego, but the pk is wrong
+        return GNUNET_SYSERR;
+    }
+  }
+
+  return GNUNET_NO;
+}
+
+
+static struct GNUNET_CRYPTO_EcdsaPrivateKey *
+derive_private_key (const char *name,
+                    void *password,
+                    uint8_t i)
+{
+  // TODO: derive key
+  return NULL;
+}
+
+
 static void
-create_escrow_identities (struct ESCROW_GnsPluginOperation *p_op,
+create_escrow_identities (struct ESCROW_PluginOperationWrapper *plugin_op_wrap,
                           const char *name)
 {
+  struct ESCROW_GnsPluginOperation *p_op;
   struct GNUNET_CRYPTO_EcdsaPrivateKey *curr_pk;
   char *curr_name;
   struct IdentityOperationEntry *curr_id_op;
+  struct PkEntry *curr_pk_entry;
+  int exists_ret;
+
+  p_op = (struct ESCROW_GnsPluginOperation *)plugin_op_wrap->plugin_op;
 
   for (uint8_t i = 0; i < p_op->shares; i++)
   {
-    curr_pk = NULL; // TODO: derive key
+    curr_pk = derive_private_key (name, NULL, i); // TODO: password
     curr_name = get_escrow_id_name (name, i);
-    
-    /* store the identity operation in our list */
-    curr_id_op = GNUNET_new (struct IdentityOperationEntry);
-    curr_id_op->pk = curr_pk;
-    curr_id_op->id_op = GNUNET_IDENTITY_create (identity_handle,
-                                                curr_name,
-                                                curr_pk,
-                                                &escrow_id_created,
-                                                p_op);
-    GNUNET_CONTAINER_DLL_insert (p_op->id_ops_head,
-                                 p_op->id_ops_tail,
-                                 curr_id_op);
+
+    // check if the escrow identity already exists
+    exists_ret = escrow_id_exists (curr_name, curr_pk);
+    if (GNUNET_SYSERR == exists_ret)
+    {
+      p_op->anchor_wrap->escrowAnchor = NULL;
+      p_op->cont (p_op->anchor_wrap);
+      // this also cancels all running identity operations
+      cleanup_plugin_operation (plugin_op_wrap);
+      return;
+    }
+    else if (GNUNET_YES == exists_ret)
+    {
+      // the escrow id already exists, so insert the pk into our list
+      curr_pk_entry = GNUNET_new (struct PkEntry);
+      curr_pk_entry->pk = curr_pk;
+      GNUNET_CONTAINER_DLL_insert (p_op->escrow_pks_head,
+                                   p_op->escrow_pks_tail,
+                                   curr_pk_entry);
+    }
+    else // GNUNET_NO
+    {
+      /* store the identity operation in our list */
+      curr_id_op = GNUNET_new (struct IdentityOperationEntry);
+      curr_id_op->pk = curr_pk;
+      curr_id_op->id_op = GNUNET_IDENTITY_create (identity_handle,
+                                                  curr_name,
+                                                  curr_pk,
+                                                  &escrow_id_created,
+                                                  plugin_op_wrap);
+      GNUNET_CONTAINER_DLL_insert (p_op->id_ops_head,
+                                  p_op->id_ops_tail,
+                                  curr_id_op);
+    }
   }
 }
 
@@ -490,7 +558,8 @@ start_gns_key_escrow (struct GNUNET_ESCROW_Handle *h,
   p_op->share_threshold = (uint8_t)share_threshold;
 
   /* create the escrow identities */
-  create_escrow_identities (p_op, ego->name);
+  // TODO: check for existing escrow identities
+  create_escrow_identities (plugin_op_wrap, ego->name);
 
   /* operation continues in escrow_ids_finished
      after all escrow identities are created */
