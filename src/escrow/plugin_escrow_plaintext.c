@@ -132,6 +132,7 @@ start_cont (void *cls)
  * 
  * @param h the handle for the escrow component
  * @param ego the identity ego containing the private key
+ * @param userSecret the user secret (e.g. for derivation of escrow identities)
  * @param cb the function called upon completion
  * @param op_id unique ID of the respective ESCROW_Operation
  * 
@@ -140,6 +141,7 @@ start_cont (void *cls)
 struct ESCROW_PluginOperationWrapper *
 start_plaintext_key_escrow (struct GNUNET_ESCROW_Handle *h,
                             struct GNUNET_IDENTITY_Ego *ego,
+                            char *userSecret,
                             ESCROW_Plugin_Continuation cb,
                             uint32_t op_id)
 {

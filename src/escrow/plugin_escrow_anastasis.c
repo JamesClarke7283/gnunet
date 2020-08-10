@@ -47,6 +47,7 @@ struct ESCROW_PluginHandle ph;
  * 
  * @param h the handle for the escrow component
  * @param ego the identity ego containing the private key
+ * @param userSecret the user secret (e.g. for derivation of escrow identities)
  * @param cb the function called upon completion
  * @param op_id unique ID of the respective ESCROW_Operation
  * 
@@ -55,6 +56,7 @@ struct ESCROW_PluginHandle ph;
 struct ESCROW_PluginOperationWrapper *
 start_anastasis_key_escrow (struct GNUNET_ESCROW_Handle *h,
                             struct GNUNET_IDENTITY_Ego *ego,
+                            char *userSecret,
                             GNUNET_SCHEDULER_TaskCallback cb,
                             uint32_t op_id)
 {

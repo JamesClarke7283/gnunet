@@ -30,6 +30,7 @@
 #include "gnunet_escrow_plugin.h"
 #include "escrow_plugin_helper.h"
 #include "gnunet_namestore_service.h"
+#include "gnunet_gnsrecord_lib.h"
 #include "../identity/identity.h"
 #include <sss.h>
 #include <inttypes.h>
@@ -75,6 +76,30 @@ struct PkEntry
    * private key
    */
   const struct GNUNET_CRYPTO_EcdsaPrivateKey *pk;
+
+  /**
+   * index of the respective share
+   */
+  uint8_t i;
+};
+
+
+struct NamestoreQueueEntry
+{
+  /**
+   * DLL
+   */
+  struct NamestoreQueueEntry *prev;
+
+  /**
+   * DLL
+   */
+  struct NamestoreQueueEntry *next;
+
+  /**
+   * Namestore queue entry
+   */
+  struct GNUNET_NAMESTORE_QueueEntry *ns_qe;
 };
 
 
@@ -137,6 +162,11 @@ struct ESCROW_GnsPluginOperation
   const struct GNUNET_CRYPTO_EcdsaPrivateKey *pk;
 
   /**
+   * User secret string
+   */
+  char *userSecret;
+
+  /**
    * DLL head for identity operations
    */
   struct IdentityOperationEntry *id_ops_head;
@@ -155,6 +185,16 @@ struct ESCROW_GnsPluginOperation
    * DLL tail for escrow private keys
    */
   struct PkEntry *escrow_pks_tail;
+
+  /**
+   * DLL head for namestore queue entries
+   */
+  struct NamestoreQueueEntry *ns_qes_head;
+
+  /**
+   * DLL tail for namestore queue entries
+   */
+  struct NamestoreQueueEntry *ns_qes_tail;
 };
 
 /**
@@ -178,6 +218,7 @@ cleanup_plugin_operation (struct ESCROW_PluginOperationWrapper *plugin_op_wrap)
   struct ESCROW_GnsPluginOperation *p_op;
   struct IdentityOperationEntry *curr_id_op;
   struct PkEntry *curr_pk;
+  struct NamestoreQueueEntry *curr_ns_qe;
 
   p_op = (struct ESCROW_GnsPluginOperation*)plugin_op_wrap->plugin_op;
 
@@ -190,6 +231,8 @@ cleanup_plugin_operation (struct ESCROW_PluginOperationWrapper *plugin_op_wrap)
     GNUNET_free (p_op->ego_wrap);
   if (NULL != p_op->verify_wrap)
     GNUNET_free (p_op->verify_wrap);
+  if (NULL != p_op->userSecret)
+    GNUNET_free (p_op->userSecret);
   /* clean up identity operation list */
   for (curr_id_op = p_op->id_ops_head; NULL != curr_id_op; curr_id_op = curr_id_op->next)
   {
@@ -207,6 +250,16 @@ cleanup_plugin_operation (struct ESCROW_PluginOperationWrapper *plugin_op_wrap)
                                  p_op->escrow_pks_tail,
                                  curr_pk);
     GNUNET_free (curr_pk);
+  }
+  /* clean up namestore operation list */
+  for (curr_ns_qe = p_op->ns_qes_head; NULL != curr_ns_qe; curr_ns_qe = curr_ns_qe->next)
+  {
+    GNUNET_CONTAINER_DLL_remove (p_op->ns_qes_head,
+                                 p_op->ns_qes_tail,
+                                 curr_ns_qe);
+    // also frees the curr_ns_qe->ns_qe
+    GNUNET_NAMESTORE_cancel (curr_ns_qe->ns_qe);
+    GNUNET_free (curr_ns_qe);
   }
   /* disconnect from namestore service */
   GNUNET_NAMESTORE_disconnect (p_op->ns_h);
@@ -243,53 +296,14 @@ split_private_key (struct ESCROW_GnsPluginOperation *p_op)
 }
 
 
-void
-distribute_keyshares (struct ESCROW_GnsPluginOperation *p_op,
-                      sss_Keyshare *keyshares)
-{
-  struct GNUNET_NAMESTORE_Handle *ns_h;
-  struct PkEntry *curr_pk;
-  char *curr_label;
-
-  ns_h = GNUNET_NAMESTORE_connect (p_op->h->cfg);
-  p_op->ns_h = ns_h;
-
-  for (curr_pk = p_op->escrow_pks_head; NULL != curr_pk; curr_pk = curr_pk->next)
-  {
-    // TODO: implement
-    curr_label = NULL;
-    GNUNET_NAMESTORE_records_store (ns_h,
-                                    curr_pk->pk,
-                                    curr_label,
-                                    0,
-                                    NULL,
-                                    NULL,
-                                    NULL);
-  }
-}
-
-
-void
-escrow_ids_finished (struct ESCROW_PluginOperationWrapper *plugin_op_wrap)
+static void
+keyshare_distribution_finished (struct ESCROW_PluginOperationWrapper *plugin_op_wrap)
 {
   struct ESCROW_GnsPluginOperation *p_op;
-  sss_Keyshare *keyshares;
   struct GNUNET_ESCROW_Anchor *anchor;
   int anchorDataSize;
 
   p_op = (struct ESCROW_GnsPluginOperation *)plugin_op_wrap->plugin_op;
-
-  /* split the private key (SSS) */
-  keyshares = split_private_key (p_op);
-  if (NULL == keyshares)
-  {
-    p_op->anchor_wrap->escrowAnchor = NULL;
-    p_op->sched_task = GNUNET_SCHEDULER_add_now (&start_cont, p_op);
-    return;
-  }
-
-  /* distribute the shares to the identities */
-  distribute_keyshares (p_op, keyshares);
 
   // TODO: implement
   anchorDataSize = 0; // TODO!
@@ -298,8 +312,106 @@ escrow_ids_finished (struct ESCROW_PluginOperationWrapper *plugin_op_wrap)
   p_op->anchor_wrap->escrowAnchor = anchor;
 
   /* call the continuation */
-  p_op->cont (p_op->anchor_wrap);
-  cleanup_plugin_operation (plugin_op_wrap);
+  start_cont (plugin_op_wrap);
+}
+
+
+static void
+keyshare_distributed (void *cls,
+                      int32_t success,
+                      const char *emsg)
+{
+  struct ESCROW_PluginOperationWrapper *plugin_op_wrap = cls;
+  struct ESCROW_GnsPluginOperation *p_op;
+
+  p_op = (struct ESCROW_GnsPluginOperation *)plugin_op_wrap->plugin_op;
+
+  if (GNUNET_SYSERR == success)
+  {
+    GNUNET_log (GNUNET_ERROR_TYPE_ERROR,
+                "Failed to store keyshare %s\n",
+                emsg);
+    p_op->anchor_wrap->escrowAnchor = NULL;
+    p_op->cont (p_op->anchor_wrap);
+    // this also cancels all running namestore operations
+    cleanup_plugin_operation (plugin_op_wrap);
+  }
+
+  // TODO: remove qe from list, check if all namestore operations are finished
+  keyshare_distribution_finished (plugin_op_wrap);
+}
+
+
+static int
+distribute_keyshares (struct ESCROW_PluginOperationWrapper *plugin_op_wrap,
+                      sss_Keyshare *keyshares)
+{
+  struct ESCROW_GnsPluginOperation *p_op;
+  struct GNUNET_NAMESTORE_Handle *ns_h;
+  struct NamestoreQueueEntry *curr_ns_qe;
+  struct PkEntry *curr_pk;
+  char *curr_label;
+  struct GNUNET_GNSRECORD_Data curr_rd[1];
+
+  p_op = (struct ESCROW_GnsPluginOperation *)plugin_op_wrap->plugin_op;
+
+  ns_h = GNUNET_NAMESTORE_connect (p_op->h->cfg);
+  p_op->ns_h = ns_h;
+
+  for (curr_pk = p_op->escrow_pks_head; NULL != curr_pk; curr_pk = curr_pk->next)
+  {
+    curr_label = NULL; // TODO: which label
+    curr_ns_qe = GNUNET_new (struct NamestoreQueueEntry);
+
+    curr_rd[0].data_size = sizeof (sss_Keyshare);
+    curr_rd[0].data = keyshares[curr_pk->i];
+    curr_rd[0].record_type = GNUNET_GNSRECORD_TYPE_ATTRIBUTE; // TODO: type
+    curr_rd[0].flags = GNUNET_GNSRECORD_RF_NONE; // TODO: flags
+    curr_rd[0].expiration_time = 0; // TODO: expiration time
+
+    curr_ns_qe->ns_qe = GNUNET_NAMESTORE_records_store (ns_h,
+                                                        curr_pk->pk,
+                                                        curr_label,
+                                                        1,
+                                                        curr_rd,
+                                                        &keyshare_distributed,
+                                                        plugin_op_wrap);
+    GNUNET_CONTAINER_DLL_insert_tail (p_op->ns_qes_head,
+                                      p_op->ns_qes_tail,
+                                      curr_ns_qe);
+  }
+
+  return GNUNET_OK;
+}
+
+
+void
+escrow_ids_finished (struct ESCROW_PluginOperationWrapper *plugin_op_wrap)
+{
+  struct ESCROW_GnsPluginOperation *p_op;
+  sss_Keyshare *keyshares;
+
+  p_op = (struct ESCROW_GnsPluginOperation *)plugin_op_wrap->plugin_op;
+
+  /* split the private key (SSS) */
+  keyshares = split_private_key (p_op);
+  if (NULL == keyshares)
+  {
+    p_op->anchor_wrap->escrowAnchor = NULL;
+    start_cont (plugin_op_wrap);
+    return;
+  }
+
+  /* distribute the shares to the identities */
+  if (GNUNET_OK != distribute_keyshares (plugin_op_wrap, keyshares))
+  {
+    p_op->anchor_wrap->escrowAnchor = NULL;
+    start_cont (plugin_op_wrap);
+    return;
+  }
+  
+  /* operation continues in keyshare_distribution_finished
+     after all keyshares have been distributed */
 }
 
 
@@ -448,7 +560,7 @@ create_escrow_identities (struct ESCROW_PluginOperationWrapper *plugin_op_wrap,
 
   for (uint8_t i = 0; i < p_op->shares; i++)
   {
-    curr_pk = derive_private_key (name, NULL, i); // TODO: password
+    curr_pk = derive_private_key (name, p_op->userSecret, i);
     curr_name = get_escrow_id_name (name, i);
 
     // check if the escrow identity already exists
@@ -466,6 +578,7 @@ create_escrow_identities (struct ESCROW_PluginOperationWrapper *plugin_op_wrap,
       // the escrow id already exists, so insert the pk into our list
       curr_pk_entry = GNUNET_new (struct PkEntry);
       curr_pk_entry->pk = curr_pk;
+      curr_pk_entry->i = i;
       GNUNET_CONTAINER_DLL_insert (p_op->escrow_pks_head,
                                    p_op->escrow_pks_tail,
                                    curr_pk_entry);
@@ -493,6 +606,7 @@ create_escrow_identities (struct ESCROW_PluginOperationWrapper *plugin_op_wrap,
  * 
  * @param h the handle for the escrow component
  * @param ego the identity ego containing the private key
+ * @param userSecret the user secret (e.g. for derivation of escrow identities)
  * @param cb the function called upon completion
  * @param op_id unique ID of the respective ESCROW_Operation
  * 
@@ -501,6 +615,7 @@ create_escrow_identities (struct ESCROW_PluginOperationWrapper *plugin_op_wrap,
 struct ESCROW_PluginOperationWrapper *
 start_gns_key_escrow (struct GNUNET_ESCROW_Handle *h,
                       struct GNUNET_IDENTITY_Ego *ego,
+                      char *userSecret,
                       GNUNET_SCHEDULER_TaskCallback cb,
                       uint32_t op_id)
 {
@@ -525,13 +640,14 @@ start_gns_key_escrow (struct GNUNET_ESCROW_Handle *h,
   w->op_id = op_id;
   p_op->anchor_wrap = w;
 
-  if (NULL == ego)
+  if (NULL == ego || NULL == userSecret)
   {
     w->escrowAnchor = NULL;
     p_op->sched_task = GNUNET_SCHEDULER_add_now (&start_cont, plugin_op_wrap);
     return plugin_op_wrap;
   }
   p_op->pk = GNUNET_IDENTITY_ego_get_private_key (ego);
+  p_op->userSecret = userSecret;
 
   // get config
   if (GNUNET_OK != GNUNET_CONFIGURATION_get_value_number (h->cfg,

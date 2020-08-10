@@ -66,7 +66,7 @@ static char *verify_ego;
 static char *get_ego;
 
 /**
- * -s option
+ * -S option
  */
 static char *status_ego;
 
@@ -74,6 +74,11 @@ static char *status_ego;
  * The ego
  */
 struct GNUNET_IDENTITY_Ego *ego;
+
+/**
+ * User secret string
+ */
+static char *user_secret_string;
 
 /**
  * Anchor string
@@ -141,6 +146,11 @@ do_cleanup (void *cls)
   {
     GNUNET_free (method_name);
     method_name = NULL;
+  }
+  if (NULL != user_secret_string)
+  {
+    GNUNET_free (user_secret_string);
+    user_secret_string = NULL;
   }
   if (NULL != anchor_string)
   {
@@ -260,6 +270,7 @@ start_process ()
     }
     escrow_op = GNUNET_ESCROW_put (escrow_handle,
                                    ego,
+                                   user_secret_string,
                                    method,
                                    &put_cb,
                                    NULL);
@@ -480,10 +491,15 @@ main (int argc, char *const argv[])
                                  "NAME",
                                  gettext_noop ("Get the status of the escrow of ego NAME"),
                                  &status_ego),
+    GNUNET_GETOPT_option_string ('u',
+                                 "userSecret",
+                                 "USER_SECRET",
+                                 gettext_noop ("The user secret string"),
+                                 &user_secret_string),
     GNUNET_GETOPT_option_string ('a',
                                  "anchor",
                                  "ANCHOR",
-                                 gettext_noop ("The the escrow anchor"),
+                                 gettext_noop ("The escrow anchor"),
                                  &anchor_string),
     GNUNET_GETOPT_option_string ('m',
                                  "method",

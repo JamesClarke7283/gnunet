@@ -49,6 +49,7 @@ extern "C" {
  * 
  * @param h the handle for the escrow component
  * @param ego the identity ego containing the private key
+ * @param userSecret the user secret (e.g. for derivation of escrow identities)
  * @param cb the function called upon completion
  * @param op_id unique ID of the respective ESCROW_Operation
  * 
@@ -57,6 +58,7 @@ extern "C" {
 typedef struct ESCROW_PluginOperationWrapper *(*GNUNET_ESCROW_StartKeyEscrowFunction) (
   struct GNUNET_ESCROW_Handle *h,
   struct GNUNET_IDENTITY_Ego *ego,
+  char *userSecret,
   GNUNET_SCHEDULER_TaskCallback cb,
   uint32_t op_id);
 

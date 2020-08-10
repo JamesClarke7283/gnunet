@@ -44,7 +44,8 @@ extern "C" {
 /**
  * Enum for the different key escrow methods
  */
-enum GNUNET_ESCROW_Key_Escrow_Method {
+enum GNUNET_ESCROW_Key_Escrow_Method
+{
   GNUNET_ESCROW_KEY_NONE, // error value
   GNUNET_ESCROW_KEY_PLAINTEXT,
   GNUNET_ESCROW_KEY_GNS,
@@ -55,7 +56,8 @@ enum GNUNET_ESCROW_Key_Escrow_Method {
 /**
  * Enum for the different verification results
  */
-enum GNUNET_ESCROW_Verification_Result {
+enum GNUNET_ESCROW_Verification_Result
+{
   GNUNET_ESCROW_VALID,
   GNUNET_ESCROW_INVALID
 };
@@ -64,7 +66,8 @@ enum GNUNET_ESCROW_Verification_Result {
 /**
  * Struct for the escrow anchor
  */
-struct GNUNET_ESCROW_Anchor {
+struct GNUNET_ESCROW_Anchor
+{
   /**
    * The escrow method.
    */
@@ -80,7 +83,8 @@ struct GNUNET_ESCROW_Anchor {
 /**
  * Struct for the escrow status
  */
-struct GNUNET_ESCROW_Status {
+struct GNUNET_ESCROW_Status
+{
   /**
    * The time of the last successful escrow.
    */
@@ -270,6 +274,7 @@ GNUNET_ESCROW_fini (
  * 
  * @param h the handle for the escrow component
  * @param ego the identity ego to put in escrow
+ * @param userSecret the user secret (e.g. for derivation of escrow identities)
  * @param method the escrow method to use
  * @param cb function to call with the escrow anchor on completion
  * @param cb_cls closure for @a cb
@@ -280,6 +285,7 @@ struct GNUNET_ESCROW_Operation *
 GNUNET_ESCROW_put (
   struct GNUNET_ESCROW_Handle *h,
   struct GNUNET_IDENTITY_Ego *ego,
+  char *userSecret,
   enum GNUNET_ESCROW_Key_Escrow_Method method,
   GNUNET_ESCROW_AnchorContinuation cb,
   void *cb_cls);

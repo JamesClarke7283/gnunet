@@ -231,6 +231,7 @@ handle_start_escrow_result (void *cls)
  * 
  * @param h the handle for the escrow component
  * @param ego the identity ego to put in escrow
+ * @param userSecret the user secret (e.g. for derivation of escrow identities)
  * @param method the escrow method to use
  * @param cb function to call with the escrow anchor on completion
  * @param cb_cls closure for @a cb
@@ -240,6 +241,7 @@ handle_start_escrow_result (void *cls)
 struct GNUNET_ESCROW_Operation *
 GNUNET_ESCROW_put (struct GNUNET_ESCROW_Handle *h,
                    struct GNUNET_IDENTITY_Ego *ego,
+                   char *userSecret,
                    enum GNUNET_ESCROW_Key_Escrow_Method method,
                    GNUNET_ESCROW_AnchorContinuation cb,
                    void *cb_cls)
@@ -256,7 +258,11 @@ GNUNET_ESCROW_put (struct GNUNET_ESCROW_Handle *h,
   GNUNET_CONTAINER_DLL_insert_tail (h->op_head, h->op_tail, op);
 
   api = init_plugin (h, method);
-  op->plugin_op_wrap = api->start_key_escrow (h, ego, &handle_start_escrow_result, op->id);
+  op->plugin_op_wrap = api->start_key_escrow (h,
+                                              ego,
+                                              userSecret,
+                                              &handle_start_escrow_result,
+                                              op->id);
 
   return op;
 }
