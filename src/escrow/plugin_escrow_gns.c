@@ -262,7 +262,8 @@ cleanup_plugin_operation (struct ESCROW_PluginOperationWrapper *plugin_op_wrap)
     GNUNET_free (curr_ns_qe);
   }
   /* disconnect from namestore service */
-  GNUNET_NAMESTORE_disconnect (p_op->ns_h);
+  if (NULL != p_op->ns_h)
+    GNUNET_NAMESTORE_disconnect (p_op->ns_h);
   GNUNET_free (p_op);
   GNUNET_free (plugin_op_wrap);
 }
@@ -332,6 +333,7 @@ keyshare_distributed (void *cls,
                 "Failed to store keyshare %s\n",
                 emsg);
     p_op->anchor_wrap->escrowAnchor = NULL;
+    p_op->anchor_wrap->emsg = _ ("Keyshare distribution failed!\n");
     p_op->cont (p_op->anchor_wrap);
     // this also cancels all running namestore operations
     cleanup_plugin_operation (plugin_op_wrap);
@@ -398,6 +400,7 @@ escrow_ids_finished (struct ESCROW_PluginOperationWrapper *plugin_op_wrap)
   if (NULL == keyshares)
   {
     p_op->anchor_wrap->escrowAnchor = NULL;
+    p_op->anchor_wrap->emsg = _ ("Failed to split the key!\n");
     start_cont (plugin_op_wrap);
     return;
   }
@@ -406,6 +409,7 @@ escrow_ids_finished (struct ESCROW_PluginOperationWrapper *plugin_op_wrap)
   if (GNUNET_OK != distribute_keyshares (plugin_op_wrap, keyshares))
   {
     p_op->anchor_wrap->escrowAnchor = NULL;
+    p_op->anchor_wrap->emsg = _ ("Failed to distribute the keyshares!\n");
     start_cont (plugin_op_wrap);
     return;
   }
@@ -430,11 +434,14 @@ escrow_id_created (void *cls,
   if (NULL == pk)
   {
     if (NULL != emsg)
+    {
       fprintf (stderr,
                "Identity create operation returned with error: %s\n",
                emsg);
+      p_op->anchor_wrap->emsg = _ ("Identity create failed!\n");
+    }
     else
-      fprintf (stderr, "Failed to create ego!");
+      p_op->anchor_wrap->emsg = _ ("Failed to create ego!\n");
     p_op->anchor_wrap->escrowAnchor = NULL;
     p_op->cont (p_op->anchor_wrap);
     // this also cancels all running identity operations
@@ -568,6 +575,8 @@ create_escrow_identities (struct ESCROW_PluginOperationWrapper *plugin_op_wrap,
     if (GNUNET_SYSERR == exists_ret)
     {
       p_op->anchor_wrap->escrowAnchor = NULL;
+      p_op->anchor_wrap->emsg = _ ("An escrow identity with the same name \
+but wrong pk already exists!\n");
       p_op->cont (p_op->anchor_wrap);
       // this also cancels all running identity operations
       cleanup_plugin_operation (plugin_op_wrap);
@@ -643,6 +652,10 @@ start_gns_key_escrow (struct GNUNET_ESCROW_Handle *h,
   if (NULL == ego || NULL == userSecret)
   {
     w->escrowAnchor = NULL;
+    if (NULL == ego)
+      w->emsg = _ ("ESCROW_put was called with ego == NULL\n");
+    else if (NULL == userSecret)
+      w->emsg = _ ("GNS escrow needs a user secret!\n");
     p_op->sched_task = GNUNET_SCHEDULER_add_now (&start_cont, plugin_op_wrap);
     return plugin_op_wrap;
   }

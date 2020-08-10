@@ -120,20 +120,24 @@ typedef void (*GNUNET_ESCROW_EgoCreateContinuation) (
  * 
  * @param cls closure
  * @param escrowAnchor the escrow anchor needed to get the data back
+ * @param emsg error message, NULL on success
  */
 typedef void (*GNUNET_ESCROW_AnchorContinuation) (
   void *cls,
-  struct GNUNET_ESCROW_Anchor *escrowAnchor);
+  struct GNUNET_ESCROW_Anchor *escrowAnchor,
+  const char *emsg);
 
 /**
  * Continuation for a GET operation.
  * 
  * @param cls closure
  * @param ego a new identity ego restored from the escrow
+ * @param emsg error message, NULL on success
  */
 typedef void (*GNUNET_ESCROW_EgoContinuation) (
   void *cls,
-  const struct GNUNET_IDENTITY_Ego *ego);
+  const struct GNUNET_IDENTITY_Ego *ego,
+  const char *emsg);
 
 /**
  * Continuation for a VERIFY operation.
@@ -142,10 +146,12 @@ typedef void (*GNUNET_ESCROW_EgoContinuation) (
  * @param verificationResult the result of the verification, i.e.
  *   GNUNET_ESCROW_VALID if the escrow could successfully by restored,
  *   GNUNET_ESCROW_INVALID otherwise
+ * @param emsg error message, NULL on success
  */
 typedef void (*GNUNET_ESCROW_VerifyContinuation) (
   void *cls,
-  int verificationResult);
+  int verificationResult,
+  const char *emsg);
 
 
 /**

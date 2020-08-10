@@ -172,6 +172,7 @@ start_plaintext_key_escrow (struct GNUNET_ESCROW_Handle *h,
   if (NULL == ego)
   {
     w->escrowAnchor = NULL;
+    w->emsg = _ ("ESCROW_put was called with ego == NULL!\n");
     p_op->sched_task = GNUNET_SCHEDULER_add_now (&start_cont, plugin_op_wrap);
     return plugin_op_wrap;
   }
@@ -251,6 +252,7 @@ verify_plaintext_key_escrow (struct GNUNET_ESCROW_Handle *h,
   if (NULL == ego)
   {
     w->verificationResult = GNUNET_ESCROW_INVALID;
+    w->emsg = _ ("ESCROW_verify was called with ego == NULL!\n");
     p_op->sched_task = GNUNET_SCHEDULER_add_now (&verify_cont, plugin_op_wrap);
     return plugin_op_wrap;
   }
@@ -319,11 +321,14 @@ create_finished (void *cls,
   if (NULL == pk)
   {
     if (NULL != emsg)
+    {
       fprintf (stderr,
                "Identity create operation returned with error: %s\n",
                emsg);
+      p_op->ego_wrap->emsg = _ ("Identity create failed!\n");
+    }
     else
-      fprintf (stderr, "Failed to create ego!");
+      p_op->ego_wrap->emsg = _ ("Failed to create ego!\n");
     p_op->ego_wrap->ego = NULL;
     p_op->cont (p_op->ego_wrap);
     return;
@@ -392,6 +397,7 @@ restore_plaintext_key_escrow (struct GNUNET_ESCROW_Handle *h,
   {
     // TODO: correct error handling?
     w->ego = NULL;
+    w->emsg = _ ("ESCROW_get was called with escrowAnchor == NULL!\n");
     // schedule handle_restore_error, which calls the callback and cleans up
     p_op->sched_task = GNUNET_SCHEDULER_add_now (&handle_restore_error, plugin_op_wrap);
     return plugin_op_wrap;
@@ -402,6 +408,7 @@ restore_plaintext_key_escrow (struct GNUNET_ESCROW_Handle *h,
                                                  &pk))
   {
     w->ego = NULL;
+    w->emsg = _ ("Failed to create ECDSA private key from escrow anchor!\n");
     // schedule handle_restore_error, which calls the callback and cleans up
     p_op->sched_task = GNUNET_SCHEDULER_add_now (&handle_restore_error, plugin_op_wrap);
     return plugin_op_wrap;

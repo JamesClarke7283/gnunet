@@ -68,6 +68,7 @@ start_anastasis_key_escrow (struct GNUNET_ESCROW_Handle *h,
 
   // TODO: implement
   w->escrowAnchor = NULL;
+  w->emsg = _ ("Anastasis escrow is not yet implemented!\n");
   GNUNET_SCHEDULER_add_now (cb, w);
   return NULL;
 }
@@ -99,6 +100,7 @@ verify_anastasis_key_escrow (struct GNUNET_ESCROW_Handle *h,
 
   // TODO: implement
   w->verificationResult = GNUNET_ESCROW_INVALID;
+  w->emsg = _ ("Anastasis escrow is not yet implemented!\n");
   GNUNET_SCHEDULER_add_now (cb, w);
   return NULL;
 }
@@ -130,6 +132,7 @@ restore_anastasis_key_escrow (struct GNUNET_ESCROW_Handle *h,
 
   // TODO: implement
   w->ego = NULL;
+  w->emsg = _ ("Anastasis escrow is not yet implemented!\n");
   GNUNET_SCHEDULER_add_now (cb, w);
   return NULL;
 }

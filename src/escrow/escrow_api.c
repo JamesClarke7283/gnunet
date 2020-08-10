@@ -221,7 +221,7 @@ handle_start_escrow_result (void *cls)
   }
   GNUNET_CONTAINER_DLL_remove (w->h->op_head, w->h->op_tail, op);
   if (NULL != op->cb_put)
-    op->cb_put (op->cb_cls, w->escrowAnchor);
+    op->cb_put (op->cb_cls, w->escrowAnchor, w->emsg);
   GNUNET_free (op);
 }
 
@@ -285,7 +285,7 @@ handle_restore_key_result (void *cls)
   }
   GNUNET_CONTAINER_DLL_remove (w->h->op_head, w->h->op_tail, op);
   if (NULL != op->cb_get)
-    op->cb_get (op->cb_cls, w->ego);
+    op->cb_get (op->cb_cls, w->ego, w->emsg);
   GNUNET_free (op);
 }
 
@@ -345,7 +345,7 @@ handle_verify_escrow_result (void *cls)
   }
   GNUNET_CONTAINER_DLL_remove (w->h->op_head, w->h->op_tail, op);
   if (NULL != op->cb_verify)
-    op->cb_verify (op->cb_cls, w->verificationResult);
+    op->cb_verify (op->cb_cls, w->verificationResult, w->emsg);
   GNUNET_free (op);
 }
 

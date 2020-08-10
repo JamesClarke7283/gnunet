@@ -174,6 +174,11 @@ struct ESCROW_Plugin_AnchorContinuationWrapper
    * The unique ID of the respective ESCROW_Operation
    */
   uint32_t op_id;
+
+  /**
+   * The error message, NULL on success
+   */
+  const char *emsg;
 };
 
 /**
@@ -198,6 +203,11 @@ struct ESCROW_Plugin_EgoContinuationWrapper
    * The unique ID of the respective ESCROW_Operation
    */
   uint32_t op_id;
+
+  /**
+   * The error message, NULL on success
+   */
+  const char *emsg;
 };
 
 /**
@@ -222,6 +232,11 @@ struct ESCROW_Plugin_VerifyContinuationWrapper
    * The unique ID of the respective ESCROW_Operation
    */
   uint32_t op_id;
+
+  /**
+   * The error message, NULL on success
+   */
+  const char *emsg;
 };
 
 

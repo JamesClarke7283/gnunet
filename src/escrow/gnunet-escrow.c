@@ -199,25 +199,36 @@ do_cleanup (void *cls)
 
 static void
 put_cb (void *cls,
-        struct GNUNET_ESCROW_Anchor *escrowAnchor)
+        struct GNUNET_ESCROW_Anchor *escrowAnchor,
+        const char *emsg)
 {
   char *anchorString;
 
   escrow_op = NULL;
 
-  anchorString = GNUNET_ESCROW_anchor_data_to_string (escrow_handle,
-                                                      escrowAnchor,
-                                                      method);
+  if (NULL == escrowAnchor)
+  {
+    ret = 1;
+    if (NULL != emsg)
+      fprintf (stderr, "Escrow failed: %s", emsg);
+  }
+  else
+  {
+    anchorString = GNUNET_ESCROW_anchor_data_to_string (escrow_handle,
+                                                        escrowAnchor,
+                                                        method);
 
-  fprintf (stdout, "Escrow finished! Please keep the following anchor \
+    fprintf (stdout, "Escrow finished! Please keep the following anchor \
 in order to restore the key later!\n%s\n", anchorString);
+  }
   cleanup_task = GNUNET_SCHEDULER_add_now (&do_cleanup, NULL);
 }
 
 
 static void
 verify_cb (void *cls,
-           int verificationResult)
+           int verificationResult,
+           const char *emsg)
 {
   escrow_op = NULL;
 
@@ -232,7 +243,8 @@ verify_cb (void *cls,
       break;
     default:
       ret = 1;
-      fprintf (stderr, "invalid verificationResult!\n");
+      if (NULL != emsg)
+        fprintf (stderr, "invalid verificationResult: %s", emsg);
   }
   cleanup_task = GNUNET_SCHEDULER_add_now (&do_cleanup, NULL);
 }
@@ -240,14 +252,16 @@ verify_cb (void *cls,
 
 static void
 get_cb (void *cls,
-        const struct GNUNET_IDENTITY_Ego *ego)
+        const struct GNUNET_IDENTITY_Ego *ego,
+        const char *emsg)
 {
   escrow_op = NULL;
 
   if (NULL == ego)
   {
     ret = 1;
-    fprintf (stderr, _ ("escrow failed!\n"));
+    if (NULL != emsg)
+      fprintf (stderr, "Escrow failed: %s", emsg);
   }
   else
     fprintf (stdout, "Ego %s could successfully be restored!\n", ego->name);
