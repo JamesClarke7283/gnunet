@@ -395,7 +395,6 @@ restore_plaintext_key_escrow (struct GNUNET_ESCROW_Handle *h,
 
   if (NULL == escrowAnchor)
   {
-    // TODO: correct error handling?
     w->ego = NULL;
     w->emsg = _ ("ESCROW_get was called with escrowAnchor == NULL!\n");
     // schedule handle_restore_error, which calls the callback and cleans up

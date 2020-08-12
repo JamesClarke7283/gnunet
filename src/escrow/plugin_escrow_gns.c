@@ -306,9 +306,11 @@ keyshare_distribution_finished (struct ESCROW_PluginOperationWrapper *plugin_op_
 
   p_op = (struct ESCROW_GnsPluginOperation *)plugin_op_wrap->plugin_op;
 
-  // TODO: implement
-  anchorDataSize = 0; // TODO!
+  anchorDataSize = strlen(p_op->userSecret) + 1;
   anchor = GNUNET_malloc (sizeof (struct GNUNET_ESCROW_Anchor) + anchorDataSize);
+  anchor->method = GNUNET_ESCROW_KEY_GNS;
+  anchor->size = anchorDataSize;
+  GNUNET_memcpy (&anchor[1], p_op->userSecret, anchorDataSize);
   
   p_op->anchor_wrap->escrowAnchor = anchor;
 
@@ -687,7 +689,6 @@ start_gns_key_escrow (struct GNUNET_ESCROW_Handle *h,
   p_op->share_threshold = (uint8_t)share_threshold;
 
   /* create the escrow identities */
-  // TODO: check for existing escrow identities
   create_escrow_identities (plugin_op_wrap, ego->name);
 
   /* operation continues in escrow_ids_finished
@@ -851,8 +852,12 @@ char *
 gns_anchor_data_to_string (struct GNUNET_ESCROW_Handle *h,
                            struct GNUNET_ESCROW_Anchor *escrowAnchor)
 {
-  // TODO: implement
-  return NULL;
+  char *anchorString;
+
+  anchorString = GNUNET_malloc (escrowAnchor->size);
+  GNUNET_memcpy (anchorString, &escrowAnchor[1], escrowAnchor->size);
+
+  return anchorString;
 }
 
 
