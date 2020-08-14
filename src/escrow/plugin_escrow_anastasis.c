@@ -56,7 +56,7 @@ struct ESCROW_PluginHandle ph;
 struct ESCROW_PluginOperationWrapper *
 start_anastasis_key_escrow (struct GNUNET_ESCROW_Handle *h,
                             struct GNUNET_IDENTITY_Ego *ego,
-                            char *userSecret,
+                            const char *userSecret,
                             GNUNET_SCHEDULER_TaskCallback cb,
                             uint32_t op_id)
 {

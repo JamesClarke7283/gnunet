@@ -150,6 +150,11 @@ extern "C" {
  */
 #define GNUNET_GNSRECORD_TYPE_RECLAIM_ATTESTATION_REF 65555
 
+/**
+ * Record type for an escrow key share (escrow component)
+ */
+#define GNUNET_GNSRECORD_TYPE_ESCROW_KEYSHARE 65556
+
 
 /**
  * Flags that can be set for a record.

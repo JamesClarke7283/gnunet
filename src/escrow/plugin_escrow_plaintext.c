@@ -141,7 +141,7 @@ start_cont (void *cls)
 struct ESCROW_PluginOperationWrapper *
 start_plaintext_key_escrow (struct GNUNET_ESCROW_Handle *h,
                             struct GNUNET_IDENTITY_Ego *ego,
-                            char *userSecret,
+                            const char *userSecret,
                             ESCROW_Plugin_Continuation cb,
                             uint32_t op_id)
 {
