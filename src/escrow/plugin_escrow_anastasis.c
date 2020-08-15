@@ -87,7 +87,7 @@ start_anastasis_key_escrow (struct GNUNET_ESCROW_Handle *h,
  */
 struct ESCROW_PluginOperationWrapper *
 verify_anastasis_key_escrow (struct GNUNET_ESCROW_Handle *h,
-                             const struct GNUNET_IDENTITY_Ego *ego,
+                             struct GNUNET_IDENTITY_Ego *ego,
                              struct GNUNET_ESCROW_Anchor *escrowAnchor,
                              GNUNET_SCHEDULER_TaskCallback cb,
                              uint32_t op_id)

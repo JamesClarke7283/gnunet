@@ -221,7 +221,7 @@ verify_cont (void *cls)
  */
 struct ESCROW_PluginOperationWrapper *
 verify_plaintext_key_escrow (struct GNUNET_ESCROW_Handle *h,
-                             const struct GNUNET_IDENTITY_Ego *ego,
+                             struct GNUNET_IDENTITY_Ego *ego,
                              struct GNUNET_ESCROW_Anchor *escrowAnchor,
                              ESCROW_Plugin_Continuation cb,
                              uint32_t op_id)

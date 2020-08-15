@@ -334,7 +334,7 @@ GNUNET_ESCROW_get (
 struct GNUNET_ESCROW_Operation *
 GNUNET_ESCROW_verify (
   struct GNUNET_ESCROW_Handle *h,
-  const struct GNUNET_IDENTITY_Ego *ego,
+  struct GNUNET_IDENTITY_Ego *ego,
   struct GNUNET_ESCROW_Anchor *escrowAnchor,
   enum GNUNET_ESCROW_Key_Escrow_Method method,
   GNUNET_ESCROW_VerifyContinuation cb,

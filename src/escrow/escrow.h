@@ -147,7 +147,8 @@ struct ESCROW_PluginOperationWrapper
 
 
 /**
- * 
+ * Continuation for a plugin operation (e.g. used for restore, as this
+ * callback has to be called from the IDENTITY service after finishing)
  */
 typedef void (*ESCROW_Plugin_Continuation) (void *cls);
 
