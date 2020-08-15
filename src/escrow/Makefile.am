@@ -25,7 +25,8 @@ lib_LTLIBRARIES = \
 plugin_LTLIBRARIES = \
   libgnunet_plugin_escrow_plaintext.la \
   libgnunet_plugin_escrow_gns.la \
-  libgnunet_plugin_escrow_anastasis.la
+  libgnunet_plugin_escrow_anastasis.la \
+  libgnunet_plugin_gnsrecord_escrow.la
 
 bin_PROGRAMS = \
  gnunet-escrow
@@ -62,6 +63,7 @@ libgnunet_plugin_escrow_gns_la_LIBADD = \
   $(top_builddir)/src/util/libgnunetutil.la $(XLIBS) \
   $(top_builddir)/src/identity/libgnunetidentity.la \
   $(top_builddir)/src/namestore/libgnunetnamestore.la \
+  $(top_builddir)/src/gnsrecord/libgnunetgnsrecord.la \
   -lsss \
   $(LTLIBINTL) $(MHD_LIBS)
 libgnunet_plugin_escrow_gns_la_LDFLAGS = \
@@ -80,12 +82,22 @@ libgnunet_plugin_escrow_anastasis_la_LDFLAGS = \
  $(GN_PLUGIN_LDFLAGS)
 
 
+libgnunet_plugin_gnsrecord_escrow_la_SOURCES = \
+  plugin_gnsrecord_escrow.c
+libgnunet_plugin_gnsrecord_escrow_la_LIBADD = \
+  $(top_builddir)/src/util/libgnunetutil.la \
+  $(LTLIBINTL)
+libgnunet_plugin_gnsrecord_escrow_la_LDFLAGS = \
+  $(GN_PLUGIN_LDFLAGS)
+
+
 gnunet_escrow_SOURCES = \
  gnunet-escrow.c
 gnunet_escrow_LDADD = \
   libgnunetescrow.la \
   $(top_builddir)/src/util/libgnunetutil.la \
   $(top_builddir)/src/namestore/libgnunetnamestore.la \
+  $(top_builddir)/src/gnsrecord/libgnunetgnsrecord.la \
   $(top_builddir)/src/identity/libgnunetidentity.la \
   $(GN_LIBINTL)
 
