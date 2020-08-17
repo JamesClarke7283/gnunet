@@ -434,8 +434,9 @@ split_private_key (struct ESCROW_GnsPluginOperation *p_op)
 
 
 static void
-keyshare_distribution_finished (struct ESCROW_PluginOperationWrapper *plugin_op_wrap)
+keyshare_distribution_finished (void *cls)
 {
+  struct ESCROW_PluginOperationWrapper *plugin_op_wrap = cls;
   struct ESCROW_GnsPluginOperation *p_op;
   struct GNUNET_ESCROW_Anchor *anchor;
   int anchorDataSize;
@@ -468,6 +469,7 @@ keyshare_distributed (void *cls,
   struct NamestoreQueueEntry *ns_qe = cls;
   struct ESCROW_PluginOperationWrapper *plugin_op_wrap;
   struct ESCROW_GnsPluginOperation *p_op;
+  struct GNUNET_TIME_Relative delay;
 
   GNUNET_log (GNUNET_ERROR_TYPE_DEBUG, "Keyshare distributed\n");
 
@@ -492,7 +494,10 @@ keyshare_distributed (void *cls,
                                ns_qe);
   GNUNET_free (ns_qe);
   if (NULL == p_op->ns_qes_head)
-    keyshare_distribution_finished (plugin_op_wrap);
+  {
+    delay.rel_value_us = 100 * GNUNET_TIME_relative_get_millisecond_().rel_value_us;
+    GNUNET_SCHEDULER_add_delayed (delay, &keyshare_distribution_finished, plugin_op_wrap);
+  }
 }
 
 
