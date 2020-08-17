@@ -70,12 +70,12 @@ struct IdentityOperationEntry
   /**
    * Private key of the respective ego
    */
-  const struct GNUNET_CRYPTO_EcdsaPrivateKey *pk;
+  struct GNUNET_CRYPTO_EcdsaPrivateKey *pk;
 
   /**
    * Name of the respective ego
    */
-  const char *name;
+  char *name;
 
   /**
    * Index of the respective share
@@ -104,7 +104,7 @@ struct PkEntry
   /**
    * private key
    */
-  const struct GNUNET_CRYPTO_EcdsaPrivateKey *pk;
+  struct GNUNET_CRYPTO_EcdsaPrivateKey pk;
 
   /**
    * index of the respective share
@@ -252,12 +252,12 @@ struct ESCROW_GnsPluginOperation
   /**
    * The name of the ego
    */
-  const char *egoName;
+  char *egoName;
 
   /**
    * Private key of the ego
    */
-  const struct GNUNET_CRYPTO_EcdsaPrivateKey *pk;
+  struct GNUNET_CRYPTO_EcdsaPrivateKey pk;
 
   /**
    * User secret string
@@ -350,6 +350,8 @@ cleanup_plugin_operation (struct ESCROW_PluginOperationWrapper *plugin_op_wrap)
                                  p_op->id_ops_tail,
                                  curr_id_op);
     GNUNET_IDENTITY_cancel (curr_id_op->id_op);
+    GNUNET_free (curr_id_op->pk);
+    GNUNET_free (curr_id_op->name);
     GNUNET_free (curr_id_op);
   }
   /* clean up escrow pk list */
@@ -397,6 +399,7 @@ cleanup_plugin_operation (struct ESCROW_PluginOperationWrapper *plugin_op_wrap)
   /* cancel identity operation */
   if (NULL != p_op->id_op)
     GNUNET_IDENTITY_cancel (p_op->id_op);
+  GNUNET_free (p_op->egoName);
   GNUNET_free (p_op);
   GNUNET_free (plugin_op_wrap);
 }
@@ -422,7 +425,7 @@ split_private_key (struct ESCROW_GnsPluginOperation *p_op)
 
   keyshares = GNUNET_malloc (sizeof (sss_Keyshare) * p_op->shares);
   sss_create_keyshares (keyshares,
-                        p_op->pk->d,
+                        p_op->pk.d,
                         p_op->shares,
                         p_op->share_threshold);
 
@@ -541,7 +544,7 @@ distribute_keyshares (struct ESCROW_PluginOperationWrapper *plugin_op_wrap,
 
     curr_ns_qe->plugin_op_wrap = plugin_op_wrap;
     curr_ns_qe->ns_qe = GNUNET_NAMESTORE_records_store (ns_h,
-                                                        curr_pk->pk,
+                                                        &curr_pk->pk,
                                                         curr_label,
                                                         1,
                                                         curr_rd,
@@ -631,7 +634,7 @@ escrow_id_created (void *cls,
 
   /* insert pk into our list */
   pk_entry = GNUNET_new (struct PkEntry);
-  pk_entry->pk = pk;
+  pk_entry->pk = *pk;
   pk_entry->i = id_op->i;
   GNUNET_CONTAINER_DLL_insert_tail (p_op->escrow_pks_head,
                                     p_op->escrow_pks_tail,
@@ -819,7 +822,7 @@ create_escrow_identities (struct ESCROW_PluginOperationWrapper *plugin_op_wrap,
     {
       // the escrow id already exists, so insert the pk into our list
       curr_pk_entry = GNUNET_new (struct PkEntry);
-      curr_pk_entry->pk = curr_pk;
+      curr_pk_entry->pk = *curr_pk;
       curr_pk_entry->i = i;
       GNUNET_CONTAINER_DLL_insert (p_op->escrow_pks_head,
                                    p_op->escrow_pks_tail,
@@ -953,7 +956,7 @@ start_gns_key_escrow (struct GNUNET_ESCROW_Handle *h,
     p_op->sched_task = GNUNET_SCHEDULER_add_now (&start_cont, plugin_op_wrap);
     return plugin_op_wrap;
   }
-  p_op->pk = GNUNET_IDENTITY_ego_get_private_key (ego);
+  p_op->pk = *GNUNET_IDENTITY_ego_get_private_key (ego);
   p_op->userSecret = GNUNET_strdup (userSecret);
 
   if (ESCROW_PLUGIN_STATE_POST_INIT == ph.state)
@@ -979,6 +982,7 @@ process_keyshares (struct ESCROW_PluginOperationWrapper *plugin_op_wrap)
   p_op = (struct ESCROW_GnsPluginOperation*)plugin_op_wrap->plugin_op;
 
   // TODO: check if enough keyshares have been restored, combine them
+  pk = NULL;
 
   p_op->restore_pk_cont (p_op->restore_pk_cont_cls, pk);
 }
@@ -1014,7 +1018,7 @@ restore_private_key (struct ESCROW_PluginOperationWrapper *plugin_op_wrap,
                      void *cont_cls)
 {
   struct ESCROW_GnsPluginOperation *p_op;
-  struct GNUNET_CRYPTO_EcdsaPrivateKey *curr_escrow_pk, *ego_pk;
+  struct GNUNET_CRYPTO_EcdsaPrivateKey *curr_escrow_pk;
   struct GNUNET_CRYPTO_EcdsaPublicKey curr_escrow_pub;
   char *curr_escrow_name;
   struct GnsLookupRequestEntry *curr_gns_lr;
@@ -1069,13 +1073,11 @@ verify_restored_pk (void *cls,
   struct ESCROW_PluginOperationWrapper *plugin_op_wrap = cls;
   struct ESCROW_GnsPluginOperation *p_op;
   const struct GNUNET_CRYPTO_EcdsaPrivateKey *ego_pk;
-  char *ego_pk_string;
   int verificationResult;
 
   p_op = (struct ESCROW_GnsPluginOperation *)plugin_op_wrap->plugin_op;
 
   ego_pk = GNUNET_IDENTITY_ego_get_private_key (p_op->ego);
-  ego_pk_string = GNUNET_CRYPTO_ecdsa_private_key_to_string (ego_pk);
   verificationResult = memcmp (pk,
                                ego_pk,
                                sizeof (struct GNUNET_CRYPTO_EcdsaPrivateKey))
@@ -1155,7 +1157,7 @@ ego_created (const struct GNUNET_IDENTITY_Ego *ego)
   for (curr = ph.plugin_op_head; NULL != curr; curr = curr->next)
   {
     curr_p_op = (struct ESCROW_GnsPluginOperation *)curr->plugin_op;
-    curr_pk_string = GNUNET_CRYPTO_ecdsa_private_key_to_string (curr_p_op->pk);
+    curr_pk_string = GNUNET_CRYPTO_ecdsa_private_key_to_string (&curr_p_op->pk);
     // compare the strings of the private keys
     if (0 == strcmp (ego_pk_string, curr_pk_string))
     {
@@ -1216,7 +1218,7 @@ id_create_finished (void *cls,
 
   /* no error occurred, p_op->restore_cont will be called in ego_created, which
      is called from ESCROW_list_ego after adding the new ego to our list */
-  p_op->pk = pk;
+  p_op->pk = *pk;
 }
 
 
@@ -1270,7 +1272,7 @@ restore_gns_key_escrow (struct GNUNET_ESCROW_Handle *h,
   p_op->h = h;
   // set cont here (has to be scheduled from the IDENTITY service when it finished)
   p_op->cont = cb;
-  p_op->egoName = egoName;
+  p_op->egoName = GNUNET_strdup (egoName);
   p_op->userSecret = gns_anchor_data_to_string (h, escrowAnchor);
 
   w = GNUNET_new (struct ESCROW_Plugin_EgoContinuationWrapper);
