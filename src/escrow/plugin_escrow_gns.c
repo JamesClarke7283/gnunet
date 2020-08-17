@@ -469,7 +469,6 @@ keyshare_distributed (void *cls,
   struct NamestoreQueueEntry *ns_qe = cls;
   struct ESCROW_PluginOperationWrapper *plugin_op_wrap;
   struct ESCROW_GnsPluginOperation *p_op;
-  struct GNUNET_TIME_Relative delay;
 
   GNUNET_log (GNUNET_ERROR_TYPE_DEBUG, "Keyshare distributed\n");
 
@@ -495,8 +494,8 @@ keyshare_distributed (void *cls,
   GNUNET_free (ns_qe);
   if (NULL == p_op->ns_qes_head)
   {
-    delay.rel_value_us = 100 * GNUNET_TIME_relative_get_millisecond_().rel_value_us;
-    GNUNET_SCHEDULER_add_delayed (delay, &keyshare_distribution_finished, plugin_op_wrap);
+    // schedule the further execution, lets NAMESTORE clean up its operation list
+    GNUNET_SCHEDULER_add_now (&keyshare_distribution_finished, plugin_op_wrap);
   }
 }
 
