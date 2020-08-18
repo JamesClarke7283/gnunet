@@ -399,7 +399,8 @@ cleanup_plugin_operation (struct ESCROW_PluginOperationWrapper *plugin_op_wrap)
   /* cancel identity operation */
   if (NULL != p_op->id_op)
     GNUNET_IDENTITY_cancel (p_op->id_op);
-  GNUNET_free (p_op->egoName);
+  if (NULL != p_op->egoName)
+    GNUNET_free (p_op->egoName);
   GNUNET_free (p_op);
   GNUNET_free (plugin_op_wrap);
 }
@@ -413,6 +414,32 @@ start_cont (void *cls)
   
   p_op = (struct ESCROW_GnsPluginOperation*)plugin_op_wrap->plugin_op;
   p_op->cont (p_op->anchor_wrap);
+
+  cleanup_plugin_operation (plugin_op_wrap);
+}
+
+
+void
+verify_cont (void *cls)
+{
+  struct ESCROW_PluginOperationWrapper *plugin_op_wrap = cls;
+  struct ESCROW_GnsPluginOperation *p_op;
+  
+  p_op = (struct ESCROW_GnsPluginOperation*)plugin_op_wrap->plugin_op;
+  p_op->cont (p_op->verify_wrap);
+
+  cleanup_plugin_operation (plugin_op_wrap);
+}
+
+
+static void
+handle_restore_error (void *cls)
+{
+  struct ESCROW_PluginOperationWrapper *plugin_op_wrap = cls;
+  struct ESCROW_GnsPluginOperation *p_op;
+  
+  p_op = (struct ESCROW_GnsPluginOperation*)plugin_op_wrap->plugin_op;
+  p_op->cont (p_op->ego_wrap);
 
   cleanup_plugin_operation (plugin_op_wrap);
 }
@@ -475,6 +502,11 @@ keyshare_distributed (void *cls,
   plugin_op_wrap = ns_qe->plugin_op_wrap;
   p_op = (struct ESCROW_GnsPluginOperation *)plugin_op_wrap->plugin_op;
 
+  // remove qe from our list
+  GNUNET_CONTAINER_DLL_remove (p_op->ns_qes_head,
+                               p_op->ns_qes_tail,
+                               ns_qe);
+
   if (GNUNET_SYSERR == success)
   {
     GNUNET_log (GNUNET_ERROR_TYPE_ERROR,
@@ -485,12 +517,10 @@ keyshare_distributed (void *cls,
     p_op->cont (p_op->anchor_wrap);
     // this also cancels all running namestore operations
     cleanup_plugin_operation (plugin_op_wrap);
+    return;
   }
 
-  // remove qe from list, check if all namestore operations are finished
-  GNUNET_CONTAINER_DLL_remove (p_op->ns_qes_head,
-                               p_op->ns_qes_tail,
-                               ns_qe);
+  // check if all namestore operations are finished
   GNUNET_free (ns_qe);
   if (NULL == p_op->ns_qes_head)
   {
@@ -790,7 +820,7 @@ create_escrow_identities (struct ESCROW_PluginOperationWrapper *plugin_op_wrap,
 {
   struct ESCROW_GnsPluginOperation *p_op;
   struct GNUNET_CRYPTO_EcdsaPrivateKey *curr_pk;
-  char *curr_name;
+  char *curr_name, *curr_pk_string;
   struct IdentityOperationEntry *curr_id_op;
   struct PkEntry *curr_pk_entry;
   int exists_ret;
@@ -803,6 +833,13 @@ create_escrow_identities (struct ESCROW_PluginOperationWrapper *plugin_op_wrap,
   {
     curr_pk = derive_private_key (name, p_op->userSecret, i);
     curr_name = get_escrow_id_name (name, i);
+
+    // TODO: REMOVE THIS LOGGING BEFORE PRODUCTIONAL USE!
+    curr_pk_string = GNUNET_CRYPTO_ecdsa_private_key_to_string (curr_pk);
+    GNUNET_log (GNUNET_ERROR_TYPE_DEBUG,
+                "derived private key: %s\n",
+                curr_pk_string);
+    GNUNET_free (curr_pk_string);
 
     // check if the escrow identity already exists
     exists_ret = escrow_id_exists (curr_name, curr_pk);
@@ -859,46 +896,92 @@ create_escrow_identities (struct ESCROW_PluginOperationWrapper *plugin_op_wrap,
 }
 
 
-void
-continue_start (void *cls)
+static void
+handle_config_load_error (struct ESCROW_PluginOperationWrapper *plugin_op_wrap,
+                          char *emsg)
 {
-  struct ESCROW_PluginOperationWrapper *plugin_op_wrap = cls;
   struct ESCROW_GnsPluginOperation *p_op;
-  unsigned long long shares, share_threshold;
-  struct GNUNET_TIME_Relative delay;
 
   p_op = (struct ESCROW_GnsPluginOperation *)plugin_op_wrap->plugin_op;
 
-  if (ESCROW_PLUGIN_STATE_POST_INIT != ph.state)
+  if (NULL != p_op->anchor_wrap)
   {
-    delay.rel_value_us = 200 * GNUNET_TIME_relative_get_millisecond_().rel_value_us;
-    GNUNET_SCHEDULER_add_delayed (delay, &continue_start, plugin_op_wrap);
+    p_op->anchor_wrap->escrowAnchor = NULL;
+    p_op->anchor_wrap->emsg = emsg;
+    p_op->sched_task = GNUNET_SCHEDULER_add_now (&start_cont, plugin_op_wrap);
     return;
   }
 
-  // get config
+  if (NULL != p_op->verify_wrap)
+  {
+    p_op->verify_wrap->verificationResult = GNUNET_ESCROW_INVALID;
+    p_op->verify_wrap->emsg = emsg;
+    p_op->sched_task = GNUNET_SCHEDULER_add_now (&verify_cont, plugin_op_wrap);
+    return;
+  }
+
+  if (NULL != p_op->ego_wrap)
+  {
+    p_op->ego_wrap->ego = NULL;
+    p_op->ego_wrap->emsg = emsg;
+    p_op->sched_task = GNUNET_SCHEDULER_add_now (&handle_restore_error, plugin_op_wrap);
+    return;
+  }
+}
+
+
+static int
+load_keyshare_config (struct ESCROW_PluginOperationWrapper *plugin_op_wrap)
+{
+  struct ESCROW_GnsPluginOperation *p_op;
+  unsigned long long shares, share_threshold;
+
+  p_op = (struct ESCROW_GnsPluginOperation *)plugin_op_wrap->plugin_op;
+
   if (GNUNET_OK != GNUNET_CONFIGURATION_get_value_number (p_op->h->cfg,
                                                           "escrow",
                                                           "gns_shares",
                                                           &shares))
   {
-    fprintf (stderr, "Number of shares not specified in config!");
-    p_op->anchor_wrap->escrowAnchor = NULL;
-    p_op->sched_task = GNUNET_SCHEDULER_add_now (&start_cont, plugin_op_wrap);
-    return;
+    handle_config_load_error (plugin_op_wrap,
+                              "Number of shares not specified in config!");
+    return GNUNET_SYSERR;
   }
   if (GNUNET_OK != GNUNET_CONFIGURATION_get_value_number (p_op->h->cfg,
                                                           "escrow",
                                                           "gns_share_threshold",
                                                           &share_threshold))
   {
-    fprintf (stderr, "Share threshold not specified in config");
-    p_op->anchor_wrap->escrowAnchor = NULL;
-    p_op->sched_task = GNUNET_SCHEDULER_add_now (&start_cont, plugin_op_wrap);
-    return;
+    handle_config_load_error (plugin_op_wrap,
+                              "Share threshold not specified in config");
+    return GNUNET_SYSERR;
   }
   p_op->shares = (uint8_t)shares;
   p_op->share_threshold = (uint8_t)share_threshold;
+
+  return GNUNET_OK;
+}
+
+
+static void
+continue_start (void *cls)
+{
+  struct ESCROW_PluginOperationWrapper *plugin_op_wrap = cls;
+  struct ESCROW_GnsPluginOperation *p_op;
+  struct GNUNET_TIME_Relative delay;
+
+  p_op = (struct ESCROW_GnsPluginOperation *)plugin_op_wrap->plugin_op;
+
+  if (ESCROW_PLUGIN_STATE_POST_INIT != ph.state)
+  {
+    delay.rel_value_us = 100 * GNUNET_TIME_relative_get_millisecond_().rel_value_us;
+    GNUNET_SCHEDULER_add_delayed (delay, &continue_start, plugin_op_wrap);
+    return;
+  }
+
+  /* load config */
+  if (GNUNET_OK != load_keyshare_config (plugin_op_wrap))
+    return;
 
   /* create the escrow identities */
   create_escrow_identities (plugin_op_wrap, p_op->ego->name);
@@ -977,16 +1060,89 @@ start_gns_key_escrow (struct GNUNET_ESCROW_Handle *h,
 }
 
 
-static void
-process_keyshares (struct ESCROW_PluginOperationWrapper *plugin_op_wrap)
+static uint8_t
+count_keyshares (sss_Keyshare *keyshares, uint8_t n)
 {
+  uint8_t i, c;
+  sss_Keyshare null_ks;
+
+  memset (null_ks, 0, sizeof (sss_Keyshare));
+
+  c = 0;
+  for (i = 0; i < n; i++)
+  {
+    if (0 != memcmp (keyshares[i], &null_ks, sizeof (sss_Keyshare)))
+      c++;
+  }
+
+  return c;
+}
+
+
+static void
+remove_empty_keyshares (sss_Keyshare *keyshares, uint8_t n)
+{
+  uint8_t i, j;
+  sss_Keyshare null_ks;
+
+  memset (null_ks, 0, sizeof (sss_Keyshare));
+
+  for (i = j = 0; i < n; i++)
+  {
+    if (0 != memcmp (keyshares[i], &null_ks, sizeof (sss_Keyshare)))
+    {
+      memcpy (keyshares[j], keyshares[i], sizeof (sss_Keyshare));
+      j++;
+    }
+  }
+}
+
+
+static void
+process_keyshares (void *cls)
+{
+  struct ESCROW_PluginOperationWrapper *plugin_op_wrap = cls;
   struct ESCROW_GnsPluginOperation *p_op;
   struct GNUNET_CRYPTO_EcdsaPrivateKey *pk;
+  uint8_t keyshares_count;
 
   p_op = (struct ESCROW_GnsPluginOperation*)plugin_op_wrap->plugin_op;
 
-  // TODO: check if enough keyshares have been restored, combine them
-  pk = NULL;
+  /* check if enough keyshares have been restored */
+  keyshares_count = count_keyshares (p_op->restored_keyshares, p_op->shares);
+  if (keyshares_count < p_op->share_threshold)
+  {
+    /* the key cannot be restored */
+    GNUNET_log (GNUNET_ERROR_TYPE_ERROR,
+                "need %hhu shares, but could only get %hhu",
+                p_op->share_threshold,
+                keyshares_count);
+
+    if (NULL != p_op->verify_wrap) // this was called by a verify operation
+    {
+      p_op->verify_wrap->emsg =
+        _ ("key could not be restored, failed to get enough keyshares\n");
+      p_op->restore_pk_cont (p_op->restore_pk_cont_cls, NULL);
+      return;
+    }
+
+    if (NULL != p_op->ego_wrap) // this was called by a restore operation
+    {
+      p_op->ego_wrap->emsg =
+        _ ("key could not be restored, failed to get enough keyshares\n");
+      p_op->restore_pk_cont (p_op->restore_pk_cont_cls, NULL);
+      return;
+    }
+  }
+
+  /* combine the shares */
+  if (keyshares_count != p_op->shares)
+    remove_empty_keyshares (p_op->restored_keyshares, p_op->shares);
+
+  pk = GNUNET_new (struct GNUNET_CRYPTO_EcdsaPrivateKey);
+  sss_combine_keyshares (pk->d,
+                         p_op->restored_keyshares,
+                         keyshares_count);
 
   p_op->restore_pk_cont (p_op->restore_pk_cont_cls, pk);
 }
@@ -1001,17 +1157,57 @@ process_gns_lookup_result (void *cls,
   struct ESCROW_PluginOperationWrapper *plugin_op_wrap;
   struct ESCROW_GnsPluginOperation *p_op;
   sss_Keyshare keyshare;
+  char keyshare_string[64], *end;
 
   plugin_op_wrap = gns_lr->plugin_op_wrap;
   p_op = (struct ESCROW_GnsPluginOperation*)plugin_op_wrap->plugin_op;
 
-  // TODO: handle result, store keyshare, check if this was the last keyshare
+  // remove gns_lr from our list
+  GNUNET_CONTAINER_DLL_remove (p_op->gns_lrs_head,
+                               p_op->gns_lrs_tail,
+                               gns_lr);
+
+  if (1 != rd_count)
+  {
+    GNUNET_log (GNUNET_ERROR_TYPE_ERROR,
+                "did not get exactly _one_ record from GNS\n");
+    goto END;
+  }
+
+  if (sizeof (sss_Keyshare) != rd[0].data_size)
+  {
+    GNUNET_log (GNUNET_ERROR_TYPE_ERROR,
+                "the size of the GNS record differs from the size of a keyshare\n");
+    goto END;
+  }
+
+  GNUNET_memcpy (&keyshare,
+                 rd[0].data,
+                 rd[0].data_size);
+
+  end = GNUNET_STRINGS_data_to_string (&keyshare,
+                                       sizeof (sss_Keyshare),
+                                       keyshare_string,
+                                       sizeof (keyshare_string));
+  GNUNET_break (NULL != end);
+  *end = '\0';
+
+  GNUNET_log (GNUNET_ERROR_TYPE_DEBUG,
+              "got keyshare %s from GNS\n", keyshare_string);
+
   GNUNET_memcpy (p_op->restored_keyshares[gns_lr->i],
-                 keyshare,
+                 &keyshare,
                  sizeof (sss_Keyshare));
 
-  if (1) // TODO: last keyshare?
-    process_keyshares(plugin_op_wrap);
+  END:
+  GNUNET_free (gns_lr);
+
+  // check if this was the last gns_lr, i.e. our list is empty
+  if (NULL == p_op->gns_lrs_head)
+  {
+    // schedule the further execution, lets GNS clean up its operation list
+    GNUNET_SCHEDULER_add_now (&process_keyshares, plugin_op_wrap);
+  }
 }
 
 
@@ -1024,7 +1220,7 @@ restore_private_key (struct ESCROW_PluginOperationWrapper *plugin_op_wrap,
   struct ESCROW_GnsPluginOperation *p_op;
   struct GNUNET_CRYPTO_EcdsaPrivateKey *curr_escrow_pk;
   struct GNUNET_CRYPTO_EcdsaPublicKey curr_escrow_pub;
-  char *curr_escrow_name;
+  char *label, *curr_escrow_pk_string;
   struct GnsLookupRequestEntry *curr_gns_lr;
 
   p_op = (struct ESCROW_GnsPluginOperation*)plugin_op_wrap->plugin_op;
@@ -1033,18 +1229,28 @@ restore_private_key (struct ESCROW_PluginOperationWrapper *plugin_op_wrap,
   p_op->restore_pk_cont = cont;
   p_op->restore_pk_cont_cls = cont_cls;
   p_op->restored_keyshares = GNUNET_malloc (sizeof (sss_Keyshare) * p_op->shares);
+  // ensure that the array is initialized with 0, as this is needed for counting the shares
+  memset (p_op->restored_keyshares, 0, sizeof (sss_Keyshare) * p_op->shares);
+
+  label = get_label (p_op->userSecret);
 
   for (uint8_t i = 0; i < p_op->shares; i++)
   {
-    curr_escrow_pk = derive_private_key (p_op->ego->name, p_op->userSecret, i);
-    curr_escrow_name = get_escrow_id_name (p_op->ego->name, i);
+    curr_escrow_pk = derive_private_key (p_op->egoName, p_op->userSecret, i);
+
+    // TODO: REMOVE THIS LOGGING BEFORE PRODUCTIONAL USE!
+    curr_escrow_pk_string = GNUNET_CRYPTO_ecdsa_private_key_to_string (curr_escrow_pk);
+    GNUNET_log (GNUNET_ERROR_TYPE_DEBUG,
+                "derived private key: %s\n",
+                curr_escrow_pk_string);
+    GNUNET_free (curr_escrow_pk_string);
 
     curr_gns_lr = GNUNET_new (struct GnsLookupRequestEntry);
     curr_gns_lr->plugin_op_wrap = plugin_op_wrap;
     curr_gns_lr->i = i;
     GNUNET_CRYPTO_ecdsa_key_get_public (curr_escrow_pk, &curr_escrow_pub);
     curr_gns_lr->lr = GNUNET_GNS_lookup (p_op->gns_h,
-                                         NULL, // TODO: name
+                                         label,
                                          &curr_escrow_pub,
                                          GNUNET_GNSRECORD_TYPE_ESCROW_KEYSHARE,
                                          GNUNET_GNS_LO_DEFAULT,
@@ -1054,19 +1260,7 @@ restore_private_key (struct ESCROW_PluginOperationWrapper *plugin_op_wrap,
                                       p_op->gns_lrs_tail,
                                       curr_gns_lr);
   }
-}
-
-
-void
-verify_cont (void *cls)
-{
-  struct ESCROW_PluginOperationWrapper *plugin_op_wrap = cls;
-  struct ESCROW_GnsPluginOperation *p_op;
-  
-  p_op = (struct ESCROW_GnsPluginOperation*)plugin_op_wrap->plugin_op;
-  p_op->cont (p_op->verify_wrap);
-
-  cleanup_plugin_operation (plugin_op_wrap);
+  GNUNET_free (label);
 }
 
 
@@ -1081,11 +1275,16 @@ verify_restored_pk (void *cls,
 
   p_op = (struct ESCROW_GnsPluginOperation *)plugin_op_wrap->plugin_op;
 
-  ego_pk = GNUNET_IDENTITY_ego_get_private_key (p_op->ego);
-  verificationResult = memcmp (pk,
-                               ego_pk,
-                               sizeof (struct GNUNET_CRYPTO_EcdsaPrivateKey))
-                       == 0 ? GNUNET_ESCROW_VALID : GNUNET_ESCROW_INVALID;
+  if (NULL == pk)
+    verificationResult = GNUNET_ESCROW_INVALID;
+  else
+  {
+    ego_pk = GNUNET_IDENTITY_ego_get_private_key (p_op->ego);
+    verificationResult = memcmp (pk,
+                                ego_pk,
+                                sizeof (struct GNUNET_CRYPTO_EcdsaPrivateKey))
+                        == 0 ? GNUNET_ESCROW_VALID : GNUNET_ESCROW_INVALID;
+  }
 
   p_op->verify_wrap->verificationResult = verificationResult;
   verify_cont (plugin_op_wrap);
@@ -1125,6 +1324,7 @@ verify_gns_key_escrow (struct GNUNET_ESCROW_Handle *h,
   p_op->h = h;
   p_op->cont = cb;
   p_op->ego = ego;
+  p_op->egoName = GNUNET_strdup (ego->name);
   p_op->userSecret = gns_anchor_data_to_string (h, escrowAnchor);
 
   w = GNUNET_new (struct ESCROW_Plugin_VerifyContinuationWrapper);
@@ -1139,6 +1339,10 @@ verify_gns_key_escrow (struct GNUNET_ESCROW_Handle *h,
     p_op->sched_task = GNUNET_SCHEDULER_add_now (&verify_cont, plugin_op_wrap);
     return plugin_op_wrap;
   }
+
+  /* load config */
+  if (GNUNET_OK != load_keyshare_config (plugin_op_wrap))
+    return plugin_op_wrap;
 
   restore_private_key (plugin_op_wrap,
                        escrowAnchor,
@@ -1182,19 +1386,6 @@ ego_created (const struct GNUNET_IDENTITY_Ego *ego)
 
 
 static void
-handle_restore_error (void *cls)
-{
-  struct ESCROW_PluginOperationWrapper *plugin_op_wrap = cls;
-  struct ESCROW_GnsPluginOperation *p_op;
-  
-  p_op = (struct ESCROW_GnsPluginOperation*)plugin_op_wrap->plugin_op;
-  p_op->cont (p_op->ego_wrap);
-
-  cleanup_plugin_operation (plugin_op_wrap);
-}
-
-
-static void
 id_create_finished (void *cls,
                     const struct GNUNET_CRYPTO_EcdsaPrivateKey *pk,
                     const char *emsg)
@@ -1234,6 +1425,13 @@ restore_ego_from_pk (void *cls,
   struct ESCROW_GnsPluginOperation *p_op;
 
   p_op = (struct ESCROW_GnsPluginOperation*)plugin_op_wrap->plugin_op;
+
+  if (NULL == pk)
+  {
+    p_op->ego_wrap->ego = NULL;
+    handle_restore_error (plugin_op_wrap);
+    return;
+  }
 
   p_op->id_op = GNUNET_IDENTITY_create (identity_handle,
                                         p_op->egoName,
@@ -1292,6 +1490,10 @@ restore_gns_key_escrow (struct GNUNET_ESCROW_Handle *h,
     p_op->sched_task = GNUNET_SCHEDULER_add_now (&handle_restore_error, plugin_op_wrap);
     return plugin_op_wrap;
   }
+
+  /* load config */
+  if (GNUNET_OK != load_keyshare_config (plugin_op_wrap))
+    return plugin_op_wrap;
 
   restore_private_key (plugin_op_wrap,
                        escrowAnchor,
@@ -1394,7 +1596,7 @@ cancel_gns_operation (struct ESCROW_PluginOperationWrapper *plugin_op_wrap)
 void
 gns_cont_init ()
 {
-  GNUNET_log (GNUNET_ERROR_TYPE_DEBUG, "GNS plugin initialized");
+  GNUNET_log (GNUNET_ERROR_TYPE_DEBUG, "GNS plugin initialized\n");
 }
 
 
