@@ -18,7 +18,7 @@ which timeout > /dev/null 2>&1 && DO_TIMEOUT="timeout 30"
 
 gnunet-arm -s -c test_escrow.conf
 gnunet-identity -C testego -c test_escrow.conf
-ANCHOR=$(gnunet-escrow -m gns -P testego -c test_escrow.conf)
+ANCHOR=$(gnunet-escrow -m gns -P testego -u secret -c test_escrow.conf)
 if test $? != 0
 then
 	echo "GNS escrow failed!"
@@ -26,6 +26,7 @@ then
 	exit 1
 else
 	ANCHOR=$(echo $ANCHOR | awk 'NF>1{print $NF}')
+	echo "using anchor $ANCHOR"
 fi
 gnunet-escrow -m gns -V testego -a $ANCHOR -c test_escrow.conf
 if test $? != 0
