@@ -54,7 +54,7 @@ struct ESCROW_PlaintextPluginOperation
   /**
    * Private key of the created ego
    */
-  const struct GNUNET_CRYPTO_EcdsaPrivateKey *pk;
+  struct GNUNET_CRYPTO_EcdsaPrivateKey pk;
 
   /**
    * Continuation for a plugin operation (e.g. used for restore, as this
@@ -281,7 +281,7 @@ ego_created (const struct GNUNET_IDENTITY_Ego *ego)
   for (curr = ph.plugin_op_head; NULL != curr; curr = curr->next)
   {
     curr_p_op = (struct ESCROW_PlaintextPluginOperation *)curr->plugin_op;
-    curr_pk_string = GNUNET_CRYPTO_ecdsa_private_key_to_string (curr_p_op->pk);
+    curr_pk_string = GNUNET_CRYPTO_ecdsa_private_key_to_string (&curr_p_op->pk);
     // compare the strings of the private keys
     if (0 == strcmp (ego_pk_string, curr_pk_string))
     {
@@ -336,7 +336,7 @@ create_finished (void *cls,
 
   /* no error occurred, p_op->restore_cont will be called in ego_created, which
      is called from ESCROW_list_ego after adding the new ego to our list */
-  p_op->pk = pk;
+  p_op->pk = *pk;
 }
 
 
