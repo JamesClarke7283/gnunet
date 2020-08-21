@@ -137,6 +137,10 @@ struct NamestoreQueueEntry
 };
 
 
+// define TimeoutTaskEntry here, as it is already needed in GnsLookupRequest
+struct TimeoutTaskEntry;
+
+
 struct GnsLookupRequestEntry
 {
   /**
@@ -163,6 +167,40 @@ struct GnsLookupRequestEntry
    * index of the respective share
    */
   uint8_t i;
+
+  /**
+   * Timeout task scheduled for this lookup request
+   */
+  struct TimeoutTaskEntry *tt;
+};
+
+
+struct TimeoutTaskEntry
+{
+  /**
+   * DLL
+   */
+  struct TimeoutTaskEntry *prev;
+
+  /**
+   * DLL
+   */
+  struct TimeoutTaskEntry *next;
+
+  /**
+   * Timeout task
+   */
+  struct GNUNET_SCHEDULER_Task *tt;
+
+  /**
+   * GNS lookup request this timeout is for
+   */
+  struct GnsLookupRequestEntry *gns_lr;
+
+  /**
+   * Plugin operation that started the timeout
+   */
+  struct ESCROW_PluginOperationWrapper *plugin_op_wrap;
 };
 
 
@@ -303,6 +341,16 @@ struct ESCROW_GnsPluginOperation
    * DLL tail for GNS lookup requests
    */
   struct GnsLookupRequestEntry *gns_lrs_tail;
+
+  /**
+   * DLL head for GNS timeout tasks
+   */
+  struct TimeoutTaskEntry *tts_head;
+
+  /**
+   * DLL tail for GNS timeout tasks
+   */
+  struct TimeoutTaskEntry *tts_tail;
 };
 
 /**
@@ -328,6 +376,7 @@ cleanup_plugin_operation (struct ESCROW_PluginOperationWrapper *plugin_op_wrap)
   struct PkEntry *curr_pk, *next_pk;
   struct NamestoreQueueEntry *curr_ns_qe, *next_ns_qe;
   struct GnsLookupRequestEntry *curr_gns_lr, *next_gns_lr;
+  struct TimeoutTaskEntry *curr_tt, *next_tt;
 
   p_op = (struct ESCROW_GnsPluginOperation*)plugin_op_wrap->plugin_op;
 
@@ -383,6 +432,16 @@ cleanup_plugin_operation (struct ESCROW_PluginOperationWrapper *plugin_op_wrap)
                                  curr_gns_lr);
     GNUNET_GNS_lookup_cancel (curr_gns_lr->lr);
     GNUNET_free (curr_gns_lr);
+  }
+  /* clean up timeout task list */
+  for (curr_tt = p_op->tts_head; NULL != curr_tt; curr_tt = next_tt)
+  {
+    next_tt = curr_tt->next;
+    GNUNET_CONTAINER_DLL_remove (p_op->tts_head,
+                                 p_op->tts_tail,
+                                 curr_tt);
+    GNUNET_SCHEDULER_cancel (curr_tt->tt);
+    GNUNET_free (curr_tt);
   }
   /* free the keyshares array */
   if (NULL != p_op->restored_keyshares)
@@ -1115,7 +1174,7 @@ process_keyshares (void *cls)
   {
     /* the key cannot be restored */
     GNUNET_log (GNUNET_ERROR_TYPE_ERROR,
-                "need %hhu shares, but could only get %hhu",
+                "need %hhu shares, but could only get %hhu\n",
                 p_op->share_threshold,
                 keyshares_count);
 
@@ -1163,10 +1222,17 @@ process_gns_lookup_result (void *cls,
   plugin_op_wrap = gns_lr->plugin_op_wrap;
   p_op = (struct ESCROW_GnsPluginOperation*)plugin_op_wrap->plugin_op;
 
-  // remove gns_lr from our list
+  /* remove gns_lr from our list */
   GNUNET_CONTAINER_DLL_remove (p_op->gns_lrs_head,
                                p_op->gns_lrs_tail,
                                gns_lr);
+
+  /* cancel the timeout for that lookup */
+  GNUNET_CONTAINER_DLL_remove (p_op->tts_head,
+                               p_op->tts_tail,
+                               gns_lr->tt);
+  GNUNET_SCHEDULER_cancel (gns_lr->tt->tt);
+  GNUNET_free (gns_lr->tt);
 
   if (1 != rd_count)
   {
@@ -1213,6 +1279,39 @@ process_gns_lookup_result (void *cls,
 
 
 static void
+timeout_gns_request (void *cls)
+{
+  struct TimeoutTaskEntry *curr_tt = cls;
+  struct ESCROW_PluginOperationWrapper *plugin_op_wrap;
+  struct ESCROW_GnsPluginOperation *p_op;
+
+  plugin_op_wrap = curr_tt->plugin_op_wrap;
+  p_op = (struct ESCROW_GnsPluginOperation*)plugin_op_wrap->plugin_op;
+
+  /* remove timeout task from our list */
+  GNUNET_CONTAINER_DLL_remove (p_op->tts_head,
+                               p_op->tts_tail,
+                               curr_tt);
+
+  /* cancel the GNS lookup and remove it from our list */
+  GNUNET_GNS_lookup_cancel (curr_tt->gns_lr->lr);
+  GNUNET_CONTAINER_DLL_remove (p_op->gns_lrs_head,
+                               p_op->gns_lrs_tail,
+                               curr_tt->gns_lr);
+  GNUNET_free (curr_tt->gns_lr);
+
+  GNUNET_free (curr_tt);
+
+  /* check if this was the last pending GNS lookup */
+  if (NULL == p_op->gns_lrs_head)
+  {
+    // no need to schedule, as the timeout is already scheduled
+    process_keyshares (plugin_op_wrap);
+  }
+}
+
+
+static void
 restore_private_key (struct ESCROW_PluginOperationWrapper *plugin_op_wrap,
                      struct GNUNET_ESCROW_Anchor *escrowAnchor,
                      PkContinuation cont,
@@ -1223,6 +1322,8 @@ restore_private_key (struct ESCROW_PluginOperationWrapper *plugin_op_wrap,
   struct GNUNET_CRYPTO_EcdsaPublicKey curr_escrow_pub;
   char *label, *curr_escrow_pk_string;
   struct GnsLookupRequestEntry *curr_gns_lr;
+  struct GNUNET_TIME_Relative delay;
+  struct TimeoutTaskEntry *curr_tt;
 
   p_op = (struct ESCROW_GnsPluginOperation*)plugin_op_wrap->plugin_op;
 
@@ -1234,6 +1335,9 @@ restore_private_key (struct ESCROW_PluginOperationWrapper *plugin_op_wrap,
   memset (p_op->restored_keyshares, 0, sizeof (sss_Keyshare) * p_op->shares);
 
   label = get_label (p_op->userSecret);
+
+  // init delay to 2s
+  delay.rel_value_us = 2 * GNUNET_TIME_relative_get_second_().rel_value_us;
 
   for (uint8_t i = 0; i < p_op->shares; i++)
   {
@@ -1260,6 +1364,20 @@ restore_private_key (struct ESCROW_PluginOperationWrapper *plugin_op_wrap,
     GNUNET_CONTAINER_DLL_insert_tail (p_op->gns_lrs_head,
                                       p_op->gns_lrs_tail,
                                       curr_gns_lr);
+
+    /* start timeout for GNS lookup (cancels the lr if not yet finished) */
+    curr_tt = GNUNET_new (struct TimeoutTaskEntry);
+    curr_tt->gns_lr = curr_gns_lr;
+    curr_tt->plugin_op_wrap = plugin_op_wrap;
+    curr_tt->tt = GNUNET_SCHEDULER_add_delayed (delay,
+                                                &timeout_gns_request,
+                                                curr_tt);
+    GNUNET_CONTAINER_DLL_insert_tail (p_op->tts_head,
+                                      p_op->tts_tail,
+                                      curr_tt);
+
+    // set the timeout task for the current gns lr entry
+    curr_gns_lr->tt = curr_tt;
   }
   GNUNET_free (label);
 }
