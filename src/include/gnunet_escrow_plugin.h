@@ -50,6 +50,7 @@ extern "C" {
  * @param h the handle for the escrow component
  * @param ego the identity ego containing the private key
  * @param userSecret the user secret (e.g. for derivation of escrow identities)
+ *                   for GNS escrow, this has to be UNIQUE in the whole network!
  * @param cb the function called upon completion
  * @param op_id unique ID of the respective ESCROW_Operation
  * 

@@ -281,6 +281,7 @@ GNUNET_ESCROW_fini (
  * @param h the handle for the escrow component
  * @param ego the identity ego to put in escrow
  * @param userSecret the user secret (e.g. for derivation of escrow identities)
+ *                   for GNS escrow, this has to be UNIQUE in the whole network!
  * @param method the escrow method to use
  * @param cb function to call with the escrow anchor on completion
  * @param cb_cls closure for @a cb
