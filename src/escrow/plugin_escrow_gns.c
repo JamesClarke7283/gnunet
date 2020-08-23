@@ -1400,10 +1400,15 @@ verify_restored_pk (void *cls,
   {
     ego_pk = GNUNET_IDENTITY_ego_get_private_key (p_op->ego);
     verificationResult = memcmp (pk,
-                                ego_pk,
-                                sizeof (struct GNUNET_CRYPTO_EcdsaPrivateKey))
+                                 ego_pk,
+                                 sizeof (struct GNUNET_CRYPTO_EcdsaPrivateKey))
                         == 0 ? GNUNET_ESCROW_VALID : GNUNET_ESCROW_INVALID;
   }
+
+  // check if all shares could be restored
+  if (GNUNET_ESCROW_VALID == verificationResult &&
+      count_keyshares (p_op->restored_keyshares, p_op->shares) < p_op->shares)
+    verificationResult = GNUNET_ESCROW_SHARES_MISSING;
 
   p_op->verify_wrap->verificationResult = verificationResult;
   verify_cont (plugin_op_wrap);

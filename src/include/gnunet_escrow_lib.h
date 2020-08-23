@@ -59,7 +59,8 @@ enum GNUNET_ESCROW_Key_Escrow_Method
 enum GNUNET_ESCROW_Verification_Result
 {
   GNUNET_ESCROW_VALID,
-  GNUNET_ESCROW_INVALID
+  GNUNET_ESCROW_INVALID,
+  GNUNET_ESCROW_SHARES_MISSING
 };
 
 
@@ -145,6 +146,8 @@ typedef void (*GNUNET_ESCROW_EgoContinuation) (
  * @param cls closure
  * @param verificationResult the result of the verification, i.e.
  *   GNUNET_ESCROW_VALID if the escrow could successfully by restored,
+ *   GNUNET_ESCROW_SHARES_MISSING if it could be restored, but some of
+ *                                the shares are missing
  *   GNUNET_ESCROW_INVALID otherwise
  * @param emsg error message, NULL on success
  */

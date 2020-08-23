@@ -218,8 +218,8 @@ put_cb (void *cls,
                                                         escrowAnchor,
                                                         method);
 
-    fprintf (stdout, "Escrow finished! Please keep the following anchor \
-in order to restore the key later!\n%s\n", anchorString);
+    fprintf (stdout, "Escrow finished! Please keep the following anchor "
+             "in order to restore the key later!\n%s\n", anchorString);
   }
   cleanup_task = GNUNET_SCHEDULER_add_now (&do_cleanup, NULL);
 }
@@ -236,6 +236,10 @@ verify_cb (void *cls,
   {
     case GNUNET_ESCROW_VALID:
       fprintf (stdout, "Escrow is valid!\n");
+      break;
+    case GNUNET_ESCROW_SHARES_MISSING:
+      fprintf (stdout, "Escrow can be restored, but some shares are missing! "
+               "Please perform a new escrow.\n");
       break;
     case GNUNET_ESCROW_INVALID:
       ret = 2;
