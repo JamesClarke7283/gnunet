@@ -268,7 +268,7 @@ get_cb (void *cls,
       fprintf (stderr, "Escrow failed: %s", emsg);
   }
   else
-    fprintf (stdout, "Ego %s could successfully be restored!\n", ego->name);
+    fprintf (stdout, "Identity %s could successfully be restored!\n", ego->name);
   cleanup_task = GNUNET_SCHEDULER_add_now (&do_cleanup, NULL);
 }
 
@@ -348,7 +348,21 @@ start_process ()
              GNUNET_STRINGS_absolute_time_to_string (escrow_status->last_escrow_time));
     fprintf (stdout, "Next recommended escrow:\t%s\n",
              GNUNET_STRINGS_absolute_time_to_string (escrow_status->next_recommended_escrow_time));
-    fprintf (stdout, "Last method:\t\t\t%d\n", escrow_status->last_method);
+    fprintf (stdout, "Last method:\t\t\t");
+    switch (escrow_status->last_method)
+    {
+      case GNUNET_ESCROW_KEY_PLAINTEXT:
+        fprintf (stdout, "%s\n", plaintext_string);
+        break;
+      case GNUNET_ESCROW_KEY_GNS:
+        fprintf (stdout, "%s\n", gns_string);
+        break;
+      case GNUNET_ESCROW_KEY_ANASTASIS:
+        fprintf (stdout, "%s\n", anastasis_string);
+        break;
+      default:
+        fprintf (stdout, "INVALID METHOD\n");
+    }
     cleanup_task = GNUNET_SCHEDULER_add_now (&do_cleanup, NULL);
     return;
   }
