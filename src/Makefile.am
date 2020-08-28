@@ -93,6 +93,8 @@ SUBDIRS = \
   namestore \
   cadet \
   set \
+  seti \
+  setu \
   consensus \
   scalarproduct \
   revocation \
