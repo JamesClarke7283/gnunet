@@ -457,38 +457,8 @@ struct GNUNET_ESCROW_Anchor *
 plaintext_anchor_string_to_data (struct GNUNET_ESCROW_Handle *h,
                                  char *anchorString)
 {
-  struct GNUNET_ESCROW_Anchor *anchor;
-  uint32_t data_size;
-  char *anchorStringCopy, *ptr, *egoNameCopy;
-  char delimiter[] = ":";
-  
-  anchorStringCopy = GNUNET_strdup (anchorString);
-
-  // split the string at the first occurrence of the delimiter
-  ptr = strtok (anchorStringCopy, delimiter);
-  egoNameCopy = GNUNET_strdup (ptr);
-  ptr = strtok (NULL, delimiter);
-
-  if (NULL == ptr)
-  {
-    // delimiter was not found
-    GNUNET_free (egoNameCopy);
-    GNUNET_free (anchorStringCopy);
-    return NULL;
-  }
-
-  data_size = strlen (ptr) + 1;
-  anchor = GNUNET_malloc (sizeof (struct GNUNET_ESCROW_Anchor) + data_size);
-  anchor->size = data_size;
-  anchor->egoName = egoNameCopy;
-  anchor->method = GNUNET_ESCROW_KEY_PLAINTEXT;
-
-  // TODO: deserialize?
-  GNUNET_memcpy (&anchor[1], ptr, data_size);
-
-  GNUNET_free (anchorStringCopy);
-
-  return anchor;
+  return ESCROW_anchor_string_to_data (anchorString,
+                                       GNUNET_ESCROW_KEY_PLAINTEXT);
 }
 
 
@@ -504,17 +474,8 @@ char *
 plaintext_anchor_data_to_string (struct GNUNET_ESCROW_Handle *h,
                                  struct GNUNET_ESCROW_Anchor *escrowAnchor)
 {
-  char *anchorString;
-  size_t egoNameSize;
-
-  egoNameSize = strlen (escrowAnchor->egoName);
-
-  anchorString = GNUNET_malloc (egoNameSize + 1 + escrowAnchor->size);
-  GNUNET_memcpy (anchorString, escrowAnchor->egoName, egoNameSize);
-  anchorString[egoNameSize] = ':';
-  GNUNET_memcpy (anchorString + egoNameSize + 1, &escrowAnchor[1], escrowAnchor->size);
-
-  return anchorString;
+  return ESCROW_anchor_data_to_string (escrowAnchor,
+                                       GNUNET_ESCROW_KEY_PLAINTEXT);
 }
 
 

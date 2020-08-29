@@ -106,3 +106,28 @@ ESCROW_update_escrow_status (struct GNUNET_ESCROW_Handle *h,
 struct GNUNET_ESCROW_Status *
 ESCROW_get_escrow_status (struct GNUNET_ESCROW_Handle *h,
                           struct GNUNET_IDENTITY_Ego *ego);
+
+/**
+ * Deserialize an escrow anchor string into a GNUNET_ESCROW_Anchor struct
+ * 
+ * @param anchorString the encoded escrow anchor string
+ * @param method the escrow plugin calling this function
+ * 
+ * @return the deserialized data packed into a GNUNET_ESCROW_Anchor struct,
+ *         NULL if we failed to parse the string
+ */
+struct GNUNET_ESCROW_Anchor *
+ESCROW_anchor_string_to_data (char *anchorString,
+                              enum GNUNET_ESCROW_Key_Escrow_Method method);
+
+/**
+ * Serialize an escrow anchor struct into a string
+ * 
+ * @param escrowAnchor the escrow anchor struct
+ * @param method the escrow plugin calling this function
+ * 
+ * @return the encoded escrow anchor string
+ */
+char *
+ESCROW_anchor_data_to_string (struct GNUNET_ESCROW_Anchor *escrowAnchor,
+                              enum GNUNET_ESCROW_Key_Escrow_Method method);
