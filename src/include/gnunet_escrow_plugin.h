@@ -85,8 +85,7 @@ typedef struct ESCROW_PluginOperationWrapper *(*GNUNET_ESCROW_VerifyKeyEscrowFun
  * Function called to restore a key from an escrow
  * 
  * @param h the handle for the escrow component
- * @param escrowAnchor the escrow anchor needed to restore the key
- * @param egoName the name of the ego to restore
+ * @param anchor the escrow anchor needed to restore the key
  * @param cb the function called upon completion
  * @param op_id unique ID of the respective ESCROW_Operation
  * 
@@ -94,8 +93,7 @@ typedef struct ESCROW_PluginOperationWrapper *(*GNUNET_ESCROW_VerifyKeyEscrowFun
  */
 typedef struct ESCROW_PluginOperationWrapper *(*GNUNET_ESCROW_RestoreKeyFunction) (
   struct GNUNET_ESCROW_Handle *h,
-  struct GNUNET_ESCROW_Anchor *escrowAnchor,
-  const char *egoName,
+  struct GNUNET_ESCROW_Anchor *anchor,
   GNUNET_SCHEDULER_TaskCallback cb,
   uint32_t op_id);
 
@@ -122,7 +120,8 @@ typedef struct GNUNET_ESCROW_Status *(*GNUNET_ESCROW_GetEscrowStatusFunction) (
  * @param h the handle for the escrow component
  * @param anchorString the encoded escrow anchor string
  * 
- * @return the deserialized data packed into a GNUNET_ESCROW_Anchor struct
+ * @return the deserialized data packed into a GNUNET_ESCROW_Anchor struct,
+ *         NULL if we failed to parse the string
  */
 typedef struct GNUNET_ESCROW_Anchor *(*GNUNET_ESCROW_AnchorStringToDataFunction) (
   struct GNUNET_ESCROW_Handle *h,

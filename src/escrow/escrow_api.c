@@ -295,8 +295,7 @@ handle_restore_key_result (void *cls)
  * Get the escrowed data back
  * 
  * @param h the handle for the escrow component
- * @param escrowAnchor the escrow anchor returned by the GNUNET_ESCROW_put method
- * @param egoName the name of the ego to get back
+ * @param anchor the escrow anchor returned by the GNUNET_ESCROW_put method
  * @param method the escrow method to use
  * @param cb function to call with the restored ego on completion
  * @param cb_cls closure for @a cb
@@ -305,8 +304,7 @@ handle_restore_key_result (void *cls)
  */
 struct GNUNET_ESCROW_Operation *
 GNUNET_ESCROW_get (struct GNUNET_ESCROW_Handle *h,
-                   struct GNUNET_ESCROW_Anchor *escrowAnchor,
-                   const char *egoName,
+                   struct GNUNET_ESCROW_Anchor *anchor,
                    enum GNUNET_ESCROW_Key_Escrow_Method method,
                    GNUNET_ESCROW_EgoContinuation cb,
                    void *cb_cls)
@@ -323,7 +321,7 @@ GNUNET_ESCROW_get (struct GNUNET_ESCROW_Handle *h,
   GNUNET_CONTAINER_DLL_insert_tail (h->op_head, h->op_tail, op);
 
   api = init_plugin (h, method);
-  op->plugin_op_wrap = api->restore_key (h, escrowAnchor, egoName, &handle_restore_key_result, op->id);
+  op->plugin_op_wrap = api->restore_key (h, anchor, &handle_restore_key_result, op->id);
 
   return op;
 }
@@ -420,7 +418,8 @@ GNUNET_ESCROW_get_status (struct GNUNET_ESCROW_Handle *h,
  * @param anchorString the encoded escrow anchor string
  * @param method the escrow method to use
  * 
- * @return the deserialized data packed into a GNUNET_ESCROW_Anchor struct
+ * @return the deserialized data packed into a GNUNET_ESCROW_Anchor struct,
+ *         NULL if we failed to parse the string
  */
 struct GNUNET_ESCROW_Anchor *
 GNUNET_ESCROW_anchor_string_to_data (struct GNUNET_ESCROW_Handle *h,

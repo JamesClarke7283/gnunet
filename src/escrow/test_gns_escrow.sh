@@ -36,7 +36,7 @@ then
 	exit 1
 fi
 gnunet-identity -D testego -c test_escrow.conf
-gnunet-escrow -m gns -G testego -a $ANCHOR -c test_escrow.conf
+gnunet-escrow -m gns -G -a $ANCHOR -c test_escrow.conf
 if test $? != 0
 then
 	echo "GNS restore failed!"

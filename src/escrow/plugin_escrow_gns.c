@@ -37,12 +37,6 @@
 #include <inttypes.h>
 
 
-/* declare this function here, as it is used by other functions above the definition */
-char *
-gns_anchor_data_to_string (struct GNUNET_ESCROW_Handle *h,
-                           struct GNUNET_ESCROW_Anchor *escrowAnchor);
-
-
 /**
  * Continuation with a private key (used for restore_private_key)
  */
@@ -534,6 +528,7 @@ keyshare_distribution_finished (void *cls)
   anchorDataSize = strlen(p_op->userSecret) + 1;
   anchor = GNUNET_malloc (sizeof (struct GNUNET_ESCROW_Anchor) + anchorDataSize);
   anchor->method = GNUNET_ESCROW_KEY_GNS;
+  anchor->egoName = GNUNET_strdup (p_op->ego->name);
   anchor->size = anchorDataSize;
   GNUNET_memcpy (&anchor[1], p_op->userSecret, anchorDataSize);
   
@@ -1311,6 +1306,18 @@ timeout_gns_request (void *cls)
 }
 
 
+static char *
+get_user_secret_from_anchor (const struct GNUNET_ESCROW_Anchor *anchor)
+{
+  char *userSecret;
+
+  userSecret = GNUNET_malloc (anchor->size);
+  GNUNET_memcpy (userSecret, &anchor[1], anchor->size);
+
+  return userSecret;
+}
+
+
 static void
 restore_private_key (struct ESCROW_PluginOperationWrapper *plugin_op_wrap,
                      struct GNUNET_ESCROW_Anchor *escrowAnchor,
@@ -1449,7 +1456,7 @@ verify_gns_key_escrow (struct GNUNET_ESCROW_Handle *h,
   p_op->cont = cb;
   p_op->ego = ego;
   p_op->egoName = GNUNET_strdup (ego->name);
-  p_op->userSecret = gns_anchor_data_to_string (h, escrowAnchor);
+  p_op->userSecret = get_user_secret_from_anchor (escrowAnchor);
 
   w = GNUNET_new (struct ESCROW_Plugin_VerifyContinuationWrapper);
   w->h = h;
@@ -1460,6 +1467,13 @@ verify_gns_key_escrow (struct GNUNET_ESCROW_Handle *h,
   {
     w->verificationResult = GNUNET_ESCROW_INVALID;
     w->emsg = _ ("ESCROW_verify was called with ego == NULL!\n");
+    p_op->sched_task = GNUNET_SCHEDULER_add_now (&verify_cont, plugin_op_wrap);
+    return plugin_op_wrap;
+  }
+  if (0 != strcmp (ego->name, escrowAnchor->egoName))
+  {
+    w->verificationResult = GNUNET_ESCROW_INVALID;
+    w->emsg = _ ("This anchor was not created when putting ego that in escrow!\n");
     p_op->sched_task = GNUNET_SCHEDULER_add_now (&verify_cont, plugin_op_wrap);
     return plugin_op_wrap;
   }
@@ -1569,8 +1583,7 @@ restore_ego_from_pk (void *cls,
  * Restore the key from GNS escrow
  * 
  * @param h the handle for the escrow component
- * @param escrowAnchor the escrow anchor needed to restore the key
- * @param egoName the name of the ego to restore
+ * @param anchor the escrow anchor needed to restore the key
  * @param cb the function called upon completion
  * @param op_id unique ID of the respective ESCROW_Operation
  * 
@@ -1578,8 +1591,7 @@ restore_ego_from_pk (void *cls,
  */
 struct ESCROW_PluginOperationWrapper *
 restore_gns_key_escrow (struct GNUNET_ESCROW_Handle *h,
-                        struct GNUNET_ESCROW_Anchor *escrowAnchor,
-                        const char *egoName,
+                        struct GNUNET_ESCROW_Anchor *anchor,
                         GNUNET_SCHEDULER_TaskCallback cb,
                         uint32_t op_id)
 {
@@ -1598,18 +1610,18 @@ restore_gns_key_escrow (struct GNUNET_ESCROW_Handle *h,
   p_op->h = h;
   // set cont here (has to be scheduled from the IDENTITY service when it finished)
   p_op->cont = cb;
-  p_op->egoName = GNUNET_strdup (egoName);
-  p_op->userSecret = gns_anchor_data_to_string (h, escrowAnchor);
+  p_op->egoName = GNUNET_strdup (anchor->egoName);
+  p_op->userSecret = get_user_secret_from_anchor (anchor);
 
   w = GNUNET_new (struct ESCROW_Plugin_EgoContinuationWrapper);
   w->h = h;
   w->op_id = op_id;
   p_op->ego_wrap = w;
 
-  if (NULL == escrowAnchor)
+  if (NULL == anchor)
   {
     w->ego = NULL;
-    w->emsg = _ ("ESCROW_get was called with escrowAnchor == NULL!\n");
+    w->emsg = _ ("ESCROW_get was called with anchor == NULL!\n");
     // schedule handle_restore_error, which calls the callback and cleans up
     p_op->sched_task = GNUNET_SCHEDULER_add_now (&handle_restore_error, plugin_op_wrap);
     return plugin_op_wrap;
@@ -1620,7 +1632,7 @@ restore_gns_key_escrow (struct GNUNET_ESCROW_Handle *h,
     return plugin_op_wrap;
 
   restore_private_key (plugin_op_wrap,
-                       escrowAnchor,
+                       anchor,
                        &restore_ego_from_pk,
                        plugin_op_wrap);
 
@@ -1649,7 +1661,8 @@ gns_get_status (struct GNUNET_ESCROW_Handle *h,
  * 
  * @param anchorString the encoded escrow anchor string
  * 
- * @return the deserialized data packed into a GNUNET_ESCROW_Anchor struct
+ * @return the deserialized data packed into a GNUNET_ESCROW_Anchor struct,
+ *         NULL if we failed to parse the string
  */
 struct GNUNET_ESCROW_Anchor *
 gns_anchor_string_to_data (struct GNUNET_ESCROW_Handle *h,
@@ -1657,13 +1670,34 @@ gns_anchor_string_to_data (struct GNUNET_ESCROW_Handle *h,
 {
   struct GNUNET_ESCROW_Anchor *anchor;
   uint32_t data_size;
+  char *anchorStringCopy, *ptr, *egoNameCopy;
+  char delimiter[] = ":";
+  
+  anchorStringCopy = GNUNET_strdup (anchorString);
 
-  data_size = strlen (anchorString) + 1;
+  // split the string at the first occurrence of the delimiter
+  ptr = strtok (anchorStringCopy, delimiter);
+  egoNameCopy = GNUNET_strdup (ptr);
+  ptr = strtok (NULL, delimiter);
 
+  if (NULL == ptr)
+  {
+    // delimiter was not found
+    GNUNET_free (egoNameCopy);
+    GNUNET_free (anchorStringCopy);
+    return NULL;
+  }
+
+  data_size = strlen (ptr) + 1;
   anchor = GNUNET_malloc (sizeof (struct GNUNET_ESCROW_Anchor) + data_size);
   anchor->size = data_size;
+  anchor->egoName = egoNameCopy;
+  anchor->method = GNUNET_ESCROW_KEY_GNS;
+  
   // TODO: deserialize?
-  GNUNET_memcpy (&anchor[1], anchorString, data_size);
+  GNUNET_memcpy (&anchor[1], ptr, data_size);
+
+  GNUNET_free (anchorStringCopy);
 
   return anchor;
 }
@@ -1682,9 +1716,14 @@ gns_anchor_data_to_string (struct GNUNET_ESCROW_Handle *h,
                            struct GNUNET_ESCROW_Anchor *escrowAnchor)
 {
   char *anchorString;
+  size_t egoNameSize;
 
-  anchorString = GNUNET_malloc (escrowAnchor->size);
-  GNUNET_memcpy (anchorString, &escrowAnchor[1], escrowAnchor->size);
+  egoNameSize = strlen (escrowAnchor->egoName);
+
+  anchorString = GNUNET_malloc (egoNameSize + 1 + escrowAnchor->size);
+  GNUNET_memcpy (anchorString, escrowAnchor->egoName, egoNameSize);
+  anchorString[egoNameSize] = ':';
+  GNUNET_memcpy (anchorString + egoNameSize + 1, &escrowAnchor[1], escrowAnchor->size);
 
   return anchorString;
 }

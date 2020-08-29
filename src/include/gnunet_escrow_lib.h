@@ -75,6 +75,11 @@ struct GNUNET_ESCROW_Anchor
   enum GNUNET_ESCROW_Key_Escrow_Method method;
 
   /**
+   * The name of the ego that was put in escrow.
+   */
+  char *egoName;
+
+  /**
    * The size of the anchor data.
    */
   uint32_t size;
@@ -305,8 +310,7 @@ GNUNET_ESCROW_put (
  * Get the escrowed data back
  * 
  * @param h the handle for the escrow component
- * @param escrowAnchor the escrow anchor returned by the GNUNET_ESCROW_put method
- * @param egoName the name of the ego to get back
+ * @param anchor the escrow anchor returned by the GNUNET_ESCROW_put method
  * @param method the escrow method to use
  * @param cb function to call with the restored ego on completion
  * @param cb_cls closure for @a cb
@@ -316,8 +320,7 @@ GNUNET_ESCROW_put (
 struct GNUNET_ESCROW_Operation *
 GNUNET_ESCROW_get (
   struct GNUNET_ESCROW_Handle *h,
-  struct GNUNET_ESCROW_Anchor *escrowAnchor,
-  const char *egoName,
+  struct GNUNET_ESCROW_Anchor *anchor,
   enum GNUNET_ESCROW_Key_Escrow_Method method,
   GNUNET_ESCROW_EgoContinuation cb,
   void *cb_cls);
@@ -371,7 +374,8 @@ GNUNET_ESCROW_get_status (
  * @param anchorString the encoded escrow anchor string
  * @param method the escrow method to use
  * 
- * @return the deserialized data packed into a GNUNET_ESCROW_Anchor struct
+ * @return the deserialized data packed into a GNUNET_ESCROW_Anchor struct,
+ *         NULL if we failed to parse the string
  */
 struct GNUNET_ESCROW_Anchor *
 GNUNET_ESCROW_anchor_string_to_data (

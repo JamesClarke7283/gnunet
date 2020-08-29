@@ -63,7 +63,7 @@ static char *verify_ego;
 /**
  * -G option
  */
-static char *get_ego;
+static int get_flag;
 
 /**
  * -S option
@@ -171,11 +171,6 @@ do_cleanup (void *cls)
   {
     GNUNET_free (verify_ego);
     verify_ego = NULL;
-  }
-  if (NULL != get_ego)
-  {
-    GNUNET_free (get_ego);
-    get_ego = NULL;
   }
   if (NULL != status_ego)
   {
@@ -313,18 +308,10 @@ start_process ()
     return;
   }
   /* get */
-  if (NULL != get_ego)
+  if (GNUNET_YES == get_flag)
   {
-    if (NULL != ego)
-    {
-      ret = 1;
-      fprintf (stderr, "The name %s is already in use for an ego\n", get_ego);
-      cleanup_task = GNUNET_SCHEDULER_add_now (&do_cleanup, NULL);
-      return;
-    }
     escrow_op = GNUNET_ESCROW_get (escrow_handle,
                                    anchor,
-                                   get_ego,
                                    method,
                                    &get_cb,
                                    NULL);
@@ -388,7 +375,7 @@ ego_cb (void *cls,
     }
     return;
   }
-  if (0 != strcmp (name, ego_name))
+  if (NULL != ego_name && 0 != strcmp (name, ego_name))
     return;
   ego = e;
 }
@@ -414,7 +401,7 @@ run (void *cls,
 
   if (NULL != put_ego)
   {
-    if (NULL != verify_ego || NULL != get_ego || NULL != status_ego)
+    if (NULL != verify_ego || GNUNET_YES == get_flag || NULL != status_ego)
     {
       ret = 1;
       fprintf (stderr, _ ("-P may only be used without -V, -G or -S!\n"));
@@ -425,7 +412,7 @@ run (void *cls,
   }
   else if (NULL != verify_ego)
   {
-    if (NULL != get_ego || NULL != status_ego)
+    if (GNUNET_YES == get_flag || NULL != status_ego)
     {
       ret = 1;
       fprintf (stderr, _ ("-V may only be used without -P, -G or -S!\n"));
@@ -440,7 +427,7 @@ run (void *cls,
     }
     ego_name = verify_ego;
   }
-  else if (NULL != get_ego)
+  else if (GNUNET_YES == get_flag)
   {
     if (NULL != status_ego)
     {
@@ -455,7 +442,7 @@ run (void *cls,
       fprintf (stderr, _ ("-a is needed for -G!\n"));
       return;
     }
-    ego_name = get_ego;
+    ego_name = NULL;
   }
   else if (NULL != status_ego)
   {
@@ -480,7 +467,7 @@ run (void *cls,
   else
   {
     ret = 1;
-    fprintf (stderr, _ ("unknown method name!"));
+    fprintf (stderr, _ ("unknown method name!\n"));
     return;
   }
 
@@ -492,6 +479,13 @@ run (void *cls,
     anchor = GNUNET_ESCROW_anchor_string_to_data (escrow_handle,
                                                   anchor_string,
                                                   method);
+    if (NULL == anchor)
+    {
+      ret = 1;
+      fprintf (stderr, _ ("failed to parse anchor string!\n"));
+      cleanup_task = GNUNET_SCHEDULER_add_now (&do_cleanup, NULL);
+      return;
+    }
   }
 
   /* connect to identity service in order to get the egos */
@@ -513,11 +507,10 @@ main (int argc, char *const argv[])
                                  "NAME",
                                  gettext_noop ("Verify the escrow of the ego NAME"),
                                  &verify_ego),
-    GNUNET_GETOPT_option_string ('G',
-                                 "get",
-                                 "NAME",
-                                 gettext_noop ("Get the ego NAME back from escrow"),
-                                 &get_ego),
+    GNUNET_GETOPT_option_flag ('G',
+                               "get",
+                               gettext_noop ("Get an ego back from escrow"),
+                               &get_flag),
     GNUNET_GETOPT_option_string ('S',
                                  "status",
                                  "NAME",
