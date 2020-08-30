@@ -458,11 +458,11 @@ run (void *cls,
   }
 
   /* determine method */
-  if (!strncmp (plaintext_string, method_name, strlen (plaintext_string)))
+  if (!strcmp (plaintext_string, method_name))
     method = GNUNET_ESCROW_KEY_PLAINTEXT;
-  else if (!strncmp (gns_string, method_name, strlen (gns_string)))
+  else if (!strcmp (gns_string, method_name))
     method = GNUNET_ESCROW_KEY_GNS;
-  else if (!strncmp (anastasis_string, method_name, strlen (anastasis_string)))
+  else if (!strcmp (anastasis_string, method_name))
     method = GNUNET_ESCROW_KEY_ANASTASIS;
   else
   {
