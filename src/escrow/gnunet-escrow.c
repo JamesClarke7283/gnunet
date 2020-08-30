@@ -500,7 +500,7 @@ main (int argc, char *const argv[])
     GNUNET_GETOPT_option_string ('P',
                                  "put",
                                  "NAME",
-                                 gettext_noop ("Put the ego NAME into escrow"),
+                                 gettext_noop ("Put the ego NAME in escrow"),
                                  &put_ego),
     GNUNET_GETOPT_option_string ('V',
                                  "verify",
