@@ -114,34 +114,6 @@ typedef struct GNUNET_ESCROW_Status *(*GNUNET_ESCROW_GetEscrowStatusFunction) (
 
 
 /**
- * Function called to deserialize an escrow anchor string into a
- * GNUNET_ESCROW_Anchor struct
- * 
- * @param h the handle for the escrow component
- * @param anchorString the encoded escrow anchor string
- * 
- * @return the deserialized data packed into a GNUNET_ESCROW_Anchor struct,
- *         NULL if we failed to parse the string
- */
-typedef struct GNUNET_ESCROW_Anchor *(*GNUNET_ESCROW_AnchorStringToDataFunction) (
-  struct GNUNET_ESCROW_Handle *h,
-  char *anchorString);
-
-
-/**
- * Function called to serialize an escrow anchor struct into a string
- * 
- * @param h the handle for the escrow component
- * @param escrowAnchor the escrow anchor struct
- * 
- * @return the encoded escrow anchor string
- */
-typedef char *(*GNUNET_ESCROW_AnchorDataToStringFunction) (
-  struct GNUNET_ESCROW_Handle *h,
-  struct GNUNET_ESCROW_Anchor *escrowAnchor);
-
-
-/**
  * Function called to cancel a plugin operation
  * 
  * @param plugin_op_wrap plugin operation wrapper containing the plugin operation
@@ -180,16 +152,6 @@ struct GNUNET_ESCROW_KeyPluginFunctions
    * Get the status of an escrow
    */
   GNUNET_ESCROW_GetEscrowStatusFunction get_status;
-
-  /**
-   * Deserialize anchor string to data
-   */
-  GNUNET_ESCROW_AnchorStringToDataFunction anchor_string_to_data;
-
-  /**
-   * Serialize anchor data to string
-   */
-  GNUNET_ESCROW_AnchorDataToStringFunction anchor_data_to_string;
 
   /**
    * Cancel plugin operation

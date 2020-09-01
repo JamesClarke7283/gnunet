@@ -266,8 +266,9 @@ verify_plaintext_key_escrow (struct GNUNET_ESCROW_Handle *h,
   }
   pk = GNUNET_IDENTITY_ego_get_private_key (ego);
   pkString = GNUNET_CRYPTO_ecdsa_private_key_to_string (pk);
-  verificationResult = strcmp (pkString,
-                               (char *)&escrowAnchor[1]) == 0 ?
+  verificationResult = strncmp (pkString,
+                               (char *)&escrowAnchor[1],
+                               escrowAnchor->size) == 0 ?
     GNUNET_ESCROW_VALID : GNUNET_ESCROW_INVALID;
 
   w->verificationResult = verificationResult;
@@ -408,7 +409,7 @@ restore_plaintext_key_escrow (struct GNUNET_ESCROW_Handle *h,
   }
   if (GNUNET_OK !=
     GNUNET_CRYPTO_ecdsa_private_key_from_string ((char *)&anchor[1],
-                                                 strlen ((char *)&anchor[1]),
+                                                 anchor->size,
                                                  &pk))
   {
     w->ego = NULL;
@@ -441,41 +442,6 @@ plaintext_get_status (struct GNUNET_ESCROW_Handle *h,
                       struct GNUNET_IDENTITY_Ego *ego)
 {
   return ESCROW_get_escrow_status (h, ego);
-}
-
-
-/**
- * Deserialize an escrow anchor string into a GNUNET_ESCROW_Anchor struct
- * 
- * @param h the handle for the escrow component
- * @param anchorString the encoded escrow anchor string
- * 
- * @return the deserialized data packed into a GNUNET_ESCROW_Anchor struct,
- *         NULL if we failed to parse the string
- */
-struct GNUNET_ESCROW_Anchor *
-plaintext_anchor_string_to_data (struct GNUNET_ESCROW_Handle *h,
-                                 char *anchorString)
-{
-  return ESCROW_anchor_string_to_data (anchorString,
-                                       GNUNET_ESCROW_KEY_PLAINTEXT);
-}
-
-
-/**
- * Serialize an escrow anchor struct into a string
- * 
- * @param h the handle for the escrow component
- * @param escrowAnchor the escrow anchor struct
- * 
- * @return the encoded escrow anchor string
- */
-char *
-plaintext_anchor_data_to_string (struct GNUNET_ESCROW_Handle *h,
-                                 struct GNUNET_ESCROW_Anchor *escrowAnchor)
-{
-  return ESCROW_anchor_data_to_string (escrowAnchor,
-                                       GNUNET_ESCROW_KEY_PLAINTEXT);
 }
 
 
@@ -537,8 +503,6 @@ libgnunet_plugin_escrow_plaintext_init (void *cls)
   api->verify_key_escrow = &verify_plaintext_key_escrow;
   api->restore_key = &restore_plaintext_key_escrow;
   api->get_status = &plaintext_get_status;
-  api->anchor_string_to_data = &plaintext_anchor_string_to_data;
-  api->anchor_data_to_string = &plaintext_anchor_data_to_string;
   api->cancel_plugin_operation = &cancel_plaintext_operation;
 
   ph.state = ESCROW_PLUGIN_STATE_INIT;

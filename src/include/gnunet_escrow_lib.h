@@ -77,7 +77,7 @@ struct GNUNET_ESCROW_Anchor
   /**
    * The name of the ego that was put in escrow.
    */
-  char *egoName;
+  const char *egoName;
 
   /**
    * The size of the anchor data.
@@ -370,33 +370,48 @@ GNUNET_ESCROW_get_status (
  * Deserialize an escrow anchor string (e.g. from command line) into a
  * GNUNET_ESCROW_Anchor struct
  * 
- * @param h the handle for the escrow component
  * @param anchorString the encoded escrow anchor string
- * @param method the escrow method to use
  * 
  * @return the deserialized data packed into a GNUNET_ESCROW_Anchor struct,
  *         NULL if we failed to parse the string
  */
 struct GNUNET_ESCROW_Anchor *
 GNUNET_ESCROW_anchor_string_to_data (
-  struct GNUNET_ESCROW_Handle *h,
-  char *anchorString,
-  enum GNUNET_ESCROW_Key_Escrow_Method method);
+  const char *anchorString);
 
 
 /**
  * Serialize an escrow anchor (struct GNUNET_ESCROW_Anchor) into a string
  * 
- * @param h the handle for the escrow component
  * @param escrowAnchor the escrow anchor struct
- * @param method the escrow method to use
  * 
  * @return the encoded escrow anchor string
  */
 char *
-GNUNET_ESCROW_anchor_data_to_string (struct GNUNET_ESCROW_Handle *h,
-                                     struct GNUNET_ESCROW_Anchor *escrowAnchor,
-                                     enum GNUNET_ESCROW_Key_Escrow_Method method);
+GNUNET_ESCROW_anchor_data_to_string (
+  const struct GNUNET_ESCROW_Anchor *escrowAnchor);
+
+
+/**
+ * Convert a method name string to the respective enum number
+ * 
+ * @param methodString the method name string
+ * 
+ * @return the enum number
+ */
+enum GNUNET_ESCROW_Key_Escrow_Method
+GNUNET_ESCROW_method_string_to_number (const char *methodString);
+
+
+/**
+ * Convert a method enum number to the respective method string
+ * 
+ * @param method the method enum number
+ * 
+ * @return the method string
+ */
+const char *
+GNUNET_ESCROW_method_number_to_string (enum GNUNET_ESCROW_Key_Escrow_Method method);
 
 
 /**

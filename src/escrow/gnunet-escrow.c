@@ -209,9 +209,7 @@ put_cb (void *cls,
   }
   else
   {
-    anchorString = GNUNET_ESCROW_anchor_data_to_string (escrow_handle,
-                                                        escrowAnchor,
-                                                        method);
+    anchorString = GNUNET_ESCROW_anchor_data_to_string (escrowAnchor);
 
     fprintf (stdout, "Escrow finished! Please keep the following anchor "
              "in order to restore the key later!\n%s\n", anchorString);
@@ -458,13 +456,8 @@ run (void *cls,
   }
 
   /* determine method */
-  if (!strcmp (plaintext_string, method_name))
-    method = GNUNET_ESCROW_KEY_PLAINTEXT;
-  else if (!strcmp (gns_string, method_name))
-    method = GNUNET_ESCROW_KEY_GNS;
-  else if (!strcmp (anastasis_string, method_name))
-    method = GNUNET_ESCROW_KEY_ANASTASIS;
-  else
+  method = GNUNET_ESCROW_method_string_to_number (method_name);
+  if (GNUNET_ESCROW_KEY_NONE == method)
   {
     ret = 1;
     fprintf (stderr, _ ("unknown method name!\n"));
@@ -476,9 +469,7 @@ run (void *cls,
   if (NULL != anchor_string)
   {
     /* parse anchor_string according to method */
-    anchor = GNUNET_ESCROW_anchor_string_to_data (escrow_handle,
-                                                  anchor_string,
-                                                  method);
+    anchor = GNUNET_ESCROW_anchor_string_to_data (anchor_string);
     if (NULL == anchor)
     {
       ret = 1;

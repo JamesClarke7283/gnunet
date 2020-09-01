@@ -153,40 +153,6 @@ anastasis_get_status (struct GNUNET_ESCROW_Handle *h,
 
 
 /**
- * Deserialize an escrow anchor string into a GNUNET_ESCROW_Anchor struct
- * 
- * @param anchorString the encoded escrow anchor string
- * 
- * @return the deserialized data packed into a GNUNET_ESCROW_Anchor struct,
- *         NULL if we failed to parse the string
- */
-struct GNUNET_ESCROW_Anchor *
-anastasis_anchor_string_to_data (struct GNUNET_ESCROW_Handle *h,
-                                 char *anchorString)
-{
-  return ESCROW_anchor_string_to_data (anchorString,
-                                       GNUNET_ESCROW_KEY_ANASTASIS);
-}
-
-
-/**
- * Serialize an escrow anchor struct into a string
- * 
- * @param h the handle for the escrow component
- * @param escrowAnchor the escrow anchor struct
- * 
- * @return the encoded escrow anchor string
- */
-char *
-anastasis_anchor_data_to_string (struct GNUNET_ESCROW_Handle *h,
-                                 struct GNUNET_ESCROW_Anchor *escrowAnchor)
-{
-  return ESCROW_anchor_data_to_string (escrowAnchor,
-                                       GNUNET_ESCROW_KEY_ANASTASIS);
-}
-
-
-/**
  * Cancel an Anastasis plugin operation.
  * 
  * @param plugin_op_wrap the plugin operation wrapper containing the operation
@@ -227,7 +193,6 @@ libgnunet_plugin_escrow_anastasis_init (void *cls)
   api->verify_key_escrow = &verify_anastasis_key_escrow;
   api->restore_key = &restore_anastasis_key_escrow;
   api->get_status = &anastasis_get_status;
-  api->anchor_string_to_data = &anastasis_anchor_string_to_data;
   api->cancel_plugin_operation = &cancel_anastasis_operation;
 
   ph.state = ESCROW_PLUGIN_STATE_INIT;

@@ -1320,7 +1320,7 @@ get_user_secret_from_anchor (const struct GNUNET_ESCROW_Anchor *anchor)
 
 static void
 restore_private_key (struct ESCROW_PluginOperationWrapper *plugin_op_wrap,
-                     struct GNUNET_ESCROW_Anchor *escrowAnchor,
+                     struct GNUNET_ESCROW_Anchor *escrowAnchor, // TODO: use escrowAnchor??
                      PkContinuation cont,
                      void *cont_cls)
 {
@@ -1657,40 +1657,6 @@ gns_get_status (struct GNUNET_ESCROW_Handle *h,
 
 
 /**
- * Deserialize an escrow anchor string into a GNUNET_ESCROW_Anchor struct
- * 
- * @param anchorString the encoded escrow anchor string
- * 
- * @return the deserialized data packed into a GNUNET_ESCROW_Anchor struct,
- *         NULL if we failed to parse the string
- */
-struct GNUNET_ESCROW_Anchor *
-gns_anchor_string_to_data (struct GNUNET_ESCROW_Handle *h,
-                           char *anchorString)
-{
-  return ESCROW_anchor_string_to_data (anchorString,
-                                       GNUNET_ESCROW_KEY_GNS);
-}
-
-
-/**
- * Serialize an escrow anchor struct into a string
- * 
- * @param h the handle for the escrow component
- * @param escrowAnchor the escrow anchor struct
- * 
- * @return the encoded escrow anchor string
- */
-char *
-gns_anchor_data_to_string (struct GNUNET_ESCROW_Handle *h,
-                           struct GNUNET_ESCROW_Anchor *escrowAnchor)
-{
-  return ESCROW_anchor_data_to_string (escrowAnchor,
-                                       GNUNET_ESCROW_KEY_GNS);
-}
-
-
-/**
  * Cancel a GNS plugin operation.
  * 
  * @param plugin_op_wrap the plugin operation wrapper containing the operation
@@ -1742,8 +1708,6 @@ libgnunet_plugin_escrow_gns_init (void *cls)
   api->verify_key_escrow = &verify_gns_key_escrow;
   api->restore_key = &restore_gns_key_escrow;
   api->get_status = &gns_get_status;
-  api->anchor_string_to_data = &gns_anchor_string_to_data;
-  api->anchor_data_to_string = &gns_anchor_data_to_string;
   api->cancel_plugin_operation = &cancel_gns_operation;
 
   ph.state = ESCROW_PLUGIN_STATE_INIT;

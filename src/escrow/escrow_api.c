@@ -51,6 +51,30 @@ static int anastasis_initialized;
 
 
 /**
+ * Plaintext method string
+ */
+static const char *plaintext_string = "plaintext";
+
+
+/**
+ * GNS method string
+ */
+static const char *gns_string = "gns";
+
+
+/**
+ * Anastasis method string
+ */
+static const char *anastasis_string = "anastasis";
+
+
+/**
+ * None method string
+ */
+static const char *none_string = "INVALID-METHOD";
+
+
+/**
  * Pointer to the plaintext plugin API
  */
 static struct GNUNET_ESCROW_KeyPluginFunctions *plaintext_api;
@@ -414,43 +438,158 @@ GNUNET_ESCROW_get_status (struct GNUNET_ESCROW_Handle *h,
  * Deserialize an escrow anchor string (e.g. from command line) into a
  * GNUNET_ESCROW_Anchor struct
  * 
- * @param h the handle for the escrow component
  * @param anchorString the encoded escrow anchor string
- * @param method the escrow method to use
  * 
  * @return the deserialized data packed into a GNUNET_ESCROW_Anchor struct,
  *         NULL if we failed to parse the string
  */
 struct GNUNET_ESCROW_Anchor *
-GNUNET_ESCROW_anchor_string_to_data (struct GNUNET_ESCROW_Handle *h,
-                                     char *anchorString,
-                                     enum GNUNET_ESCROW_Key_Escrow_Method method)
+GNUNET_ESCROW_anchor_string_to_data (const char *anchorString)
 {
-  const struct GNUNET_ESCROW_KeyPluginFunctions *api;
+  struct GNUNET_ESCROW_Anchor *anchor;
+  uint32_t data_size;
+  char *anchorStringCopy, *ptr;
+  char *methodString, *egoNameString, *anchorDataString;
+  char delimiter[] = ":";
+  
+  anchorStringCopy = GNUNET_strdup (anchorString);
+  anchor = NULL;
 
-  api = init_plugin (h, method);
-  return api->anchor_string_to_data (h, anchorString);
+  /* parse and decode method */
+  ptr = strtok (anchorStringCopy, delimiter);
+  if (NULL == ptr)
+    goto END;
+  GNUNET_STRINGS_urldecode (ptr, strlen (ptr), &methodString);
+  /* parse and decode ego name */
+  ptr = strtok (NULL, delimiter);
+  if (NULL == ptr)
+    goto END;
+  GNUNET_STRINGS_urldecode (ptr, strlen (ptr), &egoNameString);
+  /* parse and decode anchor data */
+  ptr = strtok (NULL, delimiter);
+  if (NULL == ptr)
+    goto END;
+  GNUNET_STRINGS_urldecode (ptr, strlen (ptr), &anchorDataString);
+  /* check if string is over */
+  ptr = strtok (NULL, delimiter);
+  if (NULL != ptr)
+    goto END;
+
+  data_size = strlen (anchorDataString); // data is NOT null-terminated
+  anchor = GNUNET_malloc (sizeof (struct GNUNET_ESCROW_Anchor)
+                          + data_size
+                          + strlen (egoNameString) + 1);
+  anchor->size = data_size;
+  anchor->method = GNUNET_ESCROW_method_string_to_number (methodString);
+  
+  // ptr is now used to fill the anchor
+  ptr = (char *)&anchor[1];
+  strcpy (ptr, anchorDataString);
+  ptr += data_size;
+  anchor->egoName = ptr;
+  strcpy (ptr, egoNameString);
+
+  END:
+  /* free all non-NULL strings */
+  if (NULL != anchorStringCopy)
+    GNUNET_free (anchorStringCopy);
+  if (NULL != methodString)
+    GNUNET_free (methodString);
+  if (NULL != egoNameString)
+    GNUNET_free (egoNameString);
+  if (NULL != anchorDataString)
+    GNUNET_free (anchorDataString);
+
+  return anchor;
 }
 
 
 /**
  * Serialize an escrow anchor (struct GNUNET_ESCROW_Anchor) into a string
  * 
- * @param h the handle for the escrow component
  * @param escrowAnchor the escrow anchor struct
- * @param method the escrow method to use
  * 
  * @return the encoded escrow anchor string
  */
 char *
-GNUNET_ESCROW_anchor_data_to_string (struct GNUNET_ESCROW_Handle *h,
-                                     struct GNUNET_ESCROW_Anchor *escrowAnchor,
-                                     enum GNUNET_ESCROW_Key_Escrow_Method method)
+GNUNET_ESCROW_anchor_data_to_string (const struct GNUNET_ESCROW_Anchor *escrowAnchor)
 {
-  const struct GNUNET_ESCROW_KeyPluginFunctions *api;
+  char *anchorString, *ptr;
+  const char *methodString, *egoNameString, *anchorData;
+  char *methodStringEnc, *egoNameStringEnc, *anchorDataEnc;
 
-  api = init_plugin (h, method);
-  return api->anchor_data_to_string (h, escrowAnchor);
+  methodString = GNUNET_ESCROW_method_number_to_string (escrowAnchor->method);
+  GNUNET_STRINGS_urlencode (methodString, strlen (methodString), &methodStringEnc);
+  egoNameString = escrowAnchor->egoName;
+  GNUNET_STRINGS_urlencode (egoNameString, strlen (egoNameString), &egoNameStringEnc);
+  anchorData = (const char *)&escrowAnchor[1];
+  GNUNET_STRINGS_urlencode (anchorData, escrowAnchor->size, &anchorDataEnc);
+
+  anchorString = GNUNET_malloc (strlen (methodStringEnc) + 1
+                                + strlen (egoNameStringEnc) + 1
+                                + strlen (anchorDataEnc)
+                                + 1);
+
+  ptr = anchorString;
+  GNUNET_memcpy (ptr, methodStringEnc, strlen (methodStringEnc));
+  ptr += strlen (methodStringEnc);
+  GNUNET_free (methodStringEnc);
+  *(ptr++) = ':';
+  GNUNET_memcpy (ptr, egoNameStringEnc, strlen (egoNameStringEnc));
+  ptr += strlen (egoNameStringEnc);
+  GNUNET_free (egoNameStringEnc);
+  *(ptr++) = ':';
+  GNUNET_memcpy (ptr, anchorDataEnc, strlen (anchorDataEnc));
+  ptr += strlen (anchorDataEnc);
+  GNUNET_free (anchorDataEnc);
+  *(ptr++) = '\0';
+  
+  return anchorString;
+}
+
+
+/**
+ * Convert a method name string to the respective enum number
+ * 
+ * @param methodString the method name string
+ * 
+ * @return the enum number
+ */
+enum GNUNET_ESCROW_Key_Escrow_Method
+GNUNET_ESCROW_method_string_to_number (const char *methodString)
+{
+  if (!strcmp (plaintext_string, methodString))
+    return GNUNET_ESCROW_KEY_PLAINTEXT;
+  else if (!strcmp (gns_string, methodString))
+    return GNUNET_ESCROW_KEY_GNS;
+  else if (!strcmp (anastasis_string, methodString))
+    return GNUNET_ESCROW_KEY_ANASTASIS;
+  else
+    return GNUNET_ESCROW_KEY_NONE;
+}
+
+
+/**
+ * Convert a method enum number to the respective method string
+ * 
+ * @param method the method enum number
+ * 
+ * @return the method string
+ */
+const char *
+GNUNET_ESCROW_method_number_to_string (enum GNUNET_ESCROW_Key_Escrow_Method method)
+{
+  switch (method)
+  {
+    case GNUNET_ESCROW_KEY_PLAINTEXT:
+      return plaintext_string;
+    case GNUNET_ESCROW_KEY_GNS:
+      return gns_string;
+    case GNUNET_ESCROW_KEY_ANASTASIS:
+      return anastasis_string;
+    default:
+      return none_string;
+  }
 }
 
 
