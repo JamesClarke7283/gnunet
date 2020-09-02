@@ -437,6 +437,10 @@ GNUNET_ESCROW_get_status (struct GNUNET_ESCROW_Handle *h,
 /**
  * Deserialize an escrow anchor string (e.g. from command line) into a
  * GNUNET_ESCROW_Anchor struct
+ * The anchor string is expected to have the following form:
+ *    <method>:<egoName>:<anchorData>
+ * with <method>, <egoName> and <anchorData> being URL-encoded
+ * 
  * 
  * @param anchorString the encoded escrow anchor string
  * 
