@@ -874,7 +874,7 @@ create_escrow_identities (struct ESCROW_PluginOperationWrapper *plugin_op_wrap,
 {
   struct ESCROW_GnsPluginOperation *p_op;
   struct GNUNET_CRYPTO_EcdsaPrivateKey *curr_pk;
-  char *curr_name, *curr_pk_string;
+  char *curr_name;
   struct IdentityOperationEntry *curr_id_op;
   struct PkEntry *curr_pk_entry;
   int exists_ret;
@@ -887,13 +887,6 @@ create_escrow_identities (struct ESCROW_PluginOperationWrapper *plugin_op_wrap,
   {
     curr_pk = derive_private_key (name, p_op->userSecret, i);
     curr_name = get_escrow_id_name (name, i);
-
-    // TODO: REMOVE THIS LOGGING BEFORE PRODUCTIONAL USE!
-    curr_pk_string = GNUNET_CRYPTO_ecdsa_private_key_to_string (curr_pk);
-    GNUNET_log (GNUNET_ERROR_TYPE_DEBUG,
-                "derived private key: %s\n",
-                curr_pk_string);
-    GNUNET_free (curr_pk_string);
 
     // check if the escrow identity already exists
     exists_ret = escrow_id_exists (curr_name, curr_pk);
@@ -1327,7 +1320,7 @@ restore_private_key (struct ESCROW_PluginOperationWrapper *plugin_op_wrap,
   struct ESCROW_GnsPluginOperation *p_op;
   struct GNUNET_CRYPTO_EcdsaPrivateKey *curr_escrow_pk;
   struct GNUNET_CRYPTO_EcdsaPublicKey curr_escrow_pub;
-  char *label, *curr_escrow_pk_string;
+  char *label;
   struct GnsLookupRequestEntry *curr_gns_lr;
   struct GNUNET_TIME_Relative delay;
   struct TimeoutTaskEntry *curr_tt;
@@ -1349,13 +1342,6 @@ restore_private_key (struct ESCROW_PluginOperationWrapper *plugin_op_wrap,
   for (uint8_t i = 0; i < p_op->shares; i++)
   {
     curr_escrow_pk = derive_private_key (p_op->egoName, p_op->userSecret, i);
-
-    // TODO: REMOVE THIS LOGGING BEFORE PRODUCTIONAL USE!
-    curr_escrow_pk_string = GNUNET_CRYPTO_ecdsa_private_key_to_string (curr_escrow_pk);
-    GNUNET_log (GNUNET_ERROR_TYPE_DEBUG,
-                "derived private key: %s\n",
-                curr_escrow_pk_string);
-    GNUNET_free (curr_escrow_pk_string);
 
     curr_gns_lr = GNUNET_new (struct GnsLookupRequestEntry);
     curr_gns_lr->plugin_op_wrap = plugin_op_wrap;
