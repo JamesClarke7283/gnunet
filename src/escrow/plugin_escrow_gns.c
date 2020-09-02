@@ -1717,7 +1717,7 @@ libgnunet_plugin_escrow_gns_init (void *cls)
 void *
 libgnunet_plugin_escrow_gns_done (void *cls)
 {
-  struct GNUNET_RECLAIM_EscrowKeyPluginFunctions *api = cls;
+  struct GNUNET_ESCROW_KeyPluginFunctions *api = cls;
 
   GNUNET_free (api);
   GNUNET_IDENTITY_disconnect (identity_handle);
