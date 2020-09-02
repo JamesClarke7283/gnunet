@@ -99,8 +99,8 @@ static struct GNUNET_ESCROW_KeyPluginFunctions *anastasis_api;
  * 
  * @return pointer to the escrow plugin API
  */
-const struct GNUNET_ESCROW_KeyPluginFunctions *
-init_plugin (struct GNUNET_ESCROW_Handle *h,
+static const struct GNUNET_ESCROW_KeyPluginFunctions *
+init_plugin (const struct GNUNET_ESCROW_Handle *h,
              enum GNUNET_ESCROW_Key_Escrow_Method method)
 {
   switch (method)
@@ -228,7 +228,7 @@ GNUNET_ESCROW_fini (struct GNUNET_ESCROW_Handle *h)
 }
 
 
-void
+static void
 handle_start_escrow_result (void *cls)
 {
   struct ESCROW_Plugin_AnchorContinuationWrapper *w = cls;
@@ -328,7 +328,7 @@ handle_restore_key_result (void *cls)
  */
 struct GNUNET_ESCROW_Operation *
 GNUNET_ESCROW_get (struct GNUNET_ESCROW_Handle *h,
-                   struct GNUNET_ESCROW_Anchor *anchor,
+                   const struct GNUNET_ESCROW_Anchor *anchor,
                    enum GNUNET_ESCROW_Key_Escrow_Method method,
                    GNUNET_ESCROW_EgoContinuation cb,
                    void *cb_cls)
@@ -351,7 +351,7 @@ GNUNET_ESCROW_get (struct GNUNET_ESCROW_Handle *h,
 }
 
 
-void
+static void
 handle_verify_escrow_result (void *cls)
 {
   struct ESCROW_Plugin_VerifyContinuationWrapper *w = cls;
@@ -388,7 +388,7 @@ handle_verify_escrow_result (void *cls)
 struct GNUNET_ESCROW_Operation *
 GNUNET_ESCROW_verify (struct GNUNET_ESCROW_Handle *h,
                       struct GNUNET_IDENTITY_Ego *ego,
-                      struct GNUNET_ESCROW_Anchor *anchor,
+                      const struct GNUNET_ESCROW_Anchor *anchor,
                       enum GNUNET_ESCROW_Key_Escrow_Method method,
                       GNUNET_ESCROW_VerifyContinuation cb,
                       void *cb_cls)

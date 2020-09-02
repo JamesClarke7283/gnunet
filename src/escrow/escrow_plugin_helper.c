@@ -176,7 +176,7 @@ ESCROW_cleanup_ego_list (struct ESCROW_PluginHandle *ph)
 }
 
 
-char *
+static char *
 string_to_upper (const char *str)
 {
   char *str_upper;

@@ -86,14 +86,14 @@ static struct GNUNET_IDENTITY_Handle *identity_handle;
 /**
  * Handle for the plugin instance
  */
-struct ESCROW_PluginHandle ph;
+static struct ESCROW_PluginHandle ph;
 
 
 /**
  * Clean up a plugin operation, i.e. remove it from the list and
  * free the respective memory
  */
-void
+static void
 cleanup_plugin_operation (struct ESCROW_PluginOperationWrapper *plugin_op_wrap)
 {
   struct ESCROW_PlaintextPluginOperation *p_op;
@@ -114,7 +114,7 @@ cleanup_plugin_operation (struct ESCROW_PluginOperationWrapper *plugin_op_wrap)
 }
 
 
-void
+static void
 start_cont (void *cls)
 {
   struct ESCROW_PluginOperationWrapper *plugin_op_wrap = cls;
@@ -196,7 +196,7 @@ start_plaintext_key_escrow (struct GNUNET_ESCROW_Handle *h,
 }
 
 
-void
+static void
 verify_cont (void *cls)
 {
   struct ESCROW_PluginOperationWrapper *plugin_op_wrap = cls;
@@ -223,7 +223,7 @@ verify_cont (void *cls)
 struct ESCROW_PluginOperationWrapper *
 verify_plaintext_key_escrow (struct GNUNET_ESCROW_Handle *h,
                              struct GNUNET_IDENTITY_Ego *ego,
-                             struct GNUNET_ESCROW_Anchor *anchor,
+                             const struct GNUNET_ESCROW_Anchor *anchor,
                              ESCROW_Plugin_Continuation cb,
                              uint32_t op_id)
 {
@@ -277,7 +277,7 @@ verify_plaintext_key_escrow (struct GNUNET_ESCROW_Handle *h,
 }
 
 
-void
+static void
 ego_created (const struct GNUNET_IDENTITY_Ego *ego)
 {
   struct ESCROW_PluginOperationWrapper *curr;
@@ -348,7 +348,7 @@ create_finished (void *cls,
 }
 
 
-void
+static void
 handle_restore_error (void *cls)
 {
   struct ESCROW_PluginOperationWrapper *plugin_op_wrap = cls;
@@ -373,7 +373,7 @@ handle_restore_error (void *cls)
  */
 struct ESCROW_PluginOperationWrapper *
 restore_plaintext_key_escrow (struct GNUNET_ESCROW_Handle *h,
-                              struct GNUNET_ESCROW_Anchor *anchor,
+                              const struct GNUNET_ESCROW_Anchor *anchor,
                               ESCROW_Plugin_Continuation cb,
                               uint32_t op_id)
 {
@@ -478,7 +478,7 @@ cancel_plaintext_operation (struct ESCROW_PluginOperationWrapper *plugin_op_wrap
 /**
  * IdentityInitContinuation for the plaintext plugin
  */
-void
+static void
 plaintext_cont_init ()
 {
   return;

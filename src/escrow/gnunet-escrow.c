@@ -215,6 +215,7 @@ put_cb (void *cls,
              "in order to restore the key later!\n%s\n", anchorString);
   }
   cleanup_task = GNUNET_SCHEDULER_add_now (&do_cleanup, NULL);
+  GNUNET_free (anchor);
 }
 
 

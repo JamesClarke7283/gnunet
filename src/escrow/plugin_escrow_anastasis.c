@@ -39,7 +39,7 @@ static struct GNUNET_IDENTITY_Handle *identity_handle;
 /**
  * Handle for the plugin instance
  */
-struct ESCROW_PluginHandle ph;
+static struct ESCROW_PluginHandle ph;
 
 
 /**
@@ -88,7 +88,7 @@ start_anastasis_key_escrow (struct GNUNET_ESCROW_Handle *h,
 struct ESCROW_PluginOperationWrapper *
 verify_anastasis_key_escrow (struct GNUNET_ESCROW_Handle *h,
                              struct GNUNET_IDENTITY_Ego *ego,
-                             struct GNUNET_ESCROW_Anchor *anchor,
+                             const struct GNUNET_ESCROW_Anchor *anchor,
                              GNUNET_SCHEDULER_TaskCallback cb,
                              uint32_t op_id)
 {
@@ -118,7 +118,7 @@ verify_anastasis_key_escrow (struct GNUNET_ESCROW_Handle *h,
  */
 struct ESCROW_PluginOperationWrapper *
 restore_anastasis_key_escrow (struct GNUNET_ESCROW_Handle *h,
-                              struct GNUNET_ESCROW_Anchor *anchor,
+                              const struct GNUNET_ESCROW_Anchor *anchor,
                               GNUNET_SCHEDULER_TaskCallback cb,
                               uint32_t op_id)
 {
@@ -168,7 +168,7 @@ cancel_anastasis_operation (struct ESCROW_PluginOperationWrapper *plugin_op_wrap
 /**
  * IdentityInitContinuation for the Anastasis plugin
  */
-void
+static void
 anastasis_cont_init ()
 {
   return;

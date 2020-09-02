@@ -355,14 +355,14 @@ static struct GNUNET_IDENTITY_Handle *identity_handle;
 /**
  * Handle for the plugin instance
  */
-struct ESCROW_PluginHandle ph;
+static struct ESCROW_PluginHandle ph;
 
 
 /**
  * Clean up a plugin operation, i.e. remove it from the list and
  * free the respective memory
  */
-void
+static void
 cleanup_plugin_operation (struct ESCROW_PluginOperationWrapper *plugin_op_wrap)
 {
   struct ESCROW_GnsPluginOperation *p_op;
@@ -459,7 +459,7 @@ cleanup_plugin_operation (struct ESCROW_PluginOperationWrapper *plugin_op_wrap)
 }
 
 
-void
+static void
 start_cont (void *cls)
 {
   struct ESCROW_PluginOperationWrapper *plugin_op_wrap = cls;
@@ -472,7 +472,7 @@ start_cont (void *cls)
 }
 
 
-void
+static void
 verify_cont (void *cls)
 {
   struct ESCROW_PluginOperationWrapper *plugin_op_wrap = cls;
@@ -1109,7 +1109,7 @@ start_gns_key_escrow (struct GNUNET_ESCROW_Handle *h,
 
 
 static uint8_t
-count_keyshares (sss_Keyshare *keyshares, uint8_t n)
+count_keyshares (const sss_Keyshare *keyshares, uint8_t n)
 {
   uint8_t i, c;
   sss_Keyshare null_ks;
@@ -1313,7 +1313,7 @@ get_user_secret_from_anchor (const struct GNUNET_ESCROW_Anchor *anchor)
 
 static void
 restore_private_key (struct ESCROW_PluginOperationWrapper *plugin_op_wrap,
-                     struct GNUNET_ESCROW_Anchor *anchor,
+                     const struct GNUNET_ESCROW_Anchor *anchor,
                      PkContinuation cont,
                      void *cont_cls)
 {
@@ -1423,7 +1423,7 @@ verify_restored_pk (void *cls,
 struct ESCROW_PluginOperationWrapper *
 verify_gns_key_escrow (struct GNUNET_ESCROW_Handle *h,
                        struct GNUNET_IDENTITY_Ego *ego,
-                       struct GNUNET_ESCROW_Anchor *anchor,
+                       const struct GNUNET_ESCROW_Anchor *anchor,
                        GNUNET_SCHEDULER_TaskCallback cb,
                        uint32_t op_id)
 {
@@ -1577,7 +1577,7 @@ restore_ego_from_pk (void *cls,
  */
 struct ESCROW_PluginOperationWrapper *
 restore_gns_key_escrow (struct GNUNET_ESCROW_Handle *h,
-                        struct GNUNET_ESCROW_Anchor *anchor,
+                        const struct GNUNET_ESCROW_Anchor *anchor,
                         GNUNET_SCHEDULER_TaskCallback cb,
                         uint32_t op_id)
 {

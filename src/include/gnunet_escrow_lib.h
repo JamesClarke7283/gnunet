@@ -320,7 +320,7 @@ GNUNET_ESCROW_put (
 struct GNUNET_ESCROW_Operation *
 GNUNET_ESCROW_get (
   struct GNUNET_ESCROW_Handle *h,
-  struct GNUNET_ESCROW_Anchor *anchor,
+  const struct GNUNET_ESCROW_Anchor *anchor,
   enum GNUNET_ESCROW_Key_Escrow_Method method,
   GNUNET_ESCROW_EgoContinuation cb,
   void *cb_cls);
@@ -342,7 +342,7 @@ struct GNUNET_ESCROW_Operation *
 GNUNET_ESCROW_verify (
   struct GNUNET_ESCROW_Handle *h,
   struct GNUNET_IDENTITY_Ego *ego,
-  struct GNUNET_ESCROW_Anchor *anchor,
+  const struct GNUNET_ESCROW_Anchor *anchor,
   enum GNUNET_ESCROW_Key_Escrow_Method method,
   GNUNET_ESCROW_VerifyContinuation cb,
   void *cb_cls);
