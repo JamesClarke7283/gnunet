@@ -133,7 +133,7 @@ init_plugin (const struct GNUNET_ESCROW_Handle *h,
                                           (void *)h->cfg);
       return anastasis_api;
     case GNUNET_ESCROW_KEY_NONE: // error case
-      fprintf (stderr, "incorrect escrow method!");
+      fprintf (stderr, "incorrect escrow method!\n");
       return NULL;
   }
   // should never be reached
@@ -320,7 +320,6 @@ handle_restore_key_result (void *cls)
  * 
  * @param h the handle for the escrow component
  * @param anchor the escrow anchor returned by the GNUNET_ESCROW_put method
- * @param method the escrow method to use
  * @param cb function to call with the restored ego on completion
  * @param cb_cls closure for @a cb
  * 
@@ -329,7 +328,6 @@ handle_restore_key_result (void *cls)
 struct GNUNET_ESCROW_Operation *
 GNUNET_ESCROW_get (struct GNUNET_ESCROW_Handle *h,
                    const struct GNUNET_ESCROW_Anchor *anchor,
-                   enum GNUNET_ESCROW_Key_Escrow_Method method,
                    GNUNET_ESCROW_EgoContinuation cb,
                    void *cb_cls)
 {
@@ -339,12 +337,12 @@ GNUNET_ESCROW_get (struct GNUNET_ESCROW_Handle *h,
   op = GNUNET_new (struct GNUNET_ESCROW_Operation);
   op->h = h;
   op->id = get_op_id (h);
-  op->method = method;
+  op->method = anchor->method;
   op->cb_get = cb;
   op->cb_cls = cb_cls;
   GNUNET_CONTAINER_DLL_insert_tail (h->op_head, h->op_tail, op);
 
-  api = init_plugin (h, method);
+  api = init_plugin (h, anchor->method);
   op->plugin_op_wrap = api->restore_key (h, anchor, &handle_restore_key_result, op->id);
 
   return op;

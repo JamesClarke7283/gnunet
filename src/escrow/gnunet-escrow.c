@@ -311,7 +311,6 @@ start_process ()
   {
     escrow_op = GNUNET_ESCROW_get (escrow_handle,
                                    anchor,
-                                   method,
                                    &get_cb,
                                    NULL);
     return;
@@ -390,8 +389,8 @@ run (void *cls,
 
   ret = 0;
 
-  /* check if method is set */
-  if (NULL == method_name)
+  /* check if method is set (needed for all operations except GET) */
+  if (NULL == method_name && GNUNET_YES != get_flag)
   {
     ret = 1;
     fprintf (stderr, _ ("Escrow method (-m option) is missing\n"));
@@ -457,13 +456,18 @@ run (void *cls,
   }
 
   /* determine method */
-  method = GNUNET_ESCROW_method_string_to_number (method_name);
-  if (GNUNET_ESCROW_KEY_NONE == method)
+  if (NULL != method_name)
   {
-    ret = 1;
-    fprintf (stderr, _ ("unknown method name!\n"));
-    return;
+    method = GNUNET_ESCROW_method_string_to_number (method_name);
+    if (GNUNET_ESCROW_KEY_NONE == method)
+    {
+      ret = 1;
+      fprintf (stderr, _ ("unknown method name!\n"));
+      return;
+    }
   }
+  else // initialize to error value (should not be used in this case)
+    method = GNUNET_ESCROW_KEY_NONE;
 
   escrow_handle = GNUNET_ESCROW_init (c);
   

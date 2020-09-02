@@ -466,6 +466,7 @@ start_cont (void *cls)
   struct ESCROW_GnsPluginOperation *p_op;
   
   p_op = (struct ESCROW_GnsPluginOperation*)plugin_op_wrap->plugin_op;
+  p_op->sched_task = NULL;
   p_op->cont (p_op->anchor_wrap);
 
   cleanup_plugin_operation (plugin_op_wrap);
@@ -479,6 +480,7 @@ verify_cont (void *cls)
   struct ESCROW_GnsPluginOperation *p_op;
   
   p_op = (struct ESCROW_GnsPluginOperation*)plugin_op_wrap->plugin_op;
+  p_op->sched_task = NULL;
   p_op->cont (p_op->verify_wrap);
 
   cleanup_plugin_operation (plugin_op_wrap);
@@ -492,6 +494,7 @@ handle_restore_error (void *cls)
   struct ESCROW_GnsPluginOperation *p_op;
   
   p_op = (struct ESCROW_GnsPluginOperation*)plugin_op_wrap->plugin_op;
+  p_op->sched_task = NULL;
   p_op->cont (p_op->ego_wrap);
 
   cleanup_plugin_operation (plugin_op_wrap);
@@ -1456,10 +1459,17 @@ verify_gns_key_escrow (struct GNUNET_ESCROW_Handle *h,
     p_op->sched_task = GNUNET_SCHEDULER_add_now (&verify_cont, plugin_op_wrap);
     return plugin_op_wrap;
   }
+  if (GNUNET_ESCROW_KEY_GNS != anchor->method)
+  {
+    w->verificationResult = GNUNET_ESCROW_INVALID;
+    w->emsg = _ ("This anchor was not created using GNS escrow!\n");
+    p_op->sched_task = GNUNET_SCHEDULER_add_now (&verify_cont, plugin_op_wrap);
+    return plugin_op_wrap;
+  }
   if (0 != strcmp (ego->name, anchor->egoName))
   {
     w->verificationResult = GNUNET_ESCROW_INVALID;
-    w->emsg = _ ("This anchor was not created when putting ego that in escrow!\n");
+    w->emsg = _ ("This anchor was not created when putting that ego in escrow!\n");
     p_op->sched_task = GNUNET_SCHEDULER_add_now (&verify_cont, plugin_op_wrap);
     return plugin_op_wrap;
   }

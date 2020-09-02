@@ -311,7 +311,6 @@ GNUNET_ESCROW_put (
  * 
  * @param h the handle for the escrow component
  * @param anchor the escrow anchor returned by the GNUNET_ESCROW_put method
- * @param method the escrow method to use
  * @param cb function to call with the restored ego on completion
  * @param cb_cls closure for @a cb
  * 
@@ -321,7 +320,6 @@ struct GNUNET_ESCROW_Operation *
 GNUNET_ESCROW_get (
   struct GNUNET_ESCROW_Handle *h,
   const struct GNUNET_ESCROW_Anchor *anchor,
-  enum GNUNET_ESCROW_Key_Escrow_Method method,
   GNUNET_ESCROW_EgoContinuation cb,
   void *cb_cls);
 
