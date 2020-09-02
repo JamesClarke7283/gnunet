@@ -194,14 +194,14 @@ do_cleanup (void *cls)
 
 static void
 put_cb (void *cls,
-        struct GNUNET_ESCROW_Anchor *escrowAnchor,
+        struct GNUNET_ESCROW_Anchor *anchor,
         const char *emsg)
 {
   char *anchorString;
 
   escrow_op = NULL;
 
-  if (NULL == escrowAnchor)
+  if (NULL == anchor)
   {
     ret = 1;
     if (NULL != emsg)
@@ -209,7 +209,7 @@ put_cb (void *cls,
   }
   else
   {
-    anchorString = GNUNET_ESCROW_anchor_data_to_string (escrowAnchor);
+    anchorString = GNUNET_ESCROW_anchor_data_to_string (anchor);
 
     fprintf (stdout, "Escrow finished! Please keep the following anchor "
              "in order to restore the key later!\n%s\n", anchorString);

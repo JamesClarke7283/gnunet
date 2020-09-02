@@ -169,7 +169,7 @@ struct ESCROW_Plugin_AnchorContinuationWrapper
   /**
    * The escrow anchor
    */
-  struct GNUNET_ESCROW_Anchor *escrowAnchor;
+  struct GNUNET_ESCROW_Anchor *anchor;
 
   /**
    * The unique ID of the respective ESCROW_Operation

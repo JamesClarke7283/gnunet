@@ -171,7 +171,7 @@ start_plaintext_key_escrow (struct GNUNET_ESCROW_Handle *h,
 
   if (NULL == ego)
   {
-    w->escrowAnchor = NULL;
+    w->anchor = NULL;
     w->emsg = _ ("ESCROW_put was called with ego == NULL!\n");
     p_op->sched_task = GNUNET_SCHEDULER_add_now (&start_cont, plugin_op_wrap);
     return plugin_op_wrap;
@@ -186,7 +186,7 @@ start_plaintext_key_escrow (struct GNUNET_ESCROW_Handle *h,
   anchor->size = anchorDataSize;
   GNUNET_memcpy (&anchor[1], pkString, anchorDataSize);
 
-  w->escrowAnchor = anchor;
+  w->anchor = anchor;
 
   /* set the last escrow time */
   ESCROW_update_escrow_status (h, ego, "plaintext");
@@ -214,7 +214,7 @@ verify_cont (void *cls)
  * 
  * @param h the handle for the escrow component
  * @param ego the identity ego containing the private key
- * @param escrowAnchor the escrow anchor needed to restore the key
+ * @param anchor the escrow anchor needed to restore the key
  * @param cb the function called upon completion
  * @param op_id unique ID of the respective ESCROW_Operation
  * 
@@ -223,7 +223,7 @@ verify_cont (void *cls)
 struct ESCROW_PluginOperationWrapper *
 verify_plaintext_key_escrow (struct GNUNET_ESCROW_Handle *h,
                              struct GNUNET_IDENTITY_Ego *ego,
-                             struct GNUNET_ESCROW_Anchor *escrowAnchor,
+                             struct GNUNET_ESCROW_Anchor *anchor,
                              ESCROW_Plugin_Continuation cb,
                              uint32_t op_id)
 {
@@ -257,7 +257,7 @@ verify_plaintext_key_escrow (struct GNUNET_ESCROW_Handle *h,
     p_op->sched_task = GNUNET_SCHEDULER_add_now (&verify_cont, plugin_op_wrap);
     return plugin_op_wrap;
   }
-  if (0 != strcmp (ego->name, escrowAnchor->egoName))
+  if (0 != strcmp (ego->name, anchor->egoName))
   {
     w->verificationResult = GNUNET_ESCROW_INVALID;
     w->emsg = _ ("This anchor was not created when putting ego that in escrow!\n");
@@ -267,8 +267,8 @@ verify_plaintext_key_escrow (struct GNUNET_ESCROW_Handle *h,
   pk = GNUNET_IDENTITY_ego_get_private_key (ego);
   pkString = GNUNET_CRYPTO_ecdsa_private_key_to_string (pk);
   verificationResult = strncmp (pkString,
-                               (char *)&escrowAnchor[1],
-                               escrowAnchor->size) == 0 ?
+                               (char *)&anchor[1],
+                               anchor->size) == 0 ?
     GNUNET_ESCROW_VALID : GNUNET_ESCROW_INVALID;
 
   w->verificationResult = verificationResult;

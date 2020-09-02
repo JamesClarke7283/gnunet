@@ -532,7 +532,7 @@ keyshare_distribution_finished (void *cls)
   anchor->size = anchorDataSize;
   GNUNET_memcpy (&anchor[1], p_op->userSecret, anchorDataSize);
   
-  p_op->anchor_wrap->escrowAnchor = anchor;
+  p_op->anchor_wrap->anchor = anchor;
 
   /* set the last escrow time */
   ESCROW_update_escrow_status (p_op->h, p_op->ego, "gns");
@@ -566,7 +566,7 @@ keyshare_distributed (void *cls,
     GNUNET_log (GNUNET_ERROR_TYPE_ERROR,
                 "Failed to store keyshare %s\n",
                 emsg);
-    p_op->anchor_wrap->escrowAnchor = NULL;
+    p_op->anchor_wrap->anchor = NULL;
     p_op->anchor_wrap->emsg = _ ("Keyshare distribution failed!\n");
     p_op->cont (p_op->anchor_wrap);
     // this also cancels all running namestore operations
@@ -662,7 +662,7 @@ escrow_ids_finished (struct ESCROW_PluginOperationWrapper *plugin_op_wrap)
   keyshares = split_private_key (p_op);
   if (NULL == keyshares)
   {
-    p_op->anchor_wrap->escrowAnchor = NULL;
+    p_op->anchor_wrap->anchor = NULL;
     p_op->anchor_wrap->emsg = _ ("Failed to split the key!\n");
     start_cont (plugin_op_wrap);
     return;
@@ -671,7 +671,7 @@ escrow_ids_finished (struct ESCROW_PluginOperationWrapper *plugin_op_wrap)
   /* distribute the shares to the identities */
   if (GNUNET_OK != distribute_keyshares (plugin_op_wrap, keyshares))
   {
-    p_op->anchor_wrap->escrowAnchor = NULL;
+    p_op->anchor_wrap->anchor = NULL;
     p_op->anchor_wrap->emsg = _ ("Failed to distribute the keyshares!\n");
     start_cont (plugin_op_wrap);
     return;
@@ -708,7 +708,7 @@ escrow_id_created (void *cls,
     }
     else
       p_op->anchor_wrap->emsg = _ ("Failed to create ego!\n");
-    p_op->anchor_wrap->escrowAnchor = NULL;
+    p_op->anchor_wrap->anchor = NULL;
     p_op->cont (p_op->anchor_wrap);
     // this also cancels all running identity operations
     cleanup_plugin_operation (plugin_op_wrap);
@@ -851,7 +851,7 @@ handle_existing_wrong_ego_deletion (void *cls,
              "Identity create operation returned with error: %s\n",
              emsg);
     p_op->anchor_wrap->emsg = _ ("Identity delete of wrong existing ego failed!\n");
-    p_op->anchor_wrap->escrowAnchor = NULL;
+    p_op->anchor_wrap->anchor = NULL;
     p_op->cont (p_op->anchor_wrap);
     // this also cancels all running identity operations
     cleanup_plugin_operation (plugin_op_wrap);
@@ -960,7 +960,7 @@ handle_config_load_error (struct ESCROW_PluginOperationWrapper *plugin_op_wrap,
 
   if (NULL != p_op->anchor_wrap)
   {
-    p_op->anchor_wrap->escrowAnchor = NULL;
+    p_op->anchor_wrap->anchor = NULL;
     p_op->anchor_wrap->emsg = emsg;
     p_op->sched_task = GNUNET_SCHEDULER_add_now (&start_cont, plugin_op_wrap);
     return;
@@ -1090,7 +1090,7 @@ start_gns_key_escrow (struct GNUNET_ESCROW_Handle *h,
 
   if (NULL == ego || NULL == userSecret)
   {
-    w->escrowAnchor = NULL;
+    w->anchor = NULL;
     if (NULL == ego)
       w->emsg = _ ("ESCROW_put was called with ego == NULL\n");
     else if (NULL == userSecret)
@@ -1320,7 +1320,7 @@ get_user_secret_from_anchor (const struct GNUNET_ESCROW_Anchor *anchor)
 
 static void
 restore_private_key (struct ESCROW_PluginOperationWrapper *plugin_op_wrap,
-                     struct GNUNET_ESCROW_Anchor *escrowAnchor, // TODO: use escrowAnchor??
+                     struct GNUNET_ESCROW_Anchor *anchor, // TODO: use anchor??
                      PkContinuation cont,
                      void *cont_cls)
 {
@@ -1427,7 +1427,7 @@ verify_restored_pk (void *cls,
  * 
  * @param h the handle for the escrow component
  * @param ego the identity ego containing the private key
- * @param escrowAnchor the escrow anchor needed to restore the key
+ * @param anchor the escrow anchor needed to restore the key
  * @param cb the function called upon completion
  * @param op_id unique ID of the respective ESCROW_Operation
  * 
@@ -1436,7 +1436,7 @@ verify_restored_pk (void *cls,
 struct ESCROW_PluginOperationWrapper *
 verify_gns_key_escrow (struct GNUNET_ESCROW_Handle *h,
                        struct GNUNET_IDENTITY_Ego *ego,
-                       struct GNUNET_ESCROW_Anchor *escrowAnchor,
+                       struct GNUNET_ESCROW_Anchor *anchor,
                        GNUNET_SCHEDULER_TaskCallback cb,
                        uint32_t op_id)
 {
@@ -1456,7 +1456,7 @@ verify_gns_key_escrow (struct GNUNET_ESCROW_Handle *h,
   p_op->cont = cb;
   p_op->ego = ego;
   p_op->egoName = GNUNET_strdup (ego->name);
-  p_op->userSecret = get_user_secret_from_anchor (escrowAnchor);
+  p_op->userSecret = get_user_secret_from_anchor (anchor);
 
   w = GNUNET_new (struct ESCROW_Plugin_VerifyContinuationWrapper);
   w->h = h;
@@ -1470,7 +1470,7 @@ verify_gns_key_escrow (struct GNUNET_ESCROW_Handle *h,
     p_op->sched_task = GNUNET_SCHEDULER_add_now (&verify_cont, plugin_op_wrap);
     return plugin_op_wrap;
   }
-  if (0 != strcmp (ego->name, escrowAnchor->egoName))
+  if (0 != strcmp (ego->name, anchor->egoName))
   {
     w->verificationResult = GNUNET_ESCROW_INVALID;
     w->emsg = _ ("This anchor was not created when putting ego that in escrow!\n");
@@ -1483,7 +1483,7 @@ verify_gns_key_escrow (struct GNUNET_ESCROW_Handle *h,
     return plugin_op_wrap;
 
   restore_private_key (plugin_op_wrap,
-                       escrowAnchor,
+                       anchor,
                        &verify_restored_pk,
                        plugin_op_wrap);
 

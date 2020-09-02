@@ -125,12 +125,12 @@ typedef void (*GNUNET_ESCROW_EgoCreateContinuation) (
  * Continuation for PUT operations.
  * 
  * @param cls closure
- * @param escrowAnchor the escrow anchor needed to get the data back
+ * @param anchor the escrow anchor needed to get the data back
  * @param emsg error message, NULL on success
  */
 typedef void (*GNUNET_ESCROW_AnchorContinuation) (
   void *cls,
-  struct GNUNET_ESCROW_Anchor *escrowAnchor,
+  struct GNUNET_ESCROW_Anchor *anchor,
   const char *emsg);
 
 /**
@@ -331,7 +331,7 @@ GNUNET_ESCROW_get (
  * 
  * @param h the handle for the escrow component
  * @param ego the identity ego that was put into escrow
- * @param escrowAnchor the escrow anchor returned by the GNUNET_ESCROW_put method
+ * @param anchor the escrow anchor returned by the GNUNET_ESCROW_put method
  * @param method the escrow method to use
  * @param cb function to call with the verification result on completion
  * @param cb_cls closure for @a cb
@@ -342,7 +342,7 @@ struct GNUNET_ESCROW_Operation *
 GNUNET_ESCROW_verify (
   struct GNUNET_ESCROW_Handle *h,
   struct GNUNET_IDENTITY_Ego *ego,
-  struct GNUNET_ESCROW_Anchor *escrowAnchor,
+  struct GNUNET_ESCROW_Anchor *anchor,
   enum GNUNET_ESCROW_Key_Escrow_Method method,
   GNUNET_ESCROW_VerifyContinuation cb,
   void *cb_cls);
@@ -386,13 +386,13 @@ GNUNET_ESCROW_anchor_string_to_data (
 /**
  * Serialize an escrow anchor (struct GNUNET_ESCROW_Anchor) into a string
  * 
- * @param escrowAnchor the escrow anchor struct
+ * @param anchor the escrow anchor struct
  * 
  * @return the encoded escrow anchor string
  */
 char *
 GNUNET_ESCROW_anchor_data_to_string (
-  const struct GNUNET_ESCROW_Anchor *escrowAnchor);
+  const struct GNUNET_ESCROW_Anchor *anchor);
 
 
 /**

@@ -67,7 +67,7 @@ start_anastasis_key_escrow (struct GNUNET_ESCROW_Handle *h,
   w->op_id = op_id;
 
   // TODO: implement
-  w->escrowAnchor = NULL;
+  w->anchor = NULL;
   w->emsg = _ ("Anastasis escrow is not yet implemented!\n");
   GNUNET_SCHEDULER_add_now (cb, w);
   return NULL;
@@ -79,7 +79,7 @@ start_anastasis_key_escrow (struct GNUNET_ESCROW_Handle *h,
  * 
  * @param h the handle for the escrow component
  * @param ego the identity ego containing the private key
- * @param escrowAnchor the escrow anchor needed to restore the key
+ * @param anchor the escrow anchor needed to restore the key
  * @param cb the function called upon completion
  * @param op_id unique ID of the respective ESCROW_Operation
  * 
@@ -88,7 +88,7 @@ start_anastasis_key_escrow (struct GNUNET_ESCROW_Handle *h,
 struct ESCROW_PluginOperationWrapper *
 verify_anastasis_key_escrow (struct GNUNET_ESCROW_Handle *h,
                              struct GNUNET_IDENTITY_Ego *ego,
-                             struct GNUNET_ESCROW_Anchor *escrowAnchor,
+                             struct GNUNET_ESCROW_Anchor *anchor,
                              GNUNET_SCHEDULER_TaskCallback cb,
                              uint32_t op_id)
 {

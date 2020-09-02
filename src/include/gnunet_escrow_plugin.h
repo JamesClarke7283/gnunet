@@ -68,7 +68,7 @@ typedef struct ESCROW_PluginOperationWrapper *(*GNUNET_ESCROW_StartKeyEscrowFunc
  * 
  * @param h the handle for the escrow component
  * @param ego the identity ego containing the private key
- * @param escrowAnchor the escrow anchor needed to restore the key
+ * @param anchor the escrow anchor needed to restore the key
  * @param cb the function called upon completion
  * @param op_id unique ID of the respective ESCROW_Operation
  * 
@@ -77,7 +77,7 @@ typedef struct ESCROW_PluginOperationWrapper *(*GNUNET_ESCROW_StartKeyEscrowFunc
 typedef struct ESCROW_PluginOperationWrapper *(*GNUNET_ESCROW_VerifyKeyEscrowFunction) (
   struct GNUNET_ESCROW_Handle *h,
   struct GNUNET_IDENTITY_Ego *ego,
-  struct GNUNET_ESCROW_Anchor *escrowAnchor,
+  struct GNUNET_ESCROW_Anchor *anchor,
   GNUNET_SCHEDULER_TaskCallback cb,
   uint32_t op_id);
 

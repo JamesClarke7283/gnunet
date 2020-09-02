@@ -245,7 +245,7 @@ handle_start_escrow_result (void *cls)
   }
   GNUNET_CONTAINER_DLL_remove (w->h->op_head, w->h->op_tail, op);
   if (NULL != op->cb_put)
-    op->cb_put (op->cb_cls, w->escrowAnchor, w->emsg);
+    op->cb_put (op->cb_cls, w->anchor, w->emsg);
   GNUNET_free (op);
 }
 
@@ -378,7 +378,7 @@ handle_verify_escrow_result (void *cls)
  * 
  * @param h the handle for the escrow component
  * @param ego the identity ego that was put into escrow
- * @param escrowAnchor the escrow anchor returned by the GNUNET_ESCROW_put method
+ * @param anchor the escrow anchor returned by the GNUNET_ESCROW_put method
  * @param method the escrow method to use
  * @param cb function to call with the verification result on completion
  * @param cb_cls closure for @a cb
@@ -388,7 +388,7 @@ handle_verify_escrow_result (void *cls)
 struct GNUNET_ESCROW_Operation *
 GNUNET_ESCROW_verify (struct GNUNET_ESCROW_Handle *h,
                       struct GNUNET_IDENTITY_Ego *ego,
-                      struct GNUNET_ESCROW_Anchor *escrowAnchor,
+                      struct GNUNET_ESCROW_Anchor *anchor,
                       enum GNUNET_ESCROW_Key_Escrow_Method method,
                       GNUNET_ESCROW_VerifyContinuation cb,
                       void *cb_cls)
@@ -405,7 +405,7 @@ GNUNET_ESCROW_verify (struct GNUNET_ESCROW_Handle *h,
   GNUNET_CONTAINER_DLL_insert_tail (h->op_head, h->op_tail, op);
 
   api = init_plugin (h, method);
-  op->plugin_op_wrap = api->verify_key_escrow (h, ego, escrowAnchor, &handle_verify_escrow_result, op->id);
+  op->plugin_op_wrap = api->verify_key_escrow (h, ego, anchor, &handle_verify_escrow_result, op->id);
 
   return op;
 }
@@ -511,23 +511,23 @@ GNUNET_ESCROW_anchor_string_to_data (const char *anchorString)
 /**
  * Serialize an escrow anchor (struct GNUNET_ESCROW_Anchor) into a string
  * 
- * @param escrowAnchor the escrow anchor struct
+ * @param anchor the escrow anchor struct
  * 
  * @return the encoded escrow anchor string
  */
 char *
-GNUNET_ESCROW_anchor_data_to_string (const struct GNUNET_ESCROW_Anchor *escrowAnchor)
+GNUNET_ESCROW_anchor_data_to_string (const struct GNUNET_ESCROW_Anchor *anchor)
 {
   char *anchorString, *ptr;
   const char *methodString, *egoNameString, *anchorData;
   char *methodStringEnc, *egoNameStringEnc, *anchorDataEnc;
 
-  methodString = GNUNET_ESCROW_method_number_to_string (escrowAnchor->method);
+  methodString = GNUNET_ESCROW_method_number_to_string (anchor->method);
   GNUNET_STRINGS_urlencode (methodString, strlen (methodString), &methodStringEnc);
-  egoNameString = escrowAnchor->egoName;
+  egoNameString = anchor->egoName;
   GNUNET_STRINGS_urlencode (egoNameString, strlen (egoNameString), &egoNameStringEnc);
-  anchorData = (const char *)&escrowAnchor[1];
-  GNUNET_STRINGS_urlencode (anchorData, escrowAnchor->size, &anchorDataEnc);
+  anchorData = (const char *)&anchor[1];
+  GNUNET_STRINGS_urlencode (anchorData, anchor->size, &anchorDataEnc);
 
   anchorString = GNUNET_malloc (strlen (methodStringEnc) + 1
                                 + strlen (egoNameStringEnc) + 1
