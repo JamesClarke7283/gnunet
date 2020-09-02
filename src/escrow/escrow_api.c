@@ -559,6 +559,8 @@ GNUNET_ESCROW_anchor_data_to_string (const struct GNUNET_ESCROW_Anchor *anchor)
 enum GNUNET_ESCROW_Key_Escrow_Method
 GNUNET_ESCROW_method_string_to_number (const char *methodString)
 {
+  if (NULL == methodString)
+    return GNUNET_ESCROW_KEY_NONE;
   if (!strcmp (plaintext_string, methodString))
     return GNUNET_ESCROW_KEY_PLAINTEXT;
   else if (!strcmp (gns_string, methodString))

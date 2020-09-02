@@ -315,44 +315,39 @@ ESCROW_get_escrow_status (struct GNUNET_ESCROW_Handle *h,
                                                           "LAST_ESCROW_TIME",
                                                           &conf_last_escrow))
   {
-    // TODO: is that the behavior when the section is not defined?
+    /* failed to get value from config, set last escrow time to zero */
     status->last_escrow_time = GNUNET_TIME_absolute_get_zero_();
   }
+  else
+    status->last_escrow_time.abs_value_us = (uint64_t)conf_last_escrow;
+  
   if (GNUNET_OK != GNUNET_CONFIGURATION_get_value_number (h->cfg,
                                                           config_section,
                                                           "NEXT_RECOMMENDED_ESCROW_TIME",
                                                           &conf_next_escrow))
   {
-    // TODO: is that the behavior when the section is not defined?
+    /* failed to get value from config, set next recommended escrow to now */
     status->next_recommended_escrow_time = GNUNET_TIME_absolute_get ();
   }
-  status->last_method = GNUNET_ESCROW_KEY_NONE;
+  else
+    status->next_recommended_escrow_time.abs_value_us = (uint64_t)conf_next_escrow;
+
   if (GNUNET_OK != GNUNET_CONFIGURATION_get_value_string (h->cfg,
                                                           config_section,
                                                           "ESCROW_METHOD",
                                                           &conf_escrow_method))
   {
-    // TODO: error handling?
+    /* failed to get value from config, set last method to NONE */
+    status->last_method = GNUNET_ESCROW_KEY_NONE;
   }
-  status->last_escrow_time.abs_value_us = (uint64_t)conf_last_escrow;
-  status->next_recommended_escrow_time.abs_value_us = (uint64_t)conf_next_escrow;
-  if (NULL != conf_escrow_method)
-  {
-    if (NULL != conf_escrow_method && 0 == strcmp (conf_escrow_method, "plaintext"))
-      status->last_method = GNUNET_ESCROW_KEY_PLAINTEXT;
-    else if (0 == strcmp (conf_escrow_method, "gns"))
-      status->last_method = GNUNET_ESCROW_KEY_GNS;
-    else if (0 == strcmp (conf_escrow_method, "anastasis"))
-      status->last_method = GNUNET_ESCROW_KEY_ANASTASIS;
-    else
-      status->last_method = GNUNET_ESCROW_KEY_NONE;
-  }
+  else  
+    status->last_method = GNUNET_ESCROW_method_string_to_number (conf_escrow_method);
   
-
   GNUNET_free (config_section);
   GNUNET_free (pubkey_string);
   GNUNET_free (pub);
-  GNUNET_free (conf_escrow_method);
+  if (NULL != conf_escrow_method)
+    GNUNET_free (conf_escrow_method);
   
   return status;
 }
