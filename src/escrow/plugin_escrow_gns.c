@@ -1313,7 +1313,7 @@ get_user_secret_from_anchor (const struct GNUNET_ESCROW_Anchor *anchor)
 
 static void
 restore_private_key (struct ESCROW_PluginOperationWrapper *plugin_op_wrap,
-                     struct GNUNET_ESCROW_Anchor *anchor, // TODO: use anchor??
+                     struct GNUNET_ESCROW_Anchor *anchor,
                      PkContinuation cont,
                      void *cont_cls)
 {
@@ -1333,6 +1333,7 @@ restore_private_key (struct ESCROW_PluginOperationWrapper *plugin_op_wrap,
   p_op->restored_keyshares = GNUNET_malloc (sizeof (sss_Keyshare) * p_op->shares);
   // ensure that the array is initialized with 0, as this is needed for counting the shares
   memset (p_op->restored_keyshares, 0, sizeof (sss_Keyshare) * p_op->shares);
+  p_op->userSecret = get_user_secret_from_anchor (anchor);
 
   label = get_label (p_op->userSecret);
 
@@ -1341,7 +1342,7 @@ restore_private_key (struct ESCROW_PluginOperationWrapper *plugin_op_wrap,
 
   for (uint8_t i = 0; i < p_op->shares; i++)
   {
-    curr_escrow_pk = derive_private_key (p_op->egoName, p_op->userSecret, i);
+    curr_escrow_pk = derive_private_key (anchor->egoName, p_op->userSecret, i);
 
     curr_gns_lr = GNUNET_new (struct GnsLookupRequestEntry);
     curr_gns_lr->plugin_op_wrap = plugin_op_wrap;
@@ -1442,7 +1443,6 @@ verify_gns_key_escrow (struct GNUNET_ESCROW_Handle *h,
   p_op->cont = cb;
   p_op->ego = ego;
   p_op->egoName = GNUNET_strdup (ego->name);
-  p_op->userSecret = get_user_secret_from_anchor (anchor);
 
   w = GNUNET_new (struct ESCROW_Plugin_VerifyContinuationWrapper);
   w->h = h;
@@ -1597,7 +1597,6 @@ restore_gns_key_escrow (struct GNUNET_ESCROW_Handle *h,
   // set cont here (has to be scheduled from the IDENTITY service when it finished)
   p_op->cont = cb;
   p_op->egoName = GNUNET_strdup (anchor->egoName);
-  p_op->userSecret = get_user_secret_from_anchor (anchor);
 
   w = GNUNET_new (struct ESCROW_Plugin_EgoContinuationWrapper);
   w->h = h;
