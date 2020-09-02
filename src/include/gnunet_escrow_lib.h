@@ -225,11 +225,6 @@ struct GNUNET_ESCROW_Operation
   struct ESCROW_PluginOperationWrapper *plugin_op_wrap;
 
   /**
-   * The escrow anchor.
-   */
-  struct GNUNET_ESCROW_Anchor *escrow_anchor;
-
-  /**
    * The ego.
    */
   const struct GNUNET_IDENTITY_Ego *ego;

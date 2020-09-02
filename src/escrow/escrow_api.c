@@ -216,7 +216,6 @@ GNUNET_ESCROW_fini (struct GNUNET_ESCROW_Handle *h)
   /* clean up the operation DLL */
   while (NULL != (op = h->op_head))
   {
-    GNUNET_CONTAINER_DLL_remove (h->op_head, h->op_tail, op);
     GNUNET_ESCROW_cancel (op);
   }
 
@@ -596,8 +595,7 @@ GNUNET_ESCROW_method_number_to_string (enum GNUNET_ESCROW_Key_Escrow_Method meth
 
 
 /**
- * Cancel an escrow operation. Note that the operation MAY still
- * be executed; this merely cancels the continuation.
+ * Cancel an escrow operation.
  *
  * @param op operation to cancel
  */
@@ -605,13 +603,11 @@ void
 GNUNET_ESCROW_cancel (struct GNUNET_ESCROW_Operation *op)
 {
   const struct GNUNET_ESCROW_KeyPluginFunctions *api;
+  struct GNUNET_ESCROW_Handle *h = op->h;
 
   api = init_plugin (op->h, op->method);
   api->cancel_plugin_operation (op->plugin_op_wrap);
-  // TODO: check which callback is not NULL?
-  op->cb_put = NULL;
-  op->cb_verify = NULL;
-  op->cb_get = NULL;
+  GNUNET_CONTAINER_DLL_remove (h->op_head, h->op_tail, op);
   GNUNET_free (op);
 }
 
