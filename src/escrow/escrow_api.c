@@ -455,6 +455,7 @@ GNUNET_ESCROW_anchor_string_to_data (const char *anchorString)
   
   anchorStringCopy = GNUNET_strdup (anchorString);
   anchor = NULL;
+  methodString = egoNameString = anchorDataString = NULL;
 
   /* parse and decode method */
   ptr = strtok (anchorStringCopy, delimiter);

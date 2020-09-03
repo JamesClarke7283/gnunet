@@ -345,7 +345,7 @@ start_process ()
       case GNUNET_ESCROW_KEY_ANASTASIS:
         fprintf (stdout, "%s\n", anastasis_string);
         break;
-      default:
+      default: // GNUNET_ESCROW_KEY_NONE
         fprintf (stdout, "INVALID METHOD\n");
     }
     cleanup_task = GNUNET_SCHEDULER_add_now (&do_cleanup, NULL);
