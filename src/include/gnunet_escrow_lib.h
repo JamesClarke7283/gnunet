@@ -92,17 +92,18 @@ struct GNUNET_ESCROW_Anchor
 struct GNUNET_ESCROW_Status
 {
   /**
-   * The time of the last successful escrow.
+   * The time of the last successful verification.
    */
-  struct GNUNET_TIME_Absolute last_escrow_time;
+  struct GNUNET_TIME_Absolute last_successful_verification_time;
 
   /**
-   * The time of the next recommended escrow.
+   * The time of the next recommended verification.
    */
-  struct GNUNET_TIME_Absolute next_recommended_escrow_time;
+  struct GNUNET_TIME_Absolute next_recommended_verification_time;
 
   /**
-   * The used escrow method.
+   * The escrow method used for the last escrow of the identity,
+   * GNUNET_ESCROW_KEY_NONE if no escrow has been performed.
    */
   enum GNUNET_ESCROW_Key_Escrow_Method last_method;
 };

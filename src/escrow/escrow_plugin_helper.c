@@ -198,67 +198,10 @@ string_to_upper (const char *str)
 }
 
 
-/**
- * Update the status of an escrow in the configuration.
- * 
- * @param h handle for the escrow component
- * @param ego the ego of which the escrow status is updated
- * @param plugin_name the name of the used plugin
- * 
- * @return GNUNET_OK on success
- */
-int
-ESCROW_update_escrow_status (struct GNUNET_ESCROW_Handle *h,
-                             struct GNUNET_IDENTITY_Ego *ego,
-                             const char *plugin_name)
+static int
+write_config (struct GNUNET_ESCROW_Handle *h)
 {
-  struct GNUNET_CRYPTO_EcdsaPublicKey *pub;
-  char *config_section, *pubkey_string, *config_option, *plugin_name_upper;
-  struct GNUNET_TIME_Absolute now, next_escrow;
-  struct GNUNET_TIME_Relative escrow_interval;
   char *conf_file;
-
-  pub = GNUNET_new (struct GNUNET_CRYPTO_EcdsaPublicKey);
-  GNUNET_IDENTITY_ego_get_public_key (ego, pub);
-  pubkey_string = GNUNET_CRYPTO_ecdsa_public_key_to_string (pub);
-
-  // allocate enough space for "escrow-PUBKEY"
-  config_section = GNUNET_malloc (7 + strlen (pubkey_string) + 1);
-  sprintf (config_section, "escrow-%s", pubkey_string);
-
-  // allocate enough space for "<plugin_name>_INTERVAL"
-  config_option = GNUNET_malloc (strlen (plugin_name) + 9 + 1);
-  plugin_name_upper = string_to_upper (plugin_name);
-  sprintf (config_option, "%s_INTERVAL", plugin_name_upper);
-
-  now = GNUNET_TIME_absolute_get ();
-  GNUNET_CONFIGURATION_set_value_number (h->cfg,
-                                         config_section,
-                                         "LAST_ESCROW_TIME",
-                                         (unsigned long long)now.abs_value_us);
-  if (GNUNET_OK != GNUNET_CONFIGURATION_get_value_time (h->cfg,
-                                                        "escrow",
-                                                        config_option,
-                                                        &escrow_interval))
-  {
-    fprintf (stderr, "could not find config value for escrow interval\n");
-    GNUNET_free (pub);
-    GNUNET_free (config_section);
-    GNUNET_free (pubkey_string);
-    GNUNET_free (config_option);
-    GNUNET_free (plugin_name_upper);
-    return GNUNET_NO;
-  }
-  next_escrow = GNUNET_TIME_absolute_add (now, escrow_interval);
-  GNUNET_CONFIGURATION_set_value_number (h->cfg,
-                                         config_section,
-                                         "NEXT_RECOMMENDED_ESCROW_TIME",
-                                         (unsigned long long)next_escrow.abs_value_us);
-
-  GNUNET_CONFIGURATION_set_value_string (h->cfg,
-                                         config_section,
-                                         "ESCROW_METHOD",
-                                         plugin_name);
 
   GNUNET_assert (GNUNET_OK ==
                  GNUNET_CONFIGURATION_get_value_filename (h->cfg,
@@ -268,21 +211,130 @@ ESCROW_update_escrow_status (struct GNUNET_ESCROW_Handle *h,
   if (GNUNET_OK != GNUNET_CONFIGURATION_write (h->cfg, conf_file))
   {
     fprintf (stderr, "unable to write config file\n");
-    GNUNET_free (pub);
-    GNUNET_free (config_section);
-    GNUNET_free (pubkey_string);
-    GNUNET_free (config_option);
-    GNUNET_free (plugin_name_upper);
     GNUNET_free (conf_file);
     return GNUNET_NO;
   }
 
-  GNUNET_free (pub);
-  GNUNET_free (config_section);
+  GNUNET_free (conf_file);
+
+  return GNUNET_OK;
+}
+
+
+static char *
+get_config_section (struct GNUNET_IDENTITY_Ego *ego)
+{
+  struct GNUNET_CRYPTO_EcdsaPublicKey *pub;
+  char *config_section, *pubkey_string;
+
+  pub = GNUNET_new (struct GNUNET_CRYPTO_EcdsaPublicKey);
+  GNUNET_IDENTITY_ego_get_public_key (ego, pub);
+  pubkey_string = GNUNET_CRYPTO_ecdsa_public_key_to_string (pub);
+
+  // allocate enough space for "escrow-PUBKEY"
+  config_section = GNUNET_malloc (7 + strlen (pubkey_string) + 1);
+  sprintf (config_section, "escrow-%s", pubkey_string);
+
   GNUNET_free (pubkey_string);
+
+  return config_section;
+}
+
+
+/**
+ * Update the status of an escrow in the configuration after a successful
+ * VERIFY operation.
+ * 
+ * @param h handle for the escrow component
+ * @param ego the ego of which the escrow status is updated
+ * @param plugin_name the name of the used plugin
+ * 
+ * @return GNUNET_OK on success
+ */
+int
+ESCROW_update_escrow_status_verify (struct GNUNET_ESCROW_Handle *h,
+                                    struct GNUNET_IDENTITY_Ego *ego,
+                                    const char *plugin_name)
+{
+  char *config_section, *config_option, *plugin_name_upper;
+  struct GNUNET_TIME_Absolute now, next_verification;
+  struct GNUNET_TIME_Relative escrow_interval;
+
+  config_section = get_config_section (ego);
+
+  // allocate enough space for "<plugin_name>_INTERVAL"
+  config_option = GNUNET_malloc (strlen (plugin_name) + 9 + 1);
+  plugin_name_upper = string_to_upper (plugin_name);
+  sprintf (config_option, "%s_VERIFY_INTERVAL", plugin_name_upper);
+
+  now = GNUNET_TIME_absolute_get ();
+  GNUNET_CONFIGURATION_set_value_number (h->cfg,
+                                         config_section,
+                                         "LAST_SUCCESSFUL_VERIFICATION_TIME",
+                                         (unsigned long long)now.abs_value_us);
+  if (GNUNET_OK != GNUNET_CONFIGURATION_get_value_time (h->cfg,
+                                                        "escrow",
+                                                        config_option,
+                                                        &escrow_interval))
+  {
+    fprintf (stderr, "could not find config value for verification interval\n");
+    GNUNET_free (config_section);
+    GNUNET_free (config_option);
+    GNUNET_free (plugin_name_upper);
+    return GNUNET_NO;
+  }
+  next_verification = GNUNET_TIME_absolute_add (now, escrow_interval);
+  GNUNET_CONFIGURATION_set_value_number (h->cfg,
+                                         config_section,
+                                         "NEXT_RECOMMENDED_VERIFICATION_TIME",
+                                         (unsigned long long)next_verification.abs_value_us);
+
+  if (GNUNET_OK != write_config (h))
+  {
+    GNUNET_free (config_section);
+    GNUNET_free (config_option);
+    GNUNET_free (plugin_name_upper);
+    return GNUNET_NO;
+  }
+
+  GNUNET_free (config_section);
   GNUNET_free (config_option);
   GNUNET_free (plugin_name_upper);
-  GNUNET_free (conf_file);
+
+  return GNUNET_OK;
+}
+
+
+/**
+ * Update the status of an escrow in the configuration after a PUT operation.
+ * 
+ * @param h handle for the escrow component
+ * @param ego the ego of which the escrow status is updated
+ * @param plugin_name the name of the used plugin
+ * 
+ * @return GNUNET_OK on success
+ */
+int
+ESCROW_update_escrow_status_put (struct GNUNET_ESCROW_Handle *h,
+                                 struct GNUNET_IDENTITY_Ego *ego,
+                                 const char *plugin_name)
+{
+  char *config_section;
+
+  config_section = get_config_section (ego);
+
+  GNUNET_CONFIGURATION_set_value_string (h->cfg,
+                                         config_section,
+                                         "ESCROW_METHOD",
+                                         plugin_name);
+
+  if (GNUNET_OK != write_config (h))
+  {
+    GNUNET_free (config_section);
+    return GNUNET_NO;
+  }
+
+  GNUNET_free (config_section);
 
   return GNUNET_OK;
 }
@@ -301,7 +353,7 @@ ESCROW_get_escrow_status (struct GNUNET_ESCROW_Handle *h,
                           struct GNUNET_IDENTITY_Ego *ego)
 {
   struct GNUNET_ESCROW_Status *status;
-  unsigned long long conf_last_escrow, conf_next_escrow;
+  unsigned long long conf_last_verification, conf_next_verification;
   struct GNUNET_CRYPTO_EcdsaPublicKey *pub;
   char *config_section, *pubkey_string, *conf_escrow_method;
 
@@ -316,25 +368,25 @@ ESCROW_get_escrow_status (struct GNUNET_ESCROW_Handle *h,
   status = GNUNET_new (struct GNUNET_ESCROW_Status);
   if (GNUNET_OK != GNUNET_CONFIGURATION_get_value_number (h->cfg,
                                                           config_section,
-                                                          "LAST_ESCROW_TIME",
-                                                          &conf_last_escrow))
+                                                          "LAST_SUCCESSFUL_VERIFICATION_TIME",
+                                                          &conf_last_verification))
   {
-    /* failed to get value from config, set last escrow time to zero */
-    status->last_escrow_time = GNUNET_TIME_absolute_get_zero_();
+    /* failed to get value from config, set last verification time to zero */
+    status->last_successful_verification_time = GNUNET_TIME_absolute_get_zero_();
   }
   else
-    status->last_escrow_time.abs_value_us = (uint64_t)conf_last_escrow;
+    status->last_successful_verification_time.abs_value_us = (uint64_t)conf_last_verification;
   
   if (GNUNET_OK != GNUNET_CONFIGURATION_get_value_number (h->cfg,
                                                           config_section,
-                                                          "NEXT_RECOMMENDED_ESCROW_TIME",
-                                                          &conf_next_escrow))
+                                                          "NEXT_RECOMMENDED_VERIFICATION_TIME",
+                                                          &conf_next_verification))
   {
-    /* failed to get value from config, set next recommended escrow to now */
-    status->next_recommended_escrow_time = GNUNET_TIME_absolute_get ();
+    /* failed to get value from config, set next recommended verification to now */
+    status->next_recommended_verification_time = GNUNET_TIME_absolute_get ();
   }
   else
-    status->next_recommended_escrow_time.abs_value_us = (uint64_t)conf_next_escrow;
+    status->next_recommended_verification_time.abs_value_us = (uint64_t)conf_next_verification;
 
   if (GNUNET_OK != GNUNET_CONFIGURATION_get_value_string (h->cfg,
                                                           config_section,

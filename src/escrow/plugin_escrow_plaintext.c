@@ -189,8 +189,8 @@ start_plaintext_key_escrow (struct GNUNET_ESCROW_Handle *h,
 
   w->anchor = anchor;
 
-  /* set the last escrow time */
-  ESCROW_update_escrow_status (h, ego, "plaintext");
+  /* update escrow status, i.e. set the last escrow method */
+  ESCROW_update_escrow_status_put (h, ego, "plaintext");
 
   p_op->sched_task = GNUNET_SCHEDULER_add_now (&start_cont, plugin_op_wrap);
   return plugin_op_wrap;
@@ -279,6 +279,10 @@ verify_plaintext_key_escrow (struct GNUNET_ESCROW_Handle *h,
                                (char *)&anchor[1],
                                anchor->size) == 0 ?
     GNUNET_ESCROW_VALID : GNUNET_ESCROW_INVALID;
+
+  /* update the escrow status if valid */
+  if (GNUNET_ESCROW_VALID == verificationResult)
+    ESCROW_update_escrow_status_verify (h, ego, "plaintext");
 
   w->verificationResult = verificationResult;
   p_op->sched_task = GNUNET_SCHEDULER_add_now (&verify_cont, plugin_op_wrap);

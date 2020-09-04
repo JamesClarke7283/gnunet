@@ -542,8 +542,8 @@ keyshare_distribution_finished (void *cls)
   
   p_op->anchor_wrap->anchor = anchor;
 
-  /* set the last escrow time */
-  ESCROW_update_escrow_status (p_op->h, p_op->ego, "gns");
+  /* update escrow status, i.e. set the last escrow method */
+  ESCROW_update_escrow_status_put (p_op->h, p_op->ego, "gns");
 
   /* call the continuation */
   start_cont (plugin_op_wrap);
@@ -1421,6 +1421,10 @@ verify_restored_pk (void *cls,
   if (GNUNET_ESCROW_VALID == verificationResult &&
       count_keyshares (p_op->restored_keyshares, p_op->shares) < p_op->shares)
     verificationResult = GNUNET_ESCROW_SHARES_MISSING;
+
+  /* update the escrow status if valid */
+  if (GNUNET_ESCROW_VALID == verificationResult)
+    ESCROW_update_escrow_status_verify (p_op->h, p_op->ego, "gns");
 
   p_op->verify_wrap->verificationResult = verificationResult;
   verify_cont (plugin_op_wrap);

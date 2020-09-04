@@ -329,10 +329,10 @@ start_process ()
                                               ego,
                                               method);
     // TODO: formatting/interpretation
-    fprintf (stdout, "Last escrow:\t\t\t%s\n",
-             GNUNET_STRINGS_absolute_time_to_string (escrow_status->last_escrow_time));
-    fprintf (stdout, "Next recommended escrow:\t%s\n",
-             GNUNET_STRINGS_absolute_time_to_string (escrow_status->next_recommended_escrow_time));
+    fprintf (stdout, "Last successful verification:\t%s\n",
+             GNUNET_STRINGS_absolute_time_to_string (escrow_status->last_successful_verification_time));
+    fprintf (stdout, "Next recommended verification:\t%s\n",
+             GNUNET_STRINGS_absolute_time_to_string (escrow_status->next_recommended_verification_time));
     fprintf (stdout, "Last method:\t\t\t");
     switch (escrow_status->last_method)
     {

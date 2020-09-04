@@ -82,7 +82,7 @@ ESCROW_cleanup_ego_list (struct ESCROW_PluginHandle *ph);
 
 
 /**
- * Update the status of an escrow in the configuration.
+ * Update the status of an escrow in the configuration after a VERIFY operation.
  * 
  * @param h handle for the escrow component
  * @param ego the ego of which the escrow status is updated
@@ -91,9 +91,25 @@ ESCROW_cleanup_ego_list (struct ESCROW_PluginHandle *ph);
  * @return GNUNET_OK on success
  */
 int
-ESCROW_update_escrow_status (struct GNUNET_ESCROW_Handle *h,
-                             struct GNUNET_IDENTITY_Ego *ego,
-                             const char *plugin_name);
+ESCROW_update_escrow_status_verify (struct GNUNET_ESCROW_Handle *h,
+                                    struct GNUNET_IDENTITY_Ego *ego,
+                                    const char *plugin_name);
+
+
+/**
+ * Update the status of an escrow in the configuration after a PUT operation.
+ * 
+ * @param h handle for the escrow component
+ * @param ego the ego of which the escrow status is updated
+ * @param plugin_name the name of the used plugin
+ * 
+ * @return GNUNET_OK on success
+ */
+int
+ESCROW_update_escrow_status_put (struct GNUNET_ESCROW_Handle *h,
+                                 struct GNUNET_IDENTITY_Ego *ego,
+                                 const char *plugin_name);
+
 
 /**
  * Get the status of an escrow from the configuration.
