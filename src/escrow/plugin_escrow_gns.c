@@ -257,6 +257,11 @@ struct ESCROW_GnsPluginOperation
   uint8_t share_threshold;
 
   /**
+   * Share expiration time
+   */
+  struct GNUNET_TIME_Relative share_expiration_time;
+
+  /**
    * Continuation to be called with the restored private key
    */
   PkContinuation restore_pk_cont;
@@ -630,8 +635,7 @@ distribute_keyshares (struct ESCROW_PluginOperationWrapper *plugin_op_wrap,
     curr_rd[0].data = keyshares[curr_pk->i];
     curr_rd[0].record_type = GNUNET_GNSRECORD_TYPE_ESCROW_KEYSHARE;
     curr_rd[0].flags = GNUNET_GNSRECORD_RF_RELATIVE_EXPIRATION;
-    // TODO: config param?
-    curr_rd[0].expiration_time = 30 * 24 * GNUNET_TIME_relative_get_hour_().rel_value_us;
+    curr_rd[0].expiration_time = p_op->share_expiration_time.rel_value_us;
 
     curr_ns_qe->plugin_op_wrap = plugin_op_wrap;
     curr_ns_qe->ns_qe = GNUNET_NAMESTORE_records_store (ns_h,
@@ -985,6 +989,7 @@ load_keyshare_config (struct ESCROW_PluginOperationWrapper *plugin_op_wrap)
 {
   struct ESCROW_GnsPluginOperation *p_op;
   unsigned long long shares, share_threshold;
+  struct GNUNET_TIME_Relative share_expiration_time;
 
   p_op = (struct ESCROW_GnsPluginOperation *)plugin_op_wrap->plugin_op;
 
@@ -994,7 +999,7 @@ load_keyshare_config (struct ESCROW_PluginOperationWrapper *plugin_op_wrap)
                                                           &shares))
   {
     handle_config_load_error (plugin_op_wrap,
-                              "Number of shares not specified in config!");
+                              "Number of shares not specified in config!\n");
     return GNUNET_SYSERR;
   }
   if (GNUNET_OK != GNUNET_CONFIGURATION_get_value_number (p_op->h->cfg,
@@ -1003,11 +1008,21 @@ load_keyshare_config (struct ESCROW_PluginOperationWrapper *plugin_op_wrap)
                                                           &share_threshold))
   {
     handle_config_load_error (plugin_op_wrap,
-                              "Share threshold not specified in config");
+                              "Share threshold not specified in config\n");
+    return GNUNET_SYSERR;
+  }
+  if (GNUNET_OK != GNUNET_CONFIGURATION_get_value_time (p_op->h->cfg,
+                                                        "escrow",
+                                                        "gns_share_expiration_time",
+                                                        &share_expiration_time))
+  {
+    handle_config_load_error (plugin_op_wrap,
+                              "Share expiration time not specified in config\n");
     return GNUNET_SYSERR;
   }
   p_op->shares = (uint8_t)shares;
   p_op->share_threshold = (uint8_t)share_threshold;
+  p_op->share_expiration_time.rel_value_us = share_expiration_time.rel_value_us;
 
   return GNUNET_OK;
 }
