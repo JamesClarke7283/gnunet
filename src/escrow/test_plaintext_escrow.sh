@@ -35,7 +35,7 @@ then
 	exit 1
 fi
 gnunet-identity -D testego -c test_escrow.conf
-gnunet-escrow -m plaintext -G -a $ANCHOR -c test_escrow.conf
+gnunet-escrow -G -a $ANCHOR -c test_escrow.conf
 if test $? != 0
 then
 	echo "Plaintext restore failed!"
