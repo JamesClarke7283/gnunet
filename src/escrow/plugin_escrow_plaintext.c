@@ -540,6 +540,8 @@ libgnunet_plugin_escrow_plaintext_done (void *cls)
 {
   struct GNUNET_ESCROW_KeyPluginFunctions *api = cls;
 
+  ph.state = ESCROW_PLUGIN_STATE_CLEANUP;
+
   GNUNET_free (api);
   GNUNET_IDENTITY_disconnect (identity_handle);
   ESCROW_cleanup_ego_list (&ph);

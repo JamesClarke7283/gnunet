@@ -41,6 +41,11 @@
  */
 #define ESCROW_PLUGIN_STATE_POST_INIT 1
 
+/**
+ * State while cleaning up
+ */
+#define ESCROW_PLUGIN_STATE_CLEANUP 2
+
 
 /**
  * The ego list

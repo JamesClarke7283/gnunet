@@ -75,7 +75,10 @@ ESCROW_list_ego (void *cls,
   struct EgoEntry *ego_entry;
   struct GNUNET_CRYPTO_EcdsaPublicKey pk;
 
-  // TODO: error when this method is called at cleanup if init is not yet finished
+  /* don't add/change/delete egos when we are already cleaning up */
+  if (ESCROW_PLUGIN_STATE_CLEANUP == ph->state)
+    return;
+
   if ((NULL == ego) && (ESCROW_PLUGIN_STATE_INIT == ph->state))
   {
     ph->state = ESCROW_PLUGIN_STATE_POST_INIT;
@@ -109,8 +112,9 @@ ESCROW_list_ego (void *cls,
         GNUNET_free (ego_entry->identifier);
         ego_entry->identifier = GNUNET_strdup (identifier);
         /* TODO: this handles an edge case when the user restores an ego
-           that already exists. In that case, @param ego is the same for the
-           new as for the existing ego and this method thinks it is a rename. */
+           that already exists, i.e. with the same private key. In that case,
+           @param ego is the same for the new as for the existing ego and this
+           method thinks it is a rename. */
         if (NULL != ph->ego_create_cont)
           ph->ego_create_cont (ego);
         break;
