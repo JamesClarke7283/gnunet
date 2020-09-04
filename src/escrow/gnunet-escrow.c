@@ -36,21 +36,6 @@
 static int ret;
 
 /**
- * Plaintext method string
- */
-static const char *plaintext_string = "plaintext";
-
-/**
- * GNS method string
- */
-static const char *gns_string = "gns";
-
-/**
- * Anastasis method string
- */
-static const char *anastasis_string = "anastasis";
-
-/**
  * -P option
  */
 static char *put_ego;
@@ -328,26 +313,26 @@ start_process ()
     escrow_status = GNUNET_ESCROW_get_status (escrow_handle,
                                               ego,
                                               method);
-    // TODO: formatting/interpretation
-    fprintf (stdout, "Last successful verification:\t%s\n",
-             GNUNET_STRINGS_absolute_time_to_string (escrow_status->last_successful_verification_time));
-    fprintf (stdout, "Next recommended verification:\t%s\n",
-             GNUNET_STRINGS_absolute_time_to_string (escrow_status->next_recommended_verification_time));
-    fprintf (stdout, "Last method:\t\t\t");
-    switch (escrow_status->last_method)
+
+    if (GNUNET_ESCROW_KEY_NONE == escrow_status->last_method)
+      fprintf (stdout, "No escrow has been performed for identity %s!\n", ego->name);
+    else
     {
-      case GNUNET_ESCROW_KEY_PLAINTEXT:
-        fprintf (stdout, "%s\n", plaintext_string);
-        break;
-      case GNUNET_ESCROW_KEY_GNS:
-        fprintf (stdout, "%s\n", gns_string);
-        break;
-      case GNUNET_ESCROW_KEY_ANASTASIS:
-        fprintf (stdout, "%s\n", anastasis_string);
-        break;
-      default: // GNUNET_ESCROW_KEY_NONE
-        fprintf (stdout, "INVALID METHOD\n");
+      fprintf (stdout, "Escrow STATUS information for identity %s\n", ego->name);
+      fprintf (stdout, "=======================================================\n");
+      if (0 == escrow_status->last_successful_verification_time.abs_value_us)
+        fprintf (stdout, "No successful verification! Please VERIFY now.\n");
+      else
+      {
+        fprintf (stdout, "Last successful verification:\t%s\n",
+                 GNUNET_STRINGS_absolute_time_to_string (escrow_status->last_successful_verification_time));
+        fprintf (stdout, "Next recommended verification:\t%s\n",
+                 GNUNET_STRINGS_absolute_time_to_string (escrow_status->next_recommended_verification_time));
+      }
+      fprintf (stdout, "Last method:\t\t\t%s\n",
+               GNUNET_ESCROW_method_number_to_string (escrow_status->last_method));
     }
+
     cleanup_task = GNUNET_SCHEDULER_add_now (&do_cleanup, NULL);
     return;
   }
