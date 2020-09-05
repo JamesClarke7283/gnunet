@@ -262,8 +262,8 @@ ESCROW_update_escrow_status_verify (struct GNUNET_ESCROW_Handle *h,
 
   config_section = get_config_section (ego);
 
-  // allocate enough space for "<plugin_name>_INTERVAL"
-  config_option = GNUNET_malloc (strlen (plugin_name) + 9 + 1);
+  // allocate enough space for "<plugin_name>_VERIFY_INTERVAL"
+  config_option = GNUNET_malloc (strlen (plugin_name) + 16 + 1);
   plugin_name_upper = string_to_upper (plugin_name);
   sprintf (config_option, "%s_VERIFY_INTERVAL", plugin_name_upper);
 
@@ -354,16 +354,9 @@ ESCROW_get_escrow_status (struct GNUNET_ESCROW_Handle *h,
 {
   struct GNUNET_ESCROW_Status *status;
   unsigned long long conf_last_verification, conf_next_verification;
-  struct GNUNET_CRYPTO_EcdsaPublicKey *pub;
-  char *config_section, *pubkey_string, *conf_escrow_method;
+  char *config_section, *conf_escrow_method;
 
-  pub = GNUNET_new (struct GNUNET_CRYPTO_EcdsaPublicKey);
-  GNUNET_IDENTITY_ego_get_public_key (ego, pub);
-  pubkey_string = GNUNET_CRYPTO_ecdsa_public_key_to_string (pub);
-
-  // allocate enough space for "escrow-PUBKEY"
-  config_section = GNUNET_malloc (7 + strlen (pubkey_string) + 1);
-  sprintf (config_section, "escrow-%s", pubkey_string);
+  config_section = get_config_section (ego);
   
   status = GNUNET_new (struct GNUNET_ESCROW_Status);
   if (GNUNET_OK != GNUNET_CONFIGURATION_get_value_number (h->cfg,
@@ -400,8 +393,6 @@ ESCROW_get_escrow_status (struct GNUNET_ESCROW_Handle *h,
     status->last_method = GNUNET_ESCROW_method_string_to_number (conf_escrow_method);
   
   GNUNET_free (config_section);
-  GNUNET_free (pubkey_string);
-  GNUNET_free (pub);
   if (NULL != conf_escrow_method)
     GNUNET_free (conf_escrow_method);
   
