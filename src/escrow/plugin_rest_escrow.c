@@ -1140,8 +1140,8 @@ rest_process_request (struct GNUNET_REST_RequestHandle *rest_handle,
   struct RequestHandle *handle = GNUNET_new (struct RequestHandle);
   struct GNUNET_REST_RequestHandlerError err;
   static const struct GNUNET_REST_RequestHandler handlers[] =
-  { { MHD_HTTP_METHOD_GET, GNUNET_REST_API_NS_ESCROW_VERIFY, &verify_escrow },
-    { MHD_HTTP_METHOD_GET, GNUNET_REST_API_NS_ESCROW_STATUS, &get_escrow_status },
+  { { MHD_HTTP_METHOD_GET, GNUNET_REST_API_NS_ESCROW_STATUS, &get_escrow_status },
+    { MHD_HTTP_METHOD_POST, GNUNET_REST_API_NS_ESCROW_VERIFY, &verify_escrow },
     { MHD_HTTP_METHOD_POST, GNUNET_REST_API_NS_ESCROW_GET, &get_escrowed_identity },
     { MHD_HTTP_METHOD_POST, GNUNET_REST_API_NS_ESCROW_PUT, &escrow_identity },
     { MHD_HTTP_METHOD_OPTIONS, GNUNET_REST_API_NS_ESCROW, &options_cont },
