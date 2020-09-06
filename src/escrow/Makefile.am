@@ -26,10 +26,25 @@ plugin_LTLIBRARIES = \
   libgnunet_plugin_escrow_plaintext.la \
   libgnunet_plugin_escrow_gns.la \
   libgnunet_plugin_escrow_anastasis.la \
-  libgnunet_plugin_gnsrecord_escrow.la
+  libgnunet_plugin_gnsrecord_escrow.la \
+  libgnunet_plugin_rest_escrow.la
 
 bin_PROGRAMS = \
  gnunet-escrow
+
+
+libgnunet_plugin_rest_escrow_la_SOURCES = \
+  plugin_rest_escrow.c
+libgnunet_plugin_rest_escrow_la_LIBADD = \
+  libgnunetescrow.la \
+  $(top_builddir)/src/identity/libgnunetidentity.la \
+  $(top_builddir)/src/rest/libgnunetrest.la \
+  $(top_builddir)/src/util/libgnunetutil.la $(XLIBS) \
+  $(LTLIBINTL) -ljansson $(MHD_LIBS)
+libgnunet_plugin_rest_escrow_la_LDFLAGS = \
+  $(GN_PLUGIN_LDFLAGS)
+libgnunet_plugin_rest_escrow_la_CFLAGS = $(MHD_CFLAGS) $(AM_CFLAGS)
+
 
 libgnunetescrow_la_SOURCES = \
  escrow_api.c \

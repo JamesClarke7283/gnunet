@@ -291,7 +291,7 @@ verify_plaintext_key_escrow (struct GNUNET_ESCROW_Handle *h,
 
 
 static void
-ego_created (const struct GNUNET_IDENTITY_Ego *ego)
+ego_created (struct GNUNET_IDENTITY_Ego *ego)
 {
   struct ESCROW_PluginOperationWrapper *curr;
   struct ESCROW_PlaintextPluginOperation *curr_p_op;

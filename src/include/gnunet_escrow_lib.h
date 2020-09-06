@@ -120,7 +120,7 @@ typedef void (*GNUNET_ESCROW_IdentityInitContinuation) ();
  * because of an escrow GET operation.
  */
 typedef void (*GNUNET_ESCROW_EgoCreateContinuation) (
-  const struct GNUNET_IDENTITY_Ego *ego);
+  struct GNUNET_IDENTITY_Ego *ego);
 
 /**
  * Continuation for PUT operations.
@@ -143,7 +143,7 @@ typedef void (*GNUNET_ESCROW_AnchorContinuation) (
  */
 typedef void (*GNUNET_ESCROW_EgoContinuation) (
   void *cls,
-  const struct GNUNET_IDENTITY_Ego *ego,
+  struct GNUNET_IDENTITY_Ego *ego,
   const char *emsg);
 
 /**

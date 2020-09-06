@@ -235,7 +235,7 @@ verify_cb (void *cls,
 
 static void
 get_cb (void *cls,
-        const struct GNUNET_IDENTITY_Ego *ego,
+        struct GNUNET_IDENTITY_Ego *ego,
         const char *emsg)
 {
   escrow_op = NULL;

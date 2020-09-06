@@ -203,7 +203,7 @@ struct ESCROW_Plugin_EgoContinuationWrapper
   /**
    * The restored ego
    */
-  const struct GNUNET_IDENTITY_Ego *ego;
+  struct GNUNET_IDENTITY_Ego *ego;
 
   /**
    * The unique ID of the respective ESCROW_Operation

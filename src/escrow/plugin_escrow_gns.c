@@ -1507,7 +1507,7 @@ verify_gns_key_escrow (struct GNUNET_ESCROW_Handle *h,
 
 
 void
-ego_created (const struct GNUNET_IDENTITY_Ego *ego)
+ego_created (struct GNUNET_IDENTITY_Ego *ego)
 {
   struct ESCROW_PluginOperationWrapper *curr;
   struct ESCROW_GnsPluginOperation *curr_p_op;
