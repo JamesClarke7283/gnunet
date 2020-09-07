@@ -28,7 +28,6 @@
 
 #include "gnunet_util_lib.h"
 #include "gnunet_escrow_lib.h"
-#include "../identity/identity.h"
 
 /**
  * return value
@@ -211,6 +210,9 @@ verify_cb (void *cls,
 {
   escrow_op = NULL;
 
+  if (NULL != emsg)
+    fprintf (stderr, "%s", emsg);
+
   switch (verificationResult)
   {
     case GNUNET_ESCROW_VALID:
@@ -226,8 +228,7 @@ verify_cb (void *cls,
       break;
     default:
       ret = 1;
-      if (NULL != emsg)
-        fprintf (stderr, "invalid verificationResult: %s", emsg);
+      fprintf (stderr, "invalid verificationResult");
   }
   cleanup_task = GNUNET_SCHEDULER_add_now (&do_cleanup, NULL);
 }
@@ -247,7 +248,7 @@ get_cb (void *cls,
       fprintf (stderr, "Escrow failed: %s", emsg);
   }
   else
-    fprintf (stdout, "Identity %s could successfully be restored!\n", ego->name);
+    fprintf (stdout, "Identity %s could successfully be restored!\n", anchor->egoName);
   cleanup_task = GNUNET_SCHEDULER_add_now (&do_cleanup, NULL);
 }
 
@@ -315,10 +316,10 @@ start_process ()
                                               method);
 
     if (GNUNET_ESCROW_KEY_NONE == escrow_status->last_method)
-      fprintf (stdout, "No escrow has been performed for identity %s!\n", ego->name);
+      fprintf (stdout, "No escrow has been performed for identity %s!\n", status_ego);
     else
     {
-      fprintf (stdout, "Escrow STATUS information for identity %s\n", ego->name);
+      fprintf (stdout, "Escrow STATUS information for identity %s\n", status_ego);
       fprintf (stdout, "=======================================================\n");
       if (0 == escrow_status->last_successful_verification_time.abs_value_us)
         fprintf (stdout, "No successful verification! Please VERIFY now.\n");

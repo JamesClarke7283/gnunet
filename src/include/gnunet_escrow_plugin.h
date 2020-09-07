@@ -33,7 +33,6 @@
 #include "gnunet_util_lib.h"
 #include "gnunet_escrow_lib.h"
 #include "gnunet_identity_service.h"
-#include "../escrow/escrow.h"
 #include "gnunet_scheduler_lib.h"
 
 #ifdef __cplusplus

@@ -29,6 +29,7 @@
 #include "gnunet_util_lib.h"
 #include "gnunet_identity_service.h"
 #include "gnunet_escrow_plugin.h"
+#include "escrow.h"
 
 
 /**
@@ -177,6 +178,40 @@ ESCROW_cleanup_ego_list (struct ESCROW_PluginHandle *ph)
     GNUNET_free (ego_entry->keystring);
     GNUNET_free (ego_entry);
   }
+}
+
+
+/**
+ * Build an anchor struct.
+ * 
+ * @param method escrow method
+ * @param egoName name of the ego
+ * @param data anchor data
+ * @param data_size size of the anchor data
+ * 
+ * @return a new anchor struct
+ */
+struct GNUNET_ESCROW_Anchor *
+ESCROW_build_anchor (enum GNUNET_ESCROW_Key_Escrow_Method method,
+                     const char *egoName,
+                     void *data,
+                     uint32_t data_size)
+{
+  struct GNUNET_ESCROW_Anchor *anchor;
+  char *ptr;
+
+  anchor = GNUNET_malloc (sizeof (struct GNUNET_ESCROW_Anchor)
+                          + data_size
+                          + strlen (egoName) + 1);
+  anchor->method = method;
+  anchor->size = data_size;
+  ptr = (char *)&anchor[1];
+  GNUNET_memcpy (ptr, data, data_size);
+  ptr += data_size;
+  anchor->egoName = ptr;
+  strcpy (ptr, egoName);
+
+  return anchor;
 }
 
 
