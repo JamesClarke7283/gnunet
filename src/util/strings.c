@@ -2148,7 +2148,7 @@ GNUNET_STRINGS_urlencode (const char *data, size_t len, char **out)
   struct GNUNET_Buffer buf = { 0 };
   const uint8_t *i8 = (uint8_t *) data;
 
-  while (0 != *i8)
+  while ((i8 - (uint8_t *) data) < len && 0 != *i8)
   {
     if (0 == (0x80 & *i8))
     {
