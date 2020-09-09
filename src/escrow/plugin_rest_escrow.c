@@ -653,11 +653,10 @@ get_anchor_from_payload (struct RequestHandle *handle)
     return NULL;
   }
 
-  json_decref (json_data);
-
   anchor = GNUNET_ESCROW_anchor_string_to_data (anchor_string);
   if (NULL == anchor)
   {
+    json_decref (json_data);
     GNUNET_log (GNUNET_ERROR_TYPE_DEBUG,
                 "Failed to parse anchor: %s.\n", anchor_string);
     handle->response_code = MHD_HTTP_INTERNAL_SERVER_ERROR;
@@ -665,6 +664,8 @@ get_anchor_from_payload (struct RequestHandle *handle)
     GNUNET_SCHEDULER_add_now (&do_error, handle);
     return NULL;
   }
+
+  json_decref (json_data);
 
   return anchor;
 }
