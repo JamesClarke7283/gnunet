@@ -417,6 +417,7 @@ get_user_secret_from_payload (struct RequestHandle *handle)
   if (0 >= handle->data_size)
   {
     handle->emsg = GNUNET_strdup (GNUNET_REST_ERROR_NO_DATA);
+    handle->response_code = MHD_HTTP_BAD_REQUEST;
     GNUNET_SCHEDULER_add_now (&do_error, handle);
     return NULL;
   }
@@ -427,6 +428,7 @@ get_user_secret_from_payload (struct RequestHandle *handle)
   if (NULL == json_data)
   {
     handle->emsg = GNUNET_strdup (GNUNET_REST_ERROR_NO_DATA);
+    handle->response_code = MHD_HTTP_BAD_REQUEST;
     GNUNET_SCHEDULER_add_now (&do_error, handle);
     json_decref (json_data);
     return NULL;
@@ -439,6 +441,7 @@ get_user_secret_from_payload (struct RequestHandle *handle)
   if (0 != json_unpack_state)
   {
     handle->emsg = GNUNET_strdup (GNUNET_REST_ERROR_DATA_INVALID);
+    handle->response_code = MHD_HTTP_BAD_REQUEST;
     GNUNET_SCHEDULER_add_now (&do_error, handle);
     json_decref (json_data);
     return NULL;
@@ -447,6 +450,7 @@ get_user_secret_from_payload (struct RequestHandle *handle)
   if (NULL == user_secret)
   {
     handle->emsg = GNUNET_strdup (GNUNET_REST_ERROR_DATA_INVALID);
+    handle->response_code = MHD_HTTP_BAD_REQUEST;
     GNUNET_SCHEDULER_add_now (&do_error, handle);
     json_decref (json_data);
     return NULL;
@@ -455,6 +459,7 @@ get_user_secret_from_payload (struct RequestHandle *handle)
   {
     json_decref (json_data);
     handle->emsg = GNUNET_strdup (GNUNET_REST_ERROR_DATA_INVALID);
+    handle->response_code = MHD_HTTP_BAD_REQUEST;
     GNUNET_SCHEDULER_add_now (&do_error, handle);
     return NULL;
   }
@@ -601,6 +606,7 @@ get_anchor_from_payload (struct RequestHandle *handle)
   if (0 >= handle->data_size)
   {
     handle->emsg = GNUNET_strdup (GNUNET_REST_ERROR_NO_DATA);
+    handle->response_code = MHD_HTTP_BAD_REQUEST;
     GNUNET_SCHEDULER_add_now (&do_error, handle);
     return NULL;
   }
@@ -611,6 +617,7 @@ get_anchor_from_payload (struct RequestHandle *handle)
   if (NULL == json_data)
   {
     handle->emsg = GNUNET_strdup (GNUNET_REST_ERROR_NO_DATA);
+    handle->response_code = MHD_HTTP_BAD_REQUEST;
     GNUNET_SCHEDULER_add_now (&do_error, handle);
     json_decref (json_data);
     return NULL;
@@ -623,6 +630,7 @@ get_anchor_from_payload (struct RequestHandle *handle)
   if (0 != json_unpack_state)
   {
     handle->emsg = GNUNET_strdup (GNUNET_REST_ERROR_DATA_INVALID);
+    handle->response_code = MHD_HTTP_BAD_REQUEST;
     GNUNET_SCHEDULER_add_now (&do_error, handle);
     json_decref (json_data);
     return NULL;
@@ -631,6 +639,7 @@ get_anchor_from_payload (struct RequestHandle *handle)
   if (NULL == anchor_string)
   {
     handle->emsg = GNUNET_strdup (GNUNET_REST_ERROR_DATA_INVALID);
+    handle->response_code = MHD_HTTP_BAD_REQUEST;
     GNUNET_SCHEDULER_add_now (&do_error, handle);
     json_decref (json_data);
     return NULL;
@@ -639,6 +648,7 @@ get_anchor_from_payload (struct RequestHandle *handle)
   {
     json_decref (json_data);
     handle->emsg = GNUNET_strdup (GNUNET_REST_ERROR_DATA_INVALID);
+    handle->response_code = MHD_HTTP_BAD_REQUEST;
     GNUNET_SCHEDULER_add_now (&do_error, handle);
     return NULL;
   }
