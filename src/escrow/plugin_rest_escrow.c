@@ -112,9 +112,14 @@
 #define GNUNET_REST_ESCROW_ANCHOR_ERROR "Failed to parse anchor"
 
 /**
- * Parameter anchor
+ * Parameter anchor-data
  */
-#define GNUNET_REST_ESCROW_PARAM_ANCHOR "anchor"
+#define GNUNET_REST_ESCROW_PARAM_ANCHOR_DATA "anchor-data"
+
+/**
+ * Parameter method
+ */
+#define GNUNET_REST_ESCROW_PARAM_METHOD "method"
 
 /**
  * Parameter user-secret
@@ -479,7 +484,8 @@ escrow_finished (void *cls,
   struct RequestHandle *handle = cls;
   struct MHD_Response *resp;
   json_t *json_anchor;
-  char *anchor_string, *result_string;
+  const char*anchor_data;
+  char *anchor_data_enc, *result_string;
 
   if (NULL == anchor)
   {
@@ -491,11 +497,19 @@ escrow_finished (void *cls,
     return;
   }
 
-  anchor_string = GNUNET_ESCROW_anchor_data_to_string (anchor);
   json_anchor = json_object ();
   json_object_set_new (json_anchor,
-                       GNUNET_REST_ESCROW_PARAM_ANCHOR,
-                       json_string (anchor_string));
+                       GNUNET_REST_ESCROW_PARAM_METHOD,
+                       json_string (GNUNET_ESCROW_method_number_to_string (
+                         anchor->method)));
+  json_object_set_new (json_anchor,
+                       GNUNET_REST_ESCROW_PARAM_NAME,
+                       json_string (anchor->egoName));
+  anchor_data = (const char *)&anchor[1];
+  GNUNET_STRINGS_urlencode (anchor_data, anchor->size, &anchor_data_enc);
+  json_object_set_new (json_anchor,
+                       GNUNET_REST_ESCROW_PARAM_ANCHOR_DATA,
+                       json_string (anchor_data_enc));
 
   result_string = json_dumps (json_anchor, 0);
   GNUNET_log (GNUNET_ERROR_TYPE_DEBUG, "Result %s\n", result_string);
@@ -505,7 +519,7 @@ escrow_finished (void *cls,
   
   json_decref (json_anchor);
   GNUNET_free (result_string);
-  GNUNET_free (anchor_string);
+  GNUNET_free (anchor_data_enc);
 
   GNUNET_SCHEDULER_add_now (&cleanup_handle, handle);
 }
@@ -594,11 +608,45 @@ escrow_identity (struct GNUNET_REST_RequestHandle *con_handle,
 
 
 static struct GNUNET_ESCROW_Anchor *
+build_anchor (const char *method_string,
+              const char *ego_name,
+              const char *anchor_data_enc)
+{
+  struct GNUNET_ESCROW_Anchor *anchor;
+  char *ptr;
+  enum GNUNET_ESCROW_Key_Escrow_Method method;
+  char *anchor_data;
+
+  method = GNUNET_ESCROW_method_string_to_number (method_string);
+  if (GNUNET_ESCROW_KEY_NONE == method)
+    return NULL;
+  GNUNET_STRINGS_urldecode (anchor_data_enc,
+                            strlen (anchor_data_enc),
+                            &anchor_data);
+
+  anchor = GNUNET_malloc (sizeof (struct GNUNET_ESCROW_Anchor)
+                          + strlen (anchor_data)
+                          + strlen (ego_name) + 1);
+  anchor->method = method;
+  anchor->size = strlen (anchor_data);
+  ptr = (char *)&anchor[1];
+  GNUNET_memcpy (ptr, anchor_data, strlen (anchor_data));
+  ptr += strlen (anchor_data);
+  anchor->egoName = ptr;
+  strcpy (ptr, ego_name);
+
+  GNUNET_free (anchor_data);
+
+  return anchor;
+}
+
+
+static struct GNUNET_ESCROW_Anchor *
 get_anchor_from_payload (struct RequestHandle *handle)
 {
   json_t *json_data;
   json_error_t err;
-  char *anchor_string;
+  char *method, *ego_name, *anchor_data_enc;
   int json_unpack_state;
   char term_data[handle->data_size + 1];
   struct GNUNET_ESCROW_Anchor *anchor;
@@ -625,8 +673,10 @@ get_anchor_from_payload (struct RequestHandle *handle)
 
   json_unpack_state = 0;
   json_unpack_state =
-    json_unpack (json_data, "{s:s}",
-                 GNUNET_REST_ESCROW_PARAM_ANCHOR, &anchor_string);
+    json_unpack (json_data, "{s:s, s:s, s:s}",
+                 GNUNET_REST_ESCROW_PARAM_METHOD, &method,
+                 GNUNET_REST_ESCROW_PARAM_NAME, &ego_name,
+                 GNUNET_REST_ESCROW_PARAM_ANCHOR_DATA, &anchor_data_enc);
   if (0 != json_unpack_state)
   {
     handle->emsg = GNUNET_strdup (GNUNET_REST_ERROR_DATA_INVALID);
@@ -636,7 +686,7 @@ get_anchor_from_payload (struct RequestHandle *handle)
     return NULL;
   }
 
-  if (NULL == anchor_string)
+  if (NULL == method || NULL == ego_name || NULL == anchor_data_enc)
   {
     handle->emsg = GNUNET_strdup (GNUNET_REST_ERROR_DATA_INVALID);
     handle->response_code = MHD_HTTP_BAD_REQUEST;
@@ -644,24 +694,24 @@ get_anchor_from_payload (struct RequestHandle *handle)
     json_decref (json_data);
     return NULL;
   }
-  if (0 >= strlen (anchor_string))
+  if (0 >= strlen (method) || 0 >= strlen (ego_name) || 0 >= strlen (anchor_data_enc))
   {
-    json_decref (json_data);
     handle->emsg = GNUNET_strdup (GNUNET_REST_ERROR_DATA_INVALID);
     handle->response_code = MHD_HTTP_BAD_REQUEST;
     GNUNET_SCHEDULER_add_now (&do_error, handle);
+    json_decref (json_data);
     return NULL;
   }
 
-  anchor = GNUNET_ESCROW_anchor_string_to_data (anchor_string);
+  anchor = build_anchor (method, ego_name, anchor_data_enc);
   if (NULL == anchor)
   {
-    json_decref (json_data);
     GNUNET_log (GNUNET_ERROR_TYPE_DEBUG,
-                "Failed to parse anchor: %s.\n", anchor_string);
+                "Failed to parse anchor.\n");
     handle->response_code = MHD_HTTP_INTERNAL_SERVER_ERROR;
     handle->emsg = GNUNET_strdup (GNUNET_REST_ESCROW_ANCHOR_ERROR);
     GNUNET_SCHEDULER_add_now (&do_error, handle);
+    json_decref (json_data);
     return NULL;
   }
 
