@@ -114,7 +114,7 @@
 /**
  * Parameter anchor-data
  */
-#define GNUNET_REST_ESCROW_PARAM_ANCHOR_DATA "anchor-data"
+#define GNUNET_REST_ESCROW_PARAM_ANCHOR_DATA "anchorData"
 
 /**
  * Parameter method
@@ -124,7 +124,7 @@
 /**
  * Parameter user-secret
  */
-#define GNUNET_REST_ESCROW_PARAM_USER_SECRET "user-secret"
+#define GNUNET_REST_ESCROW_PARAM_USER_SECRET "userSecret"
 
 /**
  * Parameter pubkey
@@ -139,22 +139,22 @@
 /**
  * Parameter verification-result
  */
-#define GNUNET_REST_ESCROW_PARAM_VERIFICATION_RESULT "verification-result"
+#define GNUNET_REST_ESCROW_PARAM_VERIFICATION_RESULT "verificationResult"
 
 /**
  * Parameter last-method
  */
-#define GNUNET_REST_ESCROW_PARAM_LAST_METHOD "last-method"
+#define GNUNET_REST_ESCROW_PARAM_LAST_METHOD "lastMethod"
 
 /**
  * Parameter last-successful-verification
  */
-#define GNUNET_REST_ESCROW_PARAM_LAST_VERIF "last-successful-verification"
+#define GNUNET_REST_ESCROW_PARAM_LAST_VERIF "lastSuccessfulVerification"
 
 /**
  * Parameter next-recommended-verification
  */
-#define GNUNET_REST_ESCROW_PARAM_NEXT_VERIF "next-recommended-verification"
+#define GNUNET_REST_ESCROW_PARAM_NEXT_VERIF "nextRecommendedVerification"
 
 /**
  * State while collecting all egos
