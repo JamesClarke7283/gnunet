@@ -1026,14 +1026,12 @@ get_escrow_status (struct GNUNET_REST_RequestHandle *con_handle,
                            GNUNET_ESCROW_method_number_to_string (status->last_method)));
     json_object_set_new (json_status,
                          GNUNET_REST_ESCROW_PARAM_LAST_VERIF,
-                         json_string (
-                           GNUNET_STRINGS_absolute_time_to_string (
-                             status->last_successful_verification_time)));
+                         json_integer (
+                           status->last_successful_verification_time.abs_value_us / 1000));
     json_object_set_new (json_status,
                          GNUNET_REST_ESCROW_PARAM_NEXT_VERIF,
-                         json_string (
-                           GNUNET_STRINGS_absolute_time_to_string (
-                             status->next_recommended_verification_time)));
+                         json_integer (
+                           status->next_recommended_verification_time.abs_value_us / 1000));
   }
   
   result_string = json_dumps (json_status, 0);
