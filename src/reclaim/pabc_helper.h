@@ -1,6 +1,6 @@
 #include "platform.h"
 #include "gnunet_util_lib.h"
-#include <libpabc/libpabc.h>
+#include <pabc/pabc.h>
 
 #ifndef PATH_MAX
 #define PATH_MAX 4096
