@@ -30,7 +30,7 @@
 #include "gnunet_reclaim_plugin.h"
 #include <inttypes.h>
 #include <jansson.h>
-#include <libpabc/libpabc.h>
+#include <pabc/pabc.h>
 #include "pabc_helper.h"
 
 /**

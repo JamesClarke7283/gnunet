@@ -27,7 +27,7 @@
 #include "microhttpd.h"
 #include <inttypes.h>
 #include <jansson.h>
-#include <libpabc/libpabc.h>
+#include <pabc/pabc.h>
 #include "gnunet_reclaim_lib.h"
 #include "gnunet_reclaim_service.h"
 #include "gnunet_rest_lib.h"

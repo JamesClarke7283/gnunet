@@ -776,18 +776,18 @@ AC_ARG_WITH(pabc,
     AS_CASE([$with_pabc],
       [no],[],
       [yes],[
-        CHECK_LIBHEADER(PABC, pabc, pabc_new_ctx, libpabc/libpabc.h,pabc=1,)
+        CHECK_LIBHEADER(PABC, pabc, pabc_new_ctx, pabc/pabc.h,pabc=1,)
       ],[
         LDFLAGS="-L$with_pabc/lib $LDFLAGS"
         CPPFLAGS="-I$with_pabc/include $CPPFLAGS"
-        AC_CHECK_HEADERS(libpabc/libpabc.h,
+        AC_CHECK_HEADERS(pabc/pabc.h,
           AC_CHECK_LIB([pabc], [pabc_new_ctx],
             EXT_LIB_PATH="-L$with_pabc/lib $EXT_LIB_PATH"
             pabc=1))
       ])
    ],
    [AC_MSG_RESULT([--with-pabc not specified])
-    CHECK_LIBHEADER(PABC, pabc, pabc_new_ctx, libpabc/libpabc.h,pabc=1,)])
+    CHECK_LIBHEADER(PABC, pabc, pabc_new_ctx, pabc/pabc.h,pabc=1,)])
 AM_CONDITIONAL(HAVE_PABC, [test x$pabc = x1])
 
 
