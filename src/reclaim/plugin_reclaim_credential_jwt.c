@@ -162,7 +162,7 @@ jwt_parse_attributes (void *cls,
   char *decoded_jwt;
   char *tmp;
   json_t *json_val;
-  json_error_t *json_err = NULL;
+  json_error_t json_err;
 
   attrs = GNUNET_new (struct GNUNET_RECLAIM_AttributeList);
 
@@ -173,7 +173,7 @@ jwt_parse_attributes (void *cls,
                                    (void **) &decoded_jwt);
   GNUNET_log (GNUNET_ERROR_TYPE_DEBUG, "Decoded JWT: %s\n", decoded_jwt);
   GNUNET_assert (NULL != decoded_jwt);
-  json_val = json_loads (decoded_jwt, JSON_DECODE_ANY, json_err);
+  json_val = json_loads (decoded_jwt, JSON_DECODE_ANY, &json_err);
   GNUNET_free (decoded_jwt);
   const char *key;
   const char *addr_key;
@@ -291,14 +291,14 @@ jwt_get_issuer (void *cls,
   json_t *issuer_json;
   GNUNET_log (GNUNET_ERROR_TYPE_DEBUG, "Parsing JWT attributes.\n");
   json_t *json_val;
-  json_error_t *json_err = NULL;
+  json_error_t json_err;
 
   jwt_string = GNUNET_strndup (data, data_size);
   jwt_body = strtok (jwt_string, delim);
   jwt_body = strtok (NULL, delim);
   GNUNET_STRINGS_base64url_decode (jwt_body, strlen (jwt_body),
                                    (void **) &decoded_jwt);
-  json_val = json_loads (decoded_jwt, JSON_DECODE_ANY, json_err);
+  json_val = json_loads (decoded_jwt, JSON_DECODE_ANY, &json_err);
   GNUNET_free (decoded_jwt);
   GNUNET_free (jwt_string);
   if (NULL == json_val)
@@ -368,14 +368,14 @@ jwt_get_expiration (void *cls,
   json_t *exp_json;
   GNUNET_log (GNUNET_ERROR_TYPE_DEBUG, "Parsing JWT attributes.\n");
   json_t *json_val;
-  json_error_t *json_err = NULL;
+  json_error_t json_err;
 
   jwt_string = GNUNET_strndup (data, data_size);
   jwt_body = strtok (jwt_string, delim);
   jwt_body = strtok (NULL, delim);
   GNUNET_STRINGS_base64url_decode (jwt_body, strlen (jwt_body),
                                    (void **) &decoded_jwt);
-  json_val = json_loads (decoded_jwt, JSON_DECODE_ANY, json_err);
+  json_val = json_loads (decoded_jwt, JSON_DECODE_ANY, &json_err);
   GNUNET_free (decoded_jwt);
   GNUNET_free (jwt_string);
   if (NULL == json_val)
