@@ -94,7 +94,8 @@ libgnunet_plugin_rest_openid_connect_la_CFLAGS = $(MHD_CFLAGS) $(AM_CFLAGS)
 
 if HAVE_PABC
 libgnunet_plugin_rest_pabc_la_SOURCES = \
-  plugin_rest_pabc.c
+  plugin_rest_pabc.c \
+  pabc_helper.c
 libgnunet_plugin_rest_pabc_la_LIBADD = \
   libgnunetreclaim.la \
   $(top_builddir)/src/json/libgnunetjson.la \
@@ -160,7 +161,8 @@ libgnunet_plugin_reclaim_attribute_basic_la_LDFLAGS = \
 
 if HAVE_PABC
 libgnunet_plugin_reclaim_credential_pabc_la_SOURCES = \
-  plugin_reclaim_credential_pabc.c
+  plugin_reclaim_credential_pabc.c \
+  pabc_helper.c
 libgnunet_plugin_reclaim_credential_pabc_la_LIBADD = \
   $(top_builddir)/src/util/libgnunetutil.la \
   libgnunetreclaim.la \

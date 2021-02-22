@@ -33,6 +33,7 @@
 #include "gnunet_rest_lib.h"
 #include "gnunet_rest_plugin.h"
 #include "gnunet_signatures.h"
+#include "pabc_helper.h"
 
 /**
  * REST root namespace
@@ -221,15 +222,44 @@ set_attributes_from_idtoken (const struct pabc_context *ctx,
 {
   json_t *payload_json;
   json_t *value;
+  json_error_t json_err;
   const char *key;
+  const char *jwt_body;
+  char *decoded_jwt;
+  char delim[] = ".";
+  char *jwt_string;
+  const char *pabc_key;
   enum pabc_status status;
 
   //FIXME parse JWT
+  jwt_string = GNUNET_strndup (id_token, strlen (id_token));
+  jwt_body = strtok (jwt_string, delim);
+  jwt_body = strtok (NULL, delim);
+  GNUNET_STRINGS_base64url_decode (jwt_body, strlen (jwt_body),
+                                   (void **) &decoded_jwt);
+  GNUNET_log (GNUNET_ERROR_TYPE_DEBUG, "Decoded ID Token: %s\n", decoded_jwt);
+  payload_json = json_loads (decoded_jwt, JSON_DECODE_ANY, &json_err);
+  GNUNET_free (decoded_jwt);
+
   json_object_foreach(payload_json, key, value)
   {
-    //FIXME skip metadata in JWT, map attributes to PP
+    pabc_key = key;
+    if (0 == strcmp ("iss", key))
+      pabc_key = "issuer"; //rename
+    if (0 == strcmp ("sub", key))
+      pabc_key = "subject"; //rename
+    if (0 == strcmp ("jti", key))
+      continue;
+    if (0 == strcmp ("exp", key))
+      pabc_key = "expiration"; //rename
+    if (0 == strcmp ("iat", key))
+      continue;
+    if (0 == strcmp ("nbf", key))
+      continue;
+    if (0 == strcmp ("aud", key))
+      continue;
     status = pabc_set_attribute_value_by_name (ctx, pp, usr_ctx,
-                                               key,
+                                               pabc_key,
                                                json_string_value (value));
     if (PABC_OK != status)
     {
@@ -254,6 +284,8 @@ cr_cont (struct GNUNET_REST_RequestHandle *con_handle,
   json_t *nonce_json;
   json_t *pp_json;
   json_t *idtoken_json;
+  json_t *iss_json;
+  json_t *identity_json;
   json_error_t err;
   struct pabc_public_parameters *pp = NULL;
   struct pabc_context *ctx = NULL;
@@ -302,6 +334,24 @@ cr_cont (struct GNUNET_REST_RequestHandle *con_handle,
     GNUNET_SCHEDULER_add_now (&do_error, handle);
     return;
   }
+  iss_json = json_object_get (data_json, "issuer");
+  if (NULL == iss_json)
+  {
+    GNUNET_log (GNUNET_ERROR_TYPE_ERROR,
+                "Unable to parse issuer\n");
+    json_decref (data_json);
+    GNUNET_SCHEDULER_add_now (&do_error, handle);
+    return;
+  }
+  identity_json = json_object_get (data_json, "identity");
+  if (NULL == identity_json)
+  {
+    GNUNET_log (GNUNET_ERROR_TYPE_ERROR,
+                "Unable to parse identity\n");
+    json_decref (data_json);
+    GNUNET_SCHEDULER_add_now (&do_error, handle);
+    return;
+  }
   idtoken_json = json_object_get (idtoken_json, "id_token");
   if (NULL == idtoken_json)
   {
@@ -322,8 +372,9 @@ cr_cont (struct GNUNET_REST_RequestHandle *con_handle,
   }
 
   PABC_ASSERT (pabc_new_ctx (&ctx));
-  // load stuff FIXME: Needs helper
-  //status = load_public_parameters (ctx, pp_name, &pp);
+  status = PABC_load_public_parameters (ctx,
+                                        json_string_value (iss_json),
+                                        &pp);
   if (status != PABC_OK)
   {
     GNUNET_log (GNUNET_ERROR_TYPE_ERROR, "Failed to read public parameters.\n");
@@ -332,9 +383,9 @@ cr_cont (struct GNUNET_REST_RequestHandle *con_handle,
     return;
   }
 
-  /*FIXME: Needs helper
-   * status = read_usr_ctx (usr_name, pp_name, ctx, pp, &usr_ctx);
-   */
+  status = PABC_read_usr_ctx (json_string_value (identity_json),
+                              json_string_value (iss_json),
+                              ctx, pp, &usr_ctx);
   if (PABC_OK != status)
   {
     GNUNET_log (GNUNET_ERROR_TYPE_ERROR, "Failed to read user context.\n");
