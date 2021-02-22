@@ -214,6 +214,7 @@ return_response (void *cls)
   cleanup_handle (handle);
 }
 
+
 static enum pabc_status
 set_attributes_from_idtoken (const struct pabc_context *ctx,
                              const struct pabc_public_parameters *pp,
@@ -231,7 +232,7 @@ set_attributes_from_idtoken (const struct pabc_context *ctx,
   const char *pabc_key;
   enum pabc_status status;
 
-  //FIXME parse JWT
+  // FIXME parse JWT
   jwt_string = GNUNET_strndup (id_token, strlen (id_token));
   jwt_body = strtok (jwt_string, delim);
   jwt_body = strtok (NULL, delim);
@@ -241,17 +242,17 @@ set_attributes_from_idtoken (const struct pabc_context *ctx,
   payload_json = json_loads (decoded_jwt, JSON_DECODE_ANY, &json_err);
   GNUNET_free (decoded_jwt);
 
-  json_object_foreach(payload_json, key, value)
+  json_object_foreach (payload_json, key, value)
   {
     pabc_key = key;
     if (0 == strcmp ("iss", key))
-      pabc_key = "issuer"; //rename
+      pabc_key = "issuer"; // rename
     if (0 == strcmp ("sub", key))
-      pabc_key = "subject"; //rename
+      pabc_key = "subject"; // rename
     if (0 == strcmp ("jti", key))
       continue;
     if (0 == strcmp ("exp", key))
-      pabc_key = "expiration"; //rename
+      pabc_key = "expiration"; // rename
     if (0 == strcmp ("iat", key))
       continue;
     if (0 == strcmp ("nbf", key))
@@ -269,6 +270,23 @@ set_attributes_from_idtoken (const struct pabc_context *ctx,
     }
   }
   return PABC_OK;
+}
+
+
+static enum GNUNET_GenericReturnValue
+setup_new_user_context (struct pabc_context *ctx,
+                        struct pabc_public_parameters *pp,
+                        struct pabc_user_context **usr_ctx)
+{
+  if (PABC_OK != pabc_new_user_context (ctx, pp, usr_ctx))
+    return GNUNET_SYSERR;
+
+  if (PABC_OK != pabc_populate_user_context (ctx, *usr_ctx))
+  {
+    pabc_free_user_context (ctx, pp, usr_ctx);
+    return GNUNET_SYSERR;
+  }
+  return GNUNET_OK;
 }
 
 
@@ -316,7 +334,7 @@ cr_cont (struct GNUNET_REST_RequestHandle *con_handle,
     GNUNET_SCHEDULER_add_now (&do_error, handle);
     return;
   }
-  if (!json_is_object (data_json))
+  if (! json_is_object (data_json))
   {
     GNUNET_log (GNUNET_ERROR_TYPE_ERROR,
                 "Unable to parse %s\n", term_data);
@@ -372,9 +390,10 @@ cr_cont (struct GNUNET_REST_RequestHandle *con_handle,
   }
 
   PABC_ASSERT (pabc_new_ctx (&ctx));
-  status = PABC_load_public_parameters (ctx,
-                                        json_string_value (iss_json),
-                                        &pp);
+  // FIXME jansson does stupid escaping here maybe expect ecoded?
+  status = pabc_decode_and_new_public_parameters (ctx,
+                                                  &pp,
+                                                  json_string_value (pp_json));
   if (status != PABC_OK)
   {
     GNUNET_log (GNUNET_ERROR_TYPE_ERROR, "Failed to read public parameters.\n");
@@ -382,17 +401,33 @@ cr_cont (struct GNUNET_REST_RequestHandle *con_handle,
     GNUNET_SCHEDULER_add_now (&do_error, handle);
     return;
   }
-
+  // (Over)write parameters
+  status = PABC_write_public_parameters (json_string_value (iss_json),
+                                         pp);
+  if (status != PABC_OK)
+  {
+    GNUNET_log (GNUNET_ERROR_TYPE_ERROR,
+                "Failed to write public parameters.\n");
+    json_decref (data_json);
+    GNUNET_SCHEDULER_add_now (&do_error, handle);
+    return;
+  }
   status = PABC_read_usr_ctx (json_string_value (identity_json),
                               json_string_value (iss_json),
                               ctx, pp, &usr_ctx);
   if (PABC_OK != status)
   {
-    GNUNET_log (GNUNET_ERROR_TYPE_ERROR, "Failed to read user context.\n");
-    pabc_free_public_parameters (ctx, &pp);
-    json_decref (data_json);
-    GNUNET_SCHEDULER_add_now (&do_error, handle);
-    return;
+    if (GNUNET_OK != setup_new_user_context (ctx, pp, &usr_ctx))
+    {
+      GNUNET_log (GNUNET_ERROR_TYPE_ERROR, "Failed to setup user context.\n");
+      pabc_free_public_parameters (ctx, &pp);
+      json_decref (data_json);
+      GNUNET_SCHEDULER_add_now (&do_error, handle);
+      return;
+    }
+    PABC_write_usr_ctx (json_string_value (identity_json),
+                        json_string_value (iss_json),
+                        ctx, pp, usr_ctx);
   }
 
   // Set attributes from JWT to context
@@ -422,7 +457,7 @@ cr_cont (struct GNUNET_REST_RequestHandle *con_handle,
     GNUNET_SCHEDULER_add_now (&do_error, handle);
     return;
   }
-  //FIXME: where does this come from???
+  // FIXME: where does this come from???
   status = pabc_decode_nonce (ctx, nonce, json_string_value (nonce_json));
   if (status != PABC_OK)
   {
@@ -519,10 +554,9 @@ rest_identity_process_request (struct GNUNET_REST_RequestHandle *rest_handle,
 {
   struct RequestHandle *handle = GNUNET_new (struct RequestHandle);
   struct GNUNET_REST_RequestHandlerError err;
-  static const struct GNUNET_REST_RequestHandler handlers[] =
-  {
+  static const struct GNUNET_REST_RequestHandler handlers[] = {
     {MHD_HTTP_METHOD_POST,
-      GNUNET_REST_API_NS_PABC_CR, &cr_cont },
+     GNUNET_REST_API_NS_PABC_CR, &cr_cont },
     { MHD_HTTP_METHOD_OPTIONS, GNUNET_REST_API_NS_PABC, &options_cont },
     GNUNET_REST_HANDLER_END
   };
