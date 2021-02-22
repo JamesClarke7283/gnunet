@@ -18,6 +18,7 @@ CREDENTIAL_PLUGIN = \
 
 if HAVE_PABC
   CREDENTIAL_PLUGIN += libgnunet_plugin_reclaim_credential_pabc.la
+  REST_PLUGIN += libgnunet_plugin_rest_pabc.la
 endif
 
 EXTRA_DIST = \
@@ -90,6 +91,25 @@ libgnunet_plugin_rest_openid_connect_la_LIBADD = \
 libgnunet_plugin_rest_openid_connect_la_LDFLAGS = \
   $(GN_PLUGIN_LDFLAGS)
 libgnunet_plugin_rest_openid_connect_la_CFLAGS = $(MHD_CFLAGS) $(AM_CFLAGS)
+
+if HAVE_PABC
+libgnunet_plugin_rest_pabc_la_SOURCES = \
+  plugin_rest_pabc.c
+libgnunet_plugin_rest_pabc_la_LIBADD = \
+  libgnunetreclaim.la \
+  $(top_builddir)/src/json/libgnunetjson.la \
+  $(top_builddir)/src/rest/libgnunetrest.la \
+  $(top_builddir)/src/util/libgnunetutil.la $(XLIBS) \
+  $(LTLIBINTL) -ljansson -lpabc $(MHD_LIBS)
+libgnunet_plugin_rest_pabc_la_DEPENDENCIES = \
+  libgnunetreclaim.la \
+  $(top_builddir)/src/json/libgnunetjson.la \
+  $(top_builddir)/src/rest/libgnunetrest.la \
+  $(top_builddir)/src/util/libgnunetutil.la
+libgnunet_plugin_rest_pabc_la_LDFLAGS = \
+  $(GN_PLUGIN_LDFLAGS)
+libgnunet_plugin_rest_pabc_la_CFLAGS = $(MHD_CFLAGS) $(AM_CFLAGS)
+endif
 
 
 libgnunet_plugin_gnsrecord_reclaim_la_SOURCES = \
