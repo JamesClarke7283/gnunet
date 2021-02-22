@@ -204,6 +204,10 @@ pabc_parse_attributes (void *cls,
      */
     json_object_foreach (attr, key, value)
     {
+      if ((0 == strcmp ("issuer", key)) ||
+          (0 == strcmp ("expiration", key)) ||
+          (0 == strcmp ("subject", key)))
+        continue;
       val_str = json_dumps (value, JSON_ENCODE_ANY);
       tmp = val_str;
       //Remove leading " from jasson conversion
@@ -268,10 +272,13 @@ pabc_get_issuer (void *cls,
                 const char *data,
                 size_t data_size)
 {
+  const char *key;
   char *val_str = NULL;
   char *tmp;
-  json_t *json_iss;
   json_t *json_root;
+  json_t *json_attrs;
+  json_t *value;
+  json_t *attr;
   json_error_t *json_err = NULL;
 
   json_root = json_loads (data, JSON_DECODE_ANY, json_err);
@@ -285,24 +292,44 @@ pabc_get_issuer (void *cls,
       json_decref (json_root);
     return NULL;
   }
-  json_iss = json_object_get (json_root, "issuer");
-  if (NULL == json_iss)
+  json_attrs = json_object_get (json_root, "attributes");
+  if ((NULL == json_attrs) ||
+      (!json_is_array (json_attrs)))
   {
     GNUNET_log (GNUNET_ERROR_TYPE_ERROR,
-                "%s is not a valid pabc credential (issuer malformed or missing)\n",
+                "%s is not a valid pabc credentials (attributes not an array)\n",
                 data);
     json_decref (json_root);
     return NULL;
   }
-  val_str = json_dumps (json_iss, JSON_ENCODE_ANY);
-  tmp = val_str;
-  //Remove leading " from jasson conversion
-  if (tmp[0] == '"')
-    tmp++;
-  //Remove trailing " from jansson conversion
-  if (tmp[strlen(tmp)-1] == '"')
-    tmp[strlen(tmp)-1] = '\0';
-  return tmp;
+
+  for (int i = 0; i < json_array_size (json_attrs); i++)
+  {
+    attr = json_array_get (json_attrs, i);
+    if (!json_is_object(attr))
+      continue;
+    /**
+     * This *should* only contain a single pair.
+     */
+    json_object_foreach (attr, key, value)
+    {
+      if (0 != strcmp ("issuer", key))
+        continue;
+      val_str = json_dumps (value, JSON_ENCODE_ANY);
+      tmp = val_str;
+      //Remove leading " from jasson conversion
+      if (tmp[0] == '"')
+        tmp++;
+      //Remove trailing " from jansson conversion
+      if (tmp[strlen(tmp)-1] == '"')
+        tmp[strlen(tmp)-1] = '\0';
+      GNUNET_free (val_str);
+      json_decref (json_root);
+      return tmp;
+    }
+  }
+  json_decref (json_root);
+  return NULL;
 }
 
 
@@ -353,9 +380,12 @@ pabc_get_expiration (void *cls,
                     size_t data_size,
                     struct GNUNET_TIME_Absolute *exp)
 {
-  json_t *json_exp;
   json_t *json_root;
+  json_t *json_attrs;
+  json_t *value;
+  json_t *attr;
   json_error_t *json_err = NULL;
+  const char* key;
 
   json_root = json_loads (data, JSON_DECODE_ANY, json_err);
   if ((NULL == json_root) ||
@@ -368,18 +398,27 @@ pabc_get_expiration (void *cls,
       json_decref (json_root);
     return GNUNET_SYSERR;
   }
-  json_exp = json_object_get (json_root, "expiration");
-  if ((NULL == json_exp) || (! json_is_integer (json_exp)))
+  for (int i = 0; i < json_array_size (json_attrs); i++)
   {
-    GNUNET_log (GNUNET_ERROR_TYPE_ERROR,
-                "%s is not a valid pabc credential (expiration malformed or missing)\n",
-                data);
-    json_decref (json_root);
-    return GNUNET_SYSERR;
+    attr = json_array_get (json_attrs, i);
+    if (!json_is_object(attr))
+      continue;
+    /**
+     * This *should* only contain a single pair.
+     */
+    json_object_foreach (attr, key, value)
+    {
+      if (0 != strcmp ("expiration", key))
+        continue;
+      if (!json_is_integer (value))
+        continue;
+      exp->abs_value_us = json_integer_value (value) * 1000 * 1000;
+      json_decref (json_root);
+      return GNUNET_OK;
+    }
   }
-  exp->abs_value_us = json_integer_value (json_exp) * 1000 * 1000;
   json_decref (json_root);
-  return GNUNET_OK;
+  return GNUNET_SYSERR;
 }
 
 
