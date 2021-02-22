@@ -99,7 +99,7 @@ static struct
 {
   const char *name;
   uint32_t number;
-} pabc_cred_name_map[] = { { "pabc", GNUNET_RECLAIM_CREDENTIAL_TYPE_PABC },
+} pabc_cred_name_map[] = { { "PABC", GNUNET_RECLAIM_CREDENTIAL_TYPE_PABC },
                           { NULL, UINT32_MAX } };
 
 /**
@@ -155,89 +155,73 @@ pabc_parse_attributes (void *cls,
                       const char *data,
                       size_t data_size)
 {
-  char *pabc_string;
+  const char *key;
   struct GNUNET_RECLAIM_AttributeList *attrs;
-  char delim[] = ".";
   char *val_str = NULL;
-  GNUNET_log (GNUNET_ERROR_TYPE_DEBUG, "Parsing pabc attributes.\n");
-  char *decoded_pabc;
   char *tmp;
-  json_t *json_val;
+  json_t *value;
+  json_t *attr;
+  json_t *json_attrs;
+  json_t *json_root;
   json_error_t *json_err = NULL;
 
-  attrs = GNUNET_new (struct GNUNET_RECLAIM_AttributeList);
-
-  pabc_string = GNUNET_strndup (data, data_size);
-  const char *pabc_body = strtok (pabc_string, delim);
-  pabc_body = strtok (NULL, delim);
-  GNUNET_STRINGS_base64url_decode (pabc_body, strlen (pabc_body),
-                                   (void **) &decoded_pabc);
-  GNUNET_log (GNUNET_ERROR_TYPE_DEBUG, "Decoded pabc: %s\n", decoded_pabc);
-  GNUNET_assert (NULL != decoded_pabc);
-  json_val = json_loads (decoded_pabc, JSON_DECODE_ANY, json_err);
-  GNUNET_free (decoded_pabc);
-  const char *key;
-  const char *addr_key;
-  json_t *value;
-  json_t *addr_value;
-
-  json_object_foreach (json_val, key, value) {
-    if (0 == strcmp ("iss", key))
-      continue;
-    if (0 == strcmp ("jti", key))
-      continue;
-    if (0 == strcmp ("exp", key))
-      continue;
-    if (0 == strcmp ("iat", key))
-      continue;
-    if (0 == strcmp ("nbf", key))
-      continue;
-    if (0 == strcmp ("aud", key))
-      continue;
-    if (0 == strcmp ("address", key))
-    {
-      if (!json_is_object(value)) {
-        GNUNET_log (GNUNET_ERROR_TYPE_WARNING,
-                    "address claim in wrong format!");
-        continue;
-      }
-      json_object_foreach (value, addr_key, addr_value) {
-        val_str = json_dumps (addr_value, JSON_ENCODE_ANY);
-        tmp = val_str;
-        //Remove leading " from jasson conversion
-        if (tmp[0] == '"')
-          tmp++;
-        //Remove trailing " from jansson conversion
-        if (tmp[strlen(tmp)-1] == '"')
-          tmp[strlen(tmp)-1] = '\0';
-        GNUNET_RECLAIM_attribute_list_add (attrs,
-                                           addr_key,
-                                           NULL,
-                                           GNUNET_RECLAIM_ATTRIBUTE_TYPE_STRING,
-                                           tmp,
-                                           strlen (val_str));
-        GNUNET_free (val_str);
-      }
-      continue;
-    }
-    val_str = json_dumps (value, JSON_ENCODE_ANY);
-    tmp = val_str;
-    //Remove leading " from jasson conversion
-    if (tmp[0] == '"')
-      tmp++;
-    //Remove trailing " from jansson conversion
-    if (tmp[strlen(tmp)-1] == '"')
-      tmp[strlen(tmp)-1] = '\0';
-    GNUNET_RECLAIM_attribute_list_add (attrs,
-                                       key,
-                                       NULL,
-                                       GNUNET_RECLAIM_ATTRIBUTE_TYPE_STRING,// FIXME
-                                       tmp,
-                                       strlen (val_str));
-    GNUNET_free (val_str);
+  json_root = json_loads (data, JSON_DECODE_ANY, json_err);
+  if ((NULL == json_root) ||
+      (!json_is_object (json_root)))
+  {
+    GNUNET_log (GNUNET_ERROR_TYPE_ERROR,
+                "%s is not a valid pabc credentials (not an object)\n",
+                data);
+    if (NULL != json_root)
+      json_decref (json_root);
+    return NULL;
   }
-  json_decref (json_val);
-  GNUNET_free (pabc_string);
+  json_attrs = json_object_get (json_root, "attributes");
+  if ((NULL == json_attrs) ||
+      (!json_is_array (json_attrs)))
+  {
+    GNUNET_log (GNUNET_ERROR_TYPE_ERROR,
+                "%s is not a valid pabc credentials (attributes not an array)\n",
+                data);
+    json_decref (json_root);
+    return NULL;
+  }
+
+  attrs = GNUNET_new (struct GNUNET_RECLAIM_AttributeList);
+  for (int i = 0; i < json_array_size (json_attrs); i++)
+  {
+    attr = json_array_get (json_attrs, i);
+    if (!json_is_object(attr))
+    {
+      GNUNET_log (GNUNET_ERROR_TYPE_ERROR,
+                  "Found json entry is not an object!\n");
+      GNUNET_RECLAIM_attribute_list_destroy (attrs);
+      json_decref (json_root);
+      return NULL;
+    }
+    /**
+     * This *should* only contain a single pair.
+     */
+    json_object_foreach (attr, key, value)
+    {
+      val_str = json_dumps (value, JSON_ENCODE_ANY);
+      tmp = val_str;
+      //Remove leading " from jasson conversion
+      if (tmp[0] == '"')
+        tmp++;
+      //Remove trailing " from jansson conversion
+      if (tmp[strlen(tmp)-1] == '"')
+        tmp[strlen(tmp)-1] = '\0';
+      GNUNET_RECLAIM_attribute_list_add (attrs,
+                                         key,
+                                         NULL,
+                                         GNUNET_RECLAIM_ATTRIBUTE_TYPE_STRING,
+                                         tmp,
+                                         strlen (tmp));
+      GNUNET_free (val_str);
+    }
+  }
+  json_decref (json_root);
   return attrs;
 }
 
@@ -284,34 +268,41 @@ pabc_get_issuer (void *cls,
                 const char *data,
                 size_t data_size)
 {
-  const char *pabc_body;
-  char *pabc_string;
-  char delim[] = ".";
-  char *issuer = NULL;
-  char *decoded_pabc;
-  json_t *issuer_json;
-  GNUNET_log (GNUNET_ERROR_TYPE_DEBUG, "Parsing pabc attributes.\n");
-  json_t *json_val;
+  char *val_str = NULL;
+  char *tmp;
+  json_t *json_iss;
+  json_t *json_root;
   json_error_t *json_err = NULL;
 
-  pabc_string = GNUNET_strndup (data, data_size);
-  pabc_body = strtok (pabc_string, delim);
-  pabc_body = strtok (NULL, delim);
-  GNUNET_STRINGS_base64url_decode (pabc_body, strlen (pabc_body),
-                                   (void **) &decoded_pabc);
-  json_val = json_loads (decoded_pabc, JSON_DECODE_ANY, json_err);
-  GNUNET_free (decoded_pabc);
-  GNUNET_free (pabc_string);
-  if (NULL == json_val)
-    return NULL;
-  issuer_json = json_object_get (json_val, "iss");
-  if ((NULL == issuer_json) || (! json_is_string (issuer_json))) {
-    json_decref (json_val);
+  json_root = json_loads (data, JSON_DECODE_ANY, json_err);
+  if ((NULL == json_root) ||
+      (!json_is_object (json_root)))
+  {
+    GNUNET_log (GNUNET_ERROR_TYPE_ERROR,
+                "%s is not a valid pabc credentials (not an object)\n",
+                data);
+    if (NULL != json_root)
+      json_decref (json_root);
     return NULL;
   }
-  issuer = GNUNET_strdup (json_string_value (issuer_json));
-  json_decref (json_val);
-  return issuer;
+  json_iss = json_object_get (json_root, "issuer");
+  if (NULL == json_iss)
+  {
+    GNUNET_log (GNUNET_ERROR_TYPE_ERROR,
+                "%s is not a valid pabc credential (issuer malformed or missing)\n",
+                data);
+    json_decref (json_root);
+    return NULL;
+  }
+  val_str = json_dumps (json_iss, JSON_ENCODE_ANY);
+  tmp = val_str;
+  //Remove leading " from jasson conversion
+  if (tmp[0] == '"')
+    tmp++;
+  //Remove trailing " from jansson conversion
+  if (tmp[strlen(tmp)-1] == '"')
+    tmp[strlen(tmp)-1] = '\0';
+  return tmp;
 }
 
 
@@ -362,32 +353,32 @@ pabc_get_expiration (void *cls,
                     size_t data_size,
                     struct GNUNET_TIME_Absolute *exp)
 {
-  const char *pabc_body;
-  char *pabc_string;
-  char delim[] = ".";
-  char *decoded_pabc;
-  json_t *exp_json;
-  GNUNET_log (GNUNET_ERROR_TYPE_DEBUG, "Parsing pabc attributes.\n");
-  json_t *json_val;
+  json_t *json_exp;
+  json_t *json_root;
   json_error_t *json_err = NULL;
 
-  pabc_string = GNUNET_strndup (data, data_size);
-  pabc_body = strtok (pabc_string, delim);
-  pabc_body = strtok (NULL, delim);
-  GNUNET_STRINGS_base64url_decode (pabc_body, strlen (pabc_body),
-                                   (void **) &decoded_pabc);
-  json_val = json_loads (decoded_pabc, JSON_DECODE_ANY, json_err);
-  GNUNET_free (decoded_pabc);
-  GNUNET_free (pabc_string);
-  if (NULL == json_val)
-    return GNUNET_SYSERR;
-  exp_json = json_object_get (json_val, "exp");
-  if ((NULL == exp_json) || (! json_is_integer (exp_json))) {
-    json_decref (json_val);
+  json_root = json_loads (data, JSON_DECODE_ANY, json_err);
+  if ((NULL == json_root) ||
+      (!json_is_object (json_root)))
+  {
+    GNUNET_log (GNUNET_ERROR_TYPE_ERROR,
+                "%s is not a valid pabc credentials (not an object)\n",
+                data);
+    if (NULL != json_root)
+      json_decref (json_root);
     return GNUNET_SYSERR;
   }
-  exp->abs_value_us = json_integer_value (exp_json) * 1000 * 1000;
-  json_decref (json_val);
+  json_exp = json_object_get (json_root, "expiration");
+  if ((NULL == json_exp) || (! json_is_integer (json_exp)))
+  {
+    GNUNET_log (GNUNET_ERROR_TYPE_ERROR,
+                "%s is not a valid pabc credential (expiration malformed or missing)\n",
+                data);
+    json_decref (json_root);
+    return GNUNET_SYSERR;
+  }
+  exp->abs_value_us = json_integer_value (json_exp) * 1000 * 1000;
+  json_decref (json_root);
   return GNUNET_OK;
 }
 
@@ -426,16 +417,130 @@ pabc_get_expiration_p (void *cls,
 
 int
 pabc_create_presentation (void *cls,
-                         const struct GNUNET_RECLAIM_Credential *cred,
+                         const struct GNUNET_RECLAIM_Credential *credential,
                          const struct GNUNET_RECLAIM_AttributeList *attrs,
                          struct GNUNET_RECLAIM_Presentation **pres)
 {
-  // FIXME sanity checks??
-  if (GNUNET_RECLAIM_CREDENTIAL_TYPE_PABC != cred->type)
+  struct pabc_context *ctx = NULL;
+  struct pabc_user_context *usr_ctx = NULL;
+  struct pabc_public_parameters *pp = NULL;
+  struct pabc_credential *cred = NULL;
+  struct pabc_blinded_proof *proof = NULL;
+  struct GNUNET_RECLAIM_AttributeListEntry *ale;
+  enum pabc_status status;
+
+  if (GNUNET_RECLAIM_CREDENTIAL_TYPE_PABC != credential->type)
     return GNUNET_NO;
+
+
+  PABC_ASSERT (pabc_new_ctx (&ctx));
+  /**
+   * FIXME, how to get pp_name.
+   * Ideal would be an API that allows us to load pp by
+   * issuer name.
+   */
+  //status = load_public_parameters (ctx, "issuerXY", &pp);
+  if (status != PABC_OK)
+  {
+    GNUNET_log (GNUNET_ERROR_TYPE_ERROR,
+                "Failed to read public parameters.\n");
+    pabc_free_ctx (&ctx);
+    return GNUNET_SYSERR;
+  }
+  //FIXME needs API
+  //status = read_usr_ctx (usr_name, pp_name, ctx, pp, &usr_ctx);
+  if (PABC_OK != status)
+  {
+    GNUNET_log (GNUNET_ERROR_TYPE_ERROR,
+                "Failed to read user context.\n");
+    pabc_free_public_parameters (ctx, &pp);
+    return GNUNET_SYSERR;
+  }
+
+  status = pabc_new_credential (ctx, pp, &cred);
+  if (status != PABC_OK)
+  {
+    GNUNET_log (GNUNET_ERROR_TYPE_ERROR,
+                "Failed to allocate credential.\n");
+    pabc_free_user_context (ctx, pp, &usr_ctx);
+    pabc_free_public_parameters (ctx, &pp);
+    return GNUNET_SYSERR;
+  }
+
+  status = pabc_decode_credential (ctx, pp, cred, credential->data);
+  if (status != PABC_OK)
+  {
+    GNUNET_log (GNUNET_ERROR_TYPE_ERROR,
+                "Failed to decode credential.\n");
+    pabc_free_credential (ctx, pp, &cred);
+    pabc_free_user_context (ctx, pp, &usr_ctx);
+    pabc_free_public_parameters (ctx, &pp);
+    return GNUNET_SYSERR;
+  }
+
+  status = pabc_new_proof (ctx, pp, &proof);
+  if (status != PABC_OK)
+  {
+    GNUNET_log (GNUNET_ERROR_TYPE_ERROR,
+                "Failed to allocate proof.\n");
+    pabc_free_credential (ctx, pp, &cred);
+    pabc_free_user_context (ctx, pp, &usr_ctx);
+    pabc_free_public_parameters (ctx, &pp);
+    return GNUNET_SYSERR;
+  }
+
+  // now we can parse the attributes to disclose and configure the proof
+  for (ale = attrs->list_head; NULL != ale; ale = ale->next)
+  {
+    status = pabc_set_disclosure_by_attribute_name (ctx, pp, proof,
+                                                    ale->attribute->name,
+                                                    PABC_DISCLOSED, cred);
+    if (status != PABC_OK)
+    {
+      GNUNET_log (GNUNET_ERROR_TYPE_ERROR,
+                  "Failed to configure proof.\n");
+      pabc_free_credential (ctx, pp, &cred);
+      pabc_free_user_context (ctx, pp, &usr_ctx);
+      pabc_free_public_parameters (ctx, &pp);
+      return GNUNET_SYSERR;
+    }
+  }
+
+  // and finally -> sign the proof
+  status = pabc_gen_proof (ctx, usr_ctx, pp, proof, cred);
+  if (status != PABC_OK)
+  {
+    GNUNET_log (GNUNET_ERROR_TYPE_ERROR,
+                "Failed to sign proof.\n");
+    pabc_free_proof (ctx, pp, &proof);
+    pabc_free_credential (ctx, pp, &cred);
+    pabc_free_user_context (ctx, pp, &usr_ctx);
+    pabc_free_public_parameters (ctx, &pp);
+    return GNUNET_SYSERR;
+  }
+  // print the result
+  char *json = NULL;
+  pabc_encode_proof (ctx, pp, proof, &json);
+  if (PABC_OK != status)
+  {
+    GNUNET_log (GNUNET_ERROR_TYPE_ERROR,
+                "Failed to serialize proof.\n");
+    pabc_free_proof (ctx, pp, &proof);
+    pabc_free_credential (ctx, pp, &cred);
+    pabc_free_user_context (ctx, pp, &usr_ctx);
+    pabc_free_public_parameters (ctx, &pp);
+    return GNUNET_SYSERR;
+  }
+  printf ("%s", json);
+  // clean up
   *pres = GNUNET_RECLAIM_presentation_new (GNUNET_RECLAIM_CREDENTIAL_TYPE_PABC,
-                                           cred->data,
-                                           cred->data_size);
+                                           json,
+                                           strlen (json) + 1);
+  PABC_FREE_NULL (json);
+  pabc_free_proof (ctx, pp, &proof);
+  pabc_free_credential (ctx, pp, &cred);
+  pabc_free_user_context (ctx, pp, &usr_ctx);
+  pabc_free_public_parameters (ctx, &pp);
   return GNUNET_OK;
 }
 
@@ -450,14 +555,6 @@ void *
 libgnunet_plugin_reclaim_credential_pabc_init (void *cls)
 {
   struct GNUNET_RECLAIM_CredentialPluginFunctions *api;
-  struct pabc_context *ctx;
-
-  if (PABC_OK != pabc_new_ctx (&ctx))
-  {
-    GNUNET_log (GNUNET_ERROR_TYPE_ERROR,
-                "Unable to initialize pabc context\n");
-    return NULL;
-  }
 
   api = GNUNET_new (struct GNUNET_RECLAIM_CredentialPluginFunctions);
   api->value_to_string = &pabc_value_to_string;
