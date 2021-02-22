@@ -16,6 +16,10 @@ REST_PLUGIN = \
 CREDENTIAL_PLUGIN = \
   libgnunet_plugin_reclaim_credential_jwt.la
 
+if HAVE_PABC
+  CREDENTIAL_PLUGIN += libgnunet_plugin_reclaim_credential_pabc.la
+endif
+
 EXTRA_DIST = \
   reclaim.conf \
   test_reclaim_defaults.conf \
@@ -133,6 +137,20 @@ libgnunet_plugin_reclaim_attribute_basic_la_LIBADD = \
   $(LTLIBINTL)
 libgnunet_plugin_reclaim_attribute_basic_la_LDFLAGS = \
  $(GN_PLUGIN_LDFLAGS)
+
+if HAVE_PABC
+libgnunet_plugin_reclaim_credential_pabc_la_SOURCES = \
+  plugin_reclaim_credential_pabc.c
+libgnunet_plugin_reclaim_credential_pabc_la_LIBADD = \
+  $(top_builddir)/src/util/libgnunetutil.la \
+  libgnunetreclaim.la \
+  -ljansson\
+  -lpabc \
+  $(LTLIBINTL)
+libgnunet_plugin_reclaim_credential_pabc_la_LDFLAGS = \
+ $(GN_PLUGIN_LDFLAGS)
+endif
+
 
 libgnunet_plugin_reclaim_credential_jwt_la_SOURCES = \
   plugin_reclaim_credential_jwt.c
