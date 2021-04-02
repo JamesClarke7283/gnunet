@@ -401,20 +401,29 @@ struct Operation
    */
   unsigned int generation_created;
 
-  /**
-   * User defined Bandwidth Round Trips Tradeoff
-   */
-  double rtt_bandwidth_tradeoff;
 
   /**
+  * User defined Bandwidth Round Trips Tradeoff
+  */
+  float rtt_bandwidth_tradeoff;
+
+  /**
+  * Factor (0-1) defines until which estimated set difference
+  * a differential sync is faster
+  */
+    float max_set_diff_factor_diff_sync;
+
+
+   /**
    * Number of Element per bucket  in IBF
    */
   unsigned int ibf_number_buckets_per_element;
 
+
   /**
    * Number of buckets in IBF
    */
-  unsigned ibf_bucket_number;
+  unsigned int ibf_bucket_number;
 
 };
 
@@ -637,6 +646,13 @@ static uint32_t suggest_id;
 
 
 /**
+ * Handles configuration file for setu performance test
+ *
+ */
+static const struct GNUNET_CONFIGURATION_Handle *setu_cfg;
+
+
+/**
  * Added Roundtripscounter
  */
 
@@ -663,9 +679,43 @@ struct perf_rtt_struct
     struct perf_num_send_resived_msg offer;
     struct perf_num_send_resived_msg done;
     struct perf_num_send_resived_msg over;
+    int se_diff;
+    int active_passive_switches;
 };
 
 struct perf_rtt_struct perf_rtt;
+
+
+
+
+
+static void
+load_config(struct Operation * op) {
+
+
+    setu_cfg = GNUNET_CONFIGURATION_create();
+    GNUNET_CONFIGURATION_load(setu_cfg,"/tmp/perf_setu.conf");
+
+
+    long long number;
+    float fl;
+    GNUNET_CONFIGURATION_get_value_number(setu_cfg,"IBF", "BUCKET_NUMBER", &number);
+
+    op->ibf_bucket_number = number;
+
+    GNUNET_CONFIGURATION_get_value_number(setu_cfg,"IBF", "NUMBER_PER_BUCKET", &number);
+    op->ibf_number_buckets_per_element = number;
+
+    GNUNET_CONFIGURATION_get_value_float(setu_cfg,"PERFORMANCE", "TRADEOFF", &fl);
+    op->rtt_bandwidth_tradeoff = fl;
+
+    GNUNET_CONFIGURATION_get_value_float(setu_cfg,"PERFORMANCE", "MAX_SET_DIFF_FACTOR_DIFFERENTIAL", &fl);
+    op->max_set_diff_factor_diff_sync = fl;
+
+    LOG(GNUNET_ERROR_TYPE_ERROR,"LOAD CONFIG\n");
+
+}
+
 
 
 static int
@@ -684,10 +734,11 @@ calculate_perf_rtt() {
     float rtt = 1;
     int bytes_transmitted = 0;
 
+    LOG(GNUNET_ERROR_TYPE_ERROR,"RTTTTTTTTTTTTTT1: %f \n", rtt);
     /**
      *  Calculate RGNUNET_SETU_AcceptMessageRT of Fullsync normaly 1 or 1.5 depending
      */
-     if (( perf_rtt.element_full.received != 0 ) ||
+    if (( perf_rtt.element_full.received != 0 ) ||
          ( perf_rtt.element_full.sent != 0)
         ) rtt += 1;
 
@@ -700,10 +751,13 @@ calculate_perf_rtt() {
      *  for every active/passive switch additional 3.5 rtt's are used
      */
 
-    int iterations = perf_rtt.ibf.received;
-    if(iterations > 1)
-        rtt += (iterations - 1 ) * 0.5;
-    rtt += 3 * iterations;
+    if (( perf_rtt.element.received != 0 ) ||
+        ( perf_rtt.element.sent != 0)) {
+        int iterations = perf_rtt.active_passive_switches;
+        if(iterations > 0)
+            rtt += iterations * 0.5;
+        rtt +=  2.5;
+    }
 
     /**
      * Calculate data sended size
@@ -723,6 +777,19 @@ calculate_perf_rtt() {
     LOG(GNUNET_ERROR_TYPE_ERROR,"Bytes Transmitted: %d\n", bytes_transmitted);
 
     LOG(GNUNET_ERROR_TYPE_ERROR,"Reached tradeoff bandwidth/rtt: %f\n", (bytes_transmitted / rtt ));
+
+    LOG(GNUNET_ERROR_TYPE_ERROR,"Estimateded set difference: %d\n", perf_rtt.se_diff);
+
+
+
+    /**
+     * Write performance csv output
+     * <se_diff>,<active_passive_switches>,<bytes_transmitted>,<rtt>
+     */
+    FILE *out = fopen("perfstats.log", "a");
+    fprintf(out, "%d,%d,%d,%f\n", perf_rtt.se_diff, perf_rtt.active_passive_switches,bytes_transmitted,rtt);
+    fclose(out);
+    return 0;
 
     return rtt;
 }
@@ -1514,6 +1581,8 @@ handle_union_p2p_strata_estimator (void *cls,
   diff = strata_estimator_difference (remote_se,
                                       op->se);
 
+  perf_rtt.se_diff = diff;
+
   if (diff > 200)
     diff = diff * 3 / 2;
 
@@ -1546,15 +1615,14 @@ handle_union_p2p_strata_estimator (void *cls,
     return;
   }
 
-    LOG (GNUNET_ERROR_TYPE_ERROR,
-         "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx: %f\n", op->rtt_bandwidth_tradeoff);
+LOG (GNUNET_ERROR_TYPE_ERROR, "VALUE: %f\n ",op->max_set_diff_factor_diff_sync);
 
 
   /**
    * Added rtt_bandwidth_tradeoff directly need future improvements
    */
   if ((GNUNET_YES == op->force_full) ||
-      (diff > op->initial_size / 4) ||
+      (diff > op->initial_size * op->max_set_diff_factor_diff_sync) ||
       (0 == other_size))
   {
     LOG (GNUNET_ERROR_TYPE_DEBUG,
@@ -1745,13 +1813,14 @@ decode_and_send (struct Operation *op)
       next_order++;
       if (next_order <= MAX_IBF_ORDER)
       {
-        LOG (GNUNET_ERROR_TYPE_DEBUG,
+        LOG (GNUNET_ERROR_TYPE_ERROR,
              "decoding failed, sending larger ibf (size %u)\n",
              1 << next_order);
         GNUNET_STATISTICS_update (_GSS_statistics,
                                   "# of IBF retries",
                                   1,
                                   GNUNET_NO);
+        perf_rtt.active_passive_switches += 1;
         op->salt_send++;
         if (GNUNET_OK !=
             send_ibf (op, next_order))
@@ -3451,6 +3520,7 @@ handle_client_evaluate (void *cls,
 {
   struct ClientState *cs = cls;
   struct Operation *op = GNUNET_new (struct Operation);
+
   const struct GNUNET_MQ_MessageHandler cadet_handlers[] = {
     GNUNET_MQ_hd_var_size (incoming_msg,
                            GNUNET_MESSAGE_TYPE_SETU_P2P_OPERATION_REQUEST,
@@ -3526,6 +3596,9 @@ handle_client_evaluate (void *cls,
   op->force_delta = msg->force_delta;
   op->symmetric = msg->symmetric;
   context = GNUNET_MQ_extract_nested_mh (msg);
+
+    /* load config */
+    load_config(op);
 
   /* Advance generation values, so that
      mutations won't interfer with the running operation. */
@@ -3696,7 +3769,7 @@ handle_client_accept (void *cls,
   GNUNET_log (GNUNET_ERROR_TYPE_DEBUG,
               "Client accepting request %u\n",
               (uint32_t) ntohl (msg->accept_reject_id));
-  listener = op->listener;
+    listener = op->listener;
   op->listener = NULL;
   GNUNET_CONTAINER_DLL_remove (listener->op_head,
                                listener->op_tail,

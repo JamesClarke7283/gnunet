@@ -50,6 +50,13 @@ static int ret;
 static struct GNUNET_SCHEDULER_Task *tt;
 
 
+/**
+ * Handles configuration file for setu performance test
+ *
+ */
+static const struct GNUNET_CONFIGURATION_Handle *setu_cfg;
+
+
 
 static void
 result_cb_set1 (void *cls,
@@ -395,12 +402,30 @@ run (void *cls,
                 "Running real set-reconciliation\n");
     //init_set1 ();
     // limit ~23800 element total
-    initRandomSets(50,100,100,128);
+    initRandomSets(475,500,500,32);
 }
 
 static void execute_perf()
 {
-    for( int repeat_ctr = 0; repeat_ctr<1; repeat_ctr++ ) {
+    setu_cfg =  GNUNET_CONFIGURATION_create ();
+    GNUNET_CONFIGURATION_set_value_number (setu_cfg, "IBF", "BUCKET_NUMBER", 5);
+    GNUNET_CONFIGURATION_set_value_number (setu_cfg, "IBF", "NUMBER_PER_BUCKET", 4);
+    GNUNET_CONFIGURATION_set_value_string (setu_cfg, "PERFORMANCE", "TRADEOFF", "0.25");
+    GNUNET_CONFIGURATION_set_value_string (setu_cfg, "PERFORMANCE", "MAX_SET_DIFF_FACTOR_DIFFERENTIAL", "0.25");
+
+    /**
+     * Erase statfile
+     */
+     remove("perfstats.log");
+    //FILE *out = fopen("perfstats.log", "w");
+    //fprintf(out, "se_diff,active_passive_switches,bytes_transmitted,rtt\n");
+
+    if (GNUNET_OK != GNUNET_CONFIGURATION_write (setu_cfg, "/tmp/perf_setu.conf"))
+        GNUNET_log (
+            GNUNET_ERROR_TYPE_ERROR,
+                _ ("Failed to write subsystem default identifier map to `%s'.\n"),
+                setu_cfg);
+    for( int repeat_ctr = 0; repeat_ctr<100; repeat_ctr++ ) {
 
         GNUNET_log (GNUNET_ERROR_TYPE_INFO,
                     "Executing perf round %d\n", repeat_ctr);
