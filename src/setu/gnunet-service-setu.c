@@ -421,9 +421,10 @@ struct Operation
 
 
   /**
-   * Number of buckets in IBF
+   * Set difference is multiplied with this factor
+   * to gennerate large enought IBF
    */
-  unsigned int ibf_bucket_number;
+  float ibf_bucket_number_factor;
 
 };
 
@@ -699,9 +700,8 @@ load_config(struct Operation * op) {
 
     long long number;
     float fl;
-    GNUNET_CONFIGURATION_get_value_number(setu_cfg,"IBF", "BUCKET_NUMBER", &number);
-
-    op->ibf_bucket_number = number;
+    GNUNET_CONFIGURATION_get_value_float(setu_cfg,"IBF", "BUCKET_NUMBER_FACTOR", &fl);
+    op->ibf_bucket_number_factor = fl;
 
     GNUNET_CONFIGURATION_get_value_number(setu_cfg,"IBF", "NUMBER_PER_BUCKET", &number);
     op->ibf_number_buckets_per_element = number;
@@ -712,7 +712,7 @@ load_config(struct Operation * op) {
     GNUNET_CONFIGURATION_get_value_float(setu_cfg,"PERFORMANCE", "MAX_SET_DIFF_FACTOR_DIFFERENTIAL", &fl);
     op->max_set_diff_factor_diff_sync = fl;
 
-    LOG(GNUNET_ERROR_TYPE_ERROR,"LOAD CONFIG\n");
+    LOG(GNUNET_ERROR_TYPE_ERROR,"LOAD CONFIG: %d\n", op->ibf_number_buckets_per_element);
 
 }
 
@@ -746,6 +746,7 @@ calculate_perf_rtt() {
         ( perf_rtt.request_full.sent != 0)
          ) rtt += 0.5;
 
+    LOG(GNUNET_ERROR_TYPE_ERROR,"RTTTTTTTTTTTTTT2: %f \n", rtt);
     /**
      *  In case of a differential sync 3 rtt's are needed.
      *  for every active/passive switch additional 3.5 rtt's are used
@@ -758,6 +759,7 @@ calculate_perf_rtt() {
             rtt += iterations * 0.5;
         rtt +=  2.5;
     }
+    LOG(GNUNET_ERROR_TYPE_ERROR,"RTTTTTTTTTTTTTT3: %d \n", perf_rtt.active_passive_switches);
 
     /**
      * Calculate data sended size
@@ -1325,7 +1327,8 @@ prepare_ibf (struct Operation *op,
 
   if (NULL != op->local_ibf)
     ibf_destroy (op->local_ibf);
-  op->local_ibf = ibf_create (size, SE_IBF_HASH_NUM);
+  //op->local_ibf = ibf_create (size, SE_IBF_HASH_NUM);
+  op->local_ibf = ibf_create (size, ((uint8_t) op->ibf_number_buckets_per_element));
   if (NULL == op->local_ibf)
   {
     GNUNET_log (GNUNET_ERROR_TYPE_ERROR,
@@ -1421,16 +1424,18 @@ send_ibf (struct Operation *op,
  * @return the required size of the ibf
  */
 static unsigned int
-get_order_from_difference (unsigned int diff)
+get_order_from_difference (unsigned int diff, int number_buckets_per_element, float ibf_bucket_number_factor)
 {
   unsigned int ibf_order;
 
   ibf_order = 2;
-  while (((1 << ibf_order) < (IBF_ALPHA * diff) ||
-          ((1 << ibf_order) < SE_IBF_HASH_NUM)) &&
+  while (((1 << ibf_order) < (ibf_bucket_number_factor * diff) ||
+          ((1 << ibf_order) < number_buckets_per_element)) &&
          (ibf_order < MAX_IBF_ORDER))
     ibf_order++;
   // add one for correction
+    LOG (GNUNET_ERROR_TYPE_ERROR,"IBF ORDER: %d\n", ibf_order);
+
   return ibf_order + 1;
 }
 
@@ -1592,7 +1597,7 @@ handle_union_p2p_strata_estimator (void *cls,
   LOG (GNUNET_ERROR_TYPE_DEBUG,
        "got se diff=%d, using ibf size %d\n",
        diff,
-       1U << get_order_from_difference (diff));
+       1U << get_order_from_difference (diff, op->ibf_number_buckets_per_element, op->ibf_bucket_number_factor));
 
   {
     char *set_debug;
@@ -1660,7 +1665,7 @@ LOG (GNUNET_ERROR_TYPE_ERROR, "VALUE: %f\n ",op->max_set_diff_factor_diff_sync);
                               GNUNET_NO);
     if (GNUNET_OK !=
         send_ibf (op,
-                  get_order_from_difference (diff)))
+                  get_order_from_difference (diff, op->ibf_number_buckets_per_element, op->ibf_bucket_number_factor)))
     {
       /* Internal error, best we can do is shut the connection */
       GNUNET_log (GNUNET_ERROR_TYPE_ERROR,
@@ -1992,7 +1997,8 @@ handle_union_p2p_ibf (void *cls,
     LOG (GNUNET_ERROR_TYPE_DEBUG,
          "Creating new ibf of size %u\n",
          1 << msg->order);
-    op->remote_ibf = ibf_create (1 << msg->order, SE_IBF_HASH_NUM);
+    // op->remote_ibf = ibf_create (1 << msg->order, SE_IBF_HASH_NUM);
+    op->remote_ibf = ibf_create (1 << msg->order, ((uint8_t) op->ibf_number_buckets_per_element));
     op->salt_receive = ntohl (msg->salt);
     LOG (GNUNET_ERROR_TYPE_DEBUG,
          "Receiving new IBF with salt %u\n",
@@ -3784,6 +3790,9 @@ handle_client_accept (void *cls,
   op->force_full = msg->force_full;
   op->force_delta = msg->force_delta;
   op->symmetric = msg->symmetric;
+
+  /* load config */
+  load_config(op);
 
   /* Advance generation values, so that future mutations do not
      interfer with the running operation. */

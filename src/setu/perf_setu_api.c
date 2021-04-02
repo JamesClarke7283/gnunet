@@ -402,16 +402,16 @@ run (void *cls,
                 "Running real set-reconciliation\n");
     //init_set1 ();
     // limit ~23800 element total
-    initRandomSets(475,500,500,32);
+    initRandomSets(450,500,500,32);
 }
 
 static void execute_perf()
 {
     setu_cfg =  GNUNET_CONFIGURATION_create ();
-    GNUNET_CONFIGURATION_set_value_number (setu_cfg, "IBF", "BUCKET_NUMBER", 5);
-    GNUNET_CONFIGURATION_set_value_number (setu_cfg, "IBF", "NUMBER_PER_BUCKET", 4);
+    GNUNET_CONFIGURATION_set_value_string (setu_cfg, "IBF", "BUCKET_NUMBER_FACTOR", "1"); // Factor default=4
+    GNUNET_CONFIGURATION_set_value_number (setu_cfg, "IBF", "NUMBER_PER_BUCKET", 4); // K default=4
     GNUNET_CONFIGURATION_set_value_string (setu_cfg, "PERFORMANCE", "TRADEOFF", "0.25");
-    GNUNET_CONFIGURATION_set_value_string (setu_cfg, "PERFORMANCE", "MAX_SET_DIFF_FACTOR_DIFFERENTIAL", "0.25");
+    GNUNET_CONFIGURATION_set_value_string (setu_cfg, "PERFORMANCE", "MAX_SET_DIFF_FACTOR_DIFFERENTIAL", "0.25"); //default=4
 
     /**
      * Erase statfile
