@@ -7,6 +7,8 @@ libexecdir= $(pkglibdir)/libexec/
 
 plugindir = $(libdir)/gnunet
 
+PTHREAD = -lpthread
+
 pkgcfg_DATA = \
   setu.conf
 
@@ -63,7 +65,8 @@ libgnunetsetu_la_SOURCES = \
   setu_api.c setu.h
 libgnunetsetu_la_LIBADD = \
   $(top_builddir)/src/util/libgnunetutil.la \
-  $(LTLIBINTL)
+  $(LTLIBINTL) \
+  $(PTHREAD)
 libgnunetsetu_la_LDFLAGS = \
   $(GN_LIB_LDFLAGS)
 
@@ -103,7 +106,8 @@ libgnunet_plugin_block_setu_test_la_LIBADD = \
   $(top_builddir)/src/block/libgnunetblock.la \
   $(top_builddir)/src/block/libgnunetblockgroup.la \
   $(top_builddir)/src/util/libgnunetutil.la \
-  $(LTLIBINTL)
+  $(LTLIBINTL) \
+  $(PTHREAD)
 libgnunet_plugin_block_setu_test_la_LDFLAGS = \
  $(GN_PLUGIN_LDFLAGS)
 
