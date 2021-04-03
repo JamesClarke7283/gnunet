@@ -425,14 +425,13 @@ static void run_petf_thread(int total_runs) {
 //Father code (before child processes start)
     for (int processed = 0; processed < total_runs;) {
         for (int id = 0; id < core_count; id++) {
-
             if(processed >= total_runs) break;
 
             if ((child_pid = fork()) == 0) {
-                perf_thread();
+                //perf_thread();
                 exit(0);
             }
-            processed=+1;
+            processed += 1;
         }
         while ((wpid = wait(&status)) > 0);
     }
@@ -470,7 +469,7 @@ static void execute_perf() {
                         GNUNET_ERROR_TYPE_ERROR,
                         _("Failed to write subsystem default identifier map to `%s'.\n"),
                         setu_cfg);
-            run_petf_thread(100);
+            run_petf_thread(1000);
         }
     }
     return 0;
