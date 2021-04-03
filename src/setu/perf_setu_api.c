@@ -428,7 +428,7 @@ static void run_petf_thread(int total_runs) {
             if(processed >= total_runs) break;
 
             if ((child_pid = fork()) == 0) {
-                //perf_thread();
+                perf_thread();
                 exit(0);
             }
             processed += 1;
