@@ -408,12 +408,13 @@ run (void *cls,
 }
 
 static void perf_thread(void *arg) {
+
+    printf("OK\n");
     GNUNET_TESTING_service_run("perf_setu_api",
                                "arm",
                                "test_setu.conf",
                                &run,
                                NULL);
-    return NULL;
 }
 
 
@@ -475,6 +476,7 @@ static void execute_perf() {
 int
 main (int argc, char **argv)
 {
+
     GNUNET_log_setup ("perf_setu_api",
                       "WARNING",
                       NULL);

@@ -94,7 +94,8 @@ perf_setu_api_SOURCES = \
 perf_setu_api_LDADD = \
   $(top_builddir)/src/util/libgnunetutil.la \
   $(top_builddir)/src/testing/libgnunettesting.la \
-  libgnunetsetu.la
+  libgnunetsetu.la \
+  $(PTHREAD)
 
 
 plugin_LTLIBRARIES = \
