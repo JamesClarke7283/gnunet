@@ -482,6 +482,11 @@ main (int argc, char **argv)
                       "WARNING",
                       NULL);
 
-    execute_perf();
+    GNUNET_TESTING_service_run("perf_setu_api",
+                               "arm",
+                               "test_setu.conf",
+                               &run,
+                               NULL);
+    //execute_perf();
     return 0;
 }

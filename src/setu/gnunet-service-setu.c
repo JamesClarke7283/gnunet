@@ -751,7 +751,6 @@ calculate_perf_rtt() {
      *  In case of a differential sync 3 rtt's are needed.
      *  for every active/passive switch additional 3.5 rtt's are used
      */
-
     if (( perf_rtt.element.received != 0 ) ||
         ( perf_rtt.element.sent != 0)) {
         int iterations = perf_rtt.active_passive_switches;
@@ -789,7 +788,8 @@ calculate_perf_rtt() {
      */
     float factor;
     GNUNET_CONFIGURATION_get_value_float(setu_cfg,"IBF", "BUCKET_NUMBER_FACTOR", &factor);
-    int num_per_bucket;
+    return;
+    long long num_per_bucket;
     GNUNET_CONFIGURATION_get_value_number(setu_cfg,"IBF", "NUMBER_PER_BUCKET", &num_per_bucket);
 
 
