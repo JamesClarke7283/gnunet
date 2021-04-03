@@ -783,12 +783,29 @@ calculate_perf_rtt() {
     LOG(GNUNET_ERROR_TYPE_ERROR,"Estimateded set difference: %d\n", perf_rtt.se_diff);
 
 
+    /*
+     * Write IBF failure rate for different BUCKET_NUMBER_FACTOR
+     */
+    float factor;
+    GNUNET_CONFIGURATION_get_value_float(setu_cfg,"IBF", "BUCKET_NUMBER_FACTOR", &factor);
+    int num_per_bucket;
+    GNUNET_CONFIGURATION_get_value_number(setu_cfg,"IBF", "NUMBER_PER_BUCKET", &num_per_bucket);
+
+    int decoded = 0;
+    if(perf_rtt.active_passive_switches == 0)
+        decoded = 1;
+
+    FILE *out1 = fopen("perf_failure_bucket_number_factor.csv", "a");
+    fprintf(out1, "%d,%f,%d\n",num_per_bucket,factor,decoded);
+    fclose(out1);
+
 
     /**
-     * Write performance csv output
-     * <se_diff>,<active_passive_switches>,<bytes_transmitted>,<rtt>
-     */
-    FILE *out = fopen("perfstats.log", "a");
+    * Write performance csv output
+    * <se_diff>,<active_passive_switches>,<bytes_transmitted>,<rtt>
+    */
+
+    FILE *out = fopen("perf_stats.csv", "a");
     fprintf(out, "%d,%d,%d,%f\n", perf_rtt.se_diff, perf_rtt.active_passive_switches,bytes_transmitted,rtt);
     fclose(out);
     return 0;

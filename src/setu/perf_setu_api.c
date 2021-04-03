@@ -27,6 +27,8 @@
 #include "gnunet_util_lib.h"
 #include "gnunet_testing_lib.h"
 #include "gnunet_setu_service.h"
+#include <sys/sysinfo.h>
+#include <pthread.h>
 
 
 static struct GNUNET_PeerIdentity local_id;
@@ -405,36 +407,65 @@ run (void *cls,
     initRandomSets(450,500,500,32);
 }
 
-static void execute_perf()
-{
-    setu_cfg =  GNUNET_CONFIGURATION_create ();
-    GNUNET_CONFIGURATION_set_value_string (setu_cfg, "IBF", "BUCKET_NUMBER_FACTOR", "1"); // Factor default=4
-    GNUNET_CONFIGURATION_set_value_number (setu_cfg, "IBF", "NUMBER_PER_BUCKET", 4); // K default=4
-    GNUNET_CONFIGURATION_set_value_string (setu_cfg, "PERFORMANCE", "TRADEOFF", "0.25");
-    GNUNET_CONFIGURATION_set_value_string (setu_cfg, "PERFORMANCE", "MAX_SET_DIFF_FACTOR_DIFFERENTIAL", "0.25"); //default=4
+static void perf_thread(void *arg) {
+    GNUNET_TESTING_service_run("perf_setu_api",
+                               "arm",
+                               "test_setu.conf",
+                               &run,
+                               NULL);
+    return NULL;
+}
+
+
+static void run_petf_thread(int total_runs) {
+    int core_count=get_nprocs_conf();
+    for(int runs = 0; runs < total_runs; runs += core_count) {
+        pthread_t tid[core_count];
+
+        for (int i = 0; i < core_count; i++) {
+            pthread_create(&tid[i], NULL, perf_thread, NULL);
+        }
+
+        for (int i = 0; i < core_count; i++)
+            pthread_join(tid[i], NULL);
+    }
+
+}
+
+static void execute_perf() {
 
     /**
-     * Erase statfile
-     */
-     remove("perfstats.log");
+    * Erase statfile
+    */
+    remove("perf_stats.csv");
+    remove("perf_failure_bucket_number_factor.csv");
     //FILE *out = fopen("perfstats.log", "w");
     //fprintf(out, "se_diff,active_passive_switches,bytes_transmitted,rtt\n");
 
-    if (GNUNET_OK != GNUNET_CONFIGURATION_write (setu_cfg, "/tmp/perf_setu.conf"))
-        GNUNET_log (
-            GNUNET_ERROR_TYPE_ERROR,
-                _ ("Failed to write subsystem default identifier map to `%s'.\n"),
-                setu_cfg);
-    for( int repeat_ctr = 0; repeat_ctr<100; repeat_ctr++ ) {
+    for (int out_out_ctr = 1; out_out_ctr <= 10; out_out_ctr++) {
 
-        GNUNET_log (GNUNET_ERROR_TYPE_INFO,
-                    "Executing perf round %d\n", repeat_ctr);
+        for (int out_ctr = 0; out_ctr <= 100; out_ctr++) {
 
-        GNUNET_TESTING_service_run ("perf_setu_api",
-                                 "arm",
-                                 "test_setu.conf",
-                                 &run,
-                                 NULL);
+            float base = 0.1;
+            float x = out_ctr * base;
+            char factor[10];
+            gcvt(x, 4, factor);
+
+            setu_cfg = GNUNET_CONFIGURATION_create();
+            GNUNET_CONFIGURATION_set_value_string(setu_cfg, "IBF", "BUCKET_NUMBER_FACTOR", factor); // Factor default=4
+            GNUNET_CONFIGURATION_set_value_number(setu_cfg, "IBF", "NUMBER_PER_BUCKET", out_out_ctr); // K default=4
+            GNUNET_CONFIGURATION_set_value_string(setu_cfg, "PERFORMANCE", "TRADEOFF", "0.25");
+            GNUNET_CONFIGURATION_set_value_string(setu_cfg, "PERFORMANCE", "MAX_SET_DIFF_FACTOR_DIFFERENTIAL",
+                                                  "0.25");//default=4
+
+
+            if (GNUNET_OK != GNUNET_CONFIGURATION_write(setu_cfg, "/tmp/perf_setu.conf"))
+                GNUNET_log(
+                        GNUNET_ERROR_TYPE_ERROR,
+                        _("Failed to write subsystem default identifier map to `%s'.\n"),
+                        setu_cfg);
+            run_petf_thread(100);
+        }
     }
     return 0;
 }
