@@ -407,31 +407,35 @@ run (void *cls,
     initRandomSets(450,500,500,32);
 }
 
-void *perf_thread() {
-
-    printf("OK\n");
-
+void perf_thread() {
     GNUNET_TESTING_service_run("perf_setu_api",
                                "arm",
                                "test_setu.conf",
                                &run,
                                NULL);
+
 }
 
 
 static void run_petf_thread(int total_runs) {
-    int core_count=get_nprocs_conf();
-    for(int runs = 0; runs < total_runs; runs += core_count) {
-        pthread_t tid[core_count];
+    int core_count = get_nprocs_conf();
+    pid_t child_pid, wpid;
+    int status = 0;
 
-        for (int i = 0; i < core_count; i++) {
-            pthread_create(&tid[i], NULL, perf_thread, NULL);
+//Father code (before child processes start)
+    for (int processed = 0; processed < total_runs;) {
+        for (int id = 0; id < core_count; id++) {
+
+            if(processed >= total_runs) break;
+
+            if ((child_pid = fork()) == 0) {
+                perf_thread();
+                exit(0);
+            }
+            processed=+1;
         }
-
-        for (int i = 0; i < core_count; i++)
-            pthread_join(tid[i], NULL);
+        while ((wpid = wait(&status)) > 0);
     }
-
 }
 
 static void execute_perf() {
@@ -481,12 +485,6 @@ main (int argc, char **argv)
     GNUNET_log_setup ("perf_setu_api",
                       "WARNING",
                       NULL);
-
-    GNUNET_TESTING_service_run("perf_setu_api",
-                               "arm",
-                               "test_setu.conf",
-                               &run,
-                               NULL);
-    //execute_perf();
+    execute_perf();
     return 0;
 }

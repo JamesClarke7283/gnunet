@@ -788,7 +788,6 @@ calculate_perf_rtt() {
      */
     float factor;
     GNUNET_CONFIGURATION_get_value_float(setu_cfg,"IBF", "BUCKET_NUMBER_FACTOR", &factor);
-    return;
     long long num_per_bucket;
     GNUNET_CONFIGURATION_get_value_number(setu_cfg,"IBF", "NUMBER_PER_BUCKET", &num_per_bucket);
 
