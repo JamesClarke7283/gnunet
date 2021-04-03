@@ -407,7 +407,7 @@ run (void *cls,
     initRandomSets(450,500,500,32);
 }
 
-static void perf_thread(void *arg) {
+void *perf_thread() {
 
     printf("OK\n");
 
