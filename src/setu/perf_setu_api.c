@@ -447,7 +447,7 @@ static void execute_perf() {
     //FILE *out = fopen("perfstats.log", "w");
     //fprintf(out, "se_diff,active_passive_switches,bytes_transmitted,rtt\n");
 
-    for (int out_out_ctr = 7; out_out_ctr <= 10; out_out_ctr++) {
+    for (int out_out_ctr = 1; out_out_ctr <= 10; out_out_ctr++) {
 
         for (int out_ctr = 10; out_ctr <= 60; out_ctr++) {
 

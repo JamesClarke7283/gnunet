@@ -748,9 +748,11 @@ calculate_perf_rtt() {
      *  In case of a differential sync 3 rtt's are needed.
      *  for every active/passive switch additional 3.5 rtt's are used
      */
+    LOG(GNUNET_ERROR_TYPE_ERROR,"ITER: %d\n",  perf_rtt.active_passive_switches);
     if (( perf_rtt.element.received != 0 ) ||
         ( perf_rtt.element.sent != 0)) {
         int iterations = perf_rtt.active_passive_switches;
+
         if(iterations > 0)
             rtt += iterations * 0.5;
         rtt +=  2.5;
@@ -796,7 +798,7 @@ calculate_perf_rtt() {
 
 
     FILE *out1 = fopen("perf_failure_bucket_number_factor.csv", "a");
-    fprintf(out1, "%d,%f,%d,%d\n",num_per_bucket,factor,decoded,ibf_bytes_transmitted);
+    fprintf(out1, "%d,%f,%d,%d,%f,%d\n",num_per_bucket,factor,decoded,ibf_bytes_transmitted,rtt,perf_rtt.se_diff);
     fclose(out1);
 
 
@@ -1831,6 +1833,7 @@ decode_and_send (struct Operation *op)
       while (1 << next_order < diff_ibf->size)
         next_order++;
       next_order++;
+
       if (next_order <= MAX_IBF_ORDER)
       {
         LOG (GNUNET_ERROR_TYPE_ERROR,
@@ -1841,7 +1844,9 @@ decode_and_send (struct Operation *op)
                                   1,
                                   GNUNET_NO);
         perf_rtt.active_passive_switches += 1;
-        op->salt_send++;
+
+          op->salt_send += 1;
+
         if (GNUNET_OK !=
             send_ibf (op, next_order))
         {
