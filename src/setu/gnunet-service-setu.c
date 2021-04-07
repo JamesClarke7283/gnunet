@@ -711,9 +711,6 @@ load_config(struct Operation * op) {
 
     GNUNET_CONFIGURATION_get_value_float(setu_cfg,"PERFORMANCE", "MAX_SET_DIFF_FACTOR_DIFFERENTIAL", &fl);
     op->max_set_diff_factor_diff_sync = fl;
-
-    LOG(GNUNET_ERROR_TYPE_ERROR,"LOAD CONFIG: %d\n", op->ibf_number_buckets_per_element);
-
 }
 
 
@@ -1640,13 +1637,10 @@ handle_union_p2p_strata_estimator (void *cls,
     return;
   }
 
-LOG (GNUNET_ERROR_TYPE_ERROR, "VALUE: %f\n ",op->max_set_diff_factor_diff_sync);
-
 
   /**
    * Added rtt_bandwidth_tradeoff directly need future improvements
    */
-    LOG(GNUNET_ERROR_TYPE_ERROR,"((GNUNET_YES == %d) || (%d > %d * %f) || (0 == %d))", op->force_full,diff, op->initial_size, op->max_set_diff_factor_diff_sync, other_size);
   if ((GNUNET_YES == op->force_full) ||
       (diff > op->initial_size * op->max_set_diff_factor_diff_sync) ||
       (0 == other_size))
@@ -3854,11 +3848,6 @@ handle_client_accept (void *cls,
                                   buf);
     perf_rtt.se.sent += 1;
     perf_rtt.se.sent_var_bytes += len;
-
-      GNUNET_log (
-              GNUNET_ERROR_TYPE_ERROR,
-              "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n");
-
 
       if (len < se->strata_count * IBF_BUCKET_SIZE * se->ibf_size)
       type = GNUNET_MESSAGE_TYPE_SETU_P2P_SEC;
