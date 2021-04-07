@@ -447,7 +447,7 @@ static void execute_perf() {
     //FILE *out = fopen("perfstats.log", "w");
     //fprintf(out, "se_diff,active_passive_switches,bytes_transmitted,rtt\n");
 
-    for (int out_out_ctr = 2; out_out_ctr <= 6; out_out_ctr++) {
+    for (int out_out_ctr = 7; out_out_ctr <= 10; out_out_ctr++) {
 
         for (int out_ctr = 10; out_ctr <= 60; out_ctr++) {
 
@@ -469,7 +469,7 @@ static void execute_perf() {
                         GNUNET_ERROR_TYPE_ERROR,
                         _("Failed to write subsystem default identifier map to `%s'.\n"),
                         setu_cfg);
-            run_petf_thread(100000);
+            run_petf_thread(10000);
         }
     }
     return 0;
