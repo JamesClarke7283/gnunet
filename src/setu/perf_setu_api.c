@@ -404,7 +404,7 @@ run (void *cls,
                 "Running real set-reconciliation\n");
     //init_set1 ();
     // limit ~23800 element total
-    initRandomSets(45,500,500,32);
+    initRandomSets(450,5000,5000,32);
 }
 
 void perf_thread() {
@@ -447,7 +447,7 @@ static void execute_perf() {
     //FILE *out = fopen("perfstats.log", "w");
     //fprintf(out, "se_diff,active_passive_switches,bytes_transmitted,rtt\n");
 
-    for (int out_out_ctr = 3; out_out_ctr <= 5; out_out_ctr++) {
+    for (int out_out_ctr = 2; out_out_ctr <= 6; out_out_ctr++) {
 
         for (int out_ctr = 10; out_ctr <= 60; out_ctr++) {
 
