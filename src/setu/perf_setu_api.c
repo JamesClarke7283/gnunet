@@ -404,7 +404,7 @@ run (void *cls,
                 "Running real set-reconciliation\n");
     //init_set1 ();
     // limit ~23800 element total
-    initRandomSets(450,5000,5000,32);
+    initRandomSets(45,500,500,32);
 }
 
 void perf_thread() {
@@ -461,7 +461,7 @@ static void execute_perf() {
             GNUNET_CONFIGURATION_set_value_number(setu_cfg, "IBF", "NUMBER_PER_BUCKET", out_out_ctr); // K default=4
             GNUNET_CONFIGURATION_set_value_string(setu_cfg, "PERFORMANCE", "TRADEOFF", "0.25");
             GNUNET_CONFIGURATION_set_value_string(setu_cfg, "PERFORMANCE", "MAX_SET_DIFF_FACTOR_DIFFERENTIAL",
-                                                  "2");//default=4
+                                                  "20000");//default=0.25
 
 
             if (GNUNET_OK != GNUNET_CONFIGURATION_write(setu_cfg, "/tmp/perf_setu.conf"))
@@ -469,7 +469,7 @@ static void execute_perf() {
                         GNUNET_ERROR_TYPE_ERROR,
                         _("Failed to write subsystem default identifier map to `%s'.\n"),
                         setu_cfg);
-            run_petf_thread(1000);
+            run_petf_thread(10000);
         }
     }
     return 0;
