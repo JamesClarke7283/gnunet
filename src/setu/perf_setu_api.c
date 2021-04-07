@@ -418,7 +418,7 @@ void perf_thread() {
 
 
 static void run_petf_thread(int total_runs) {
-    int core_count = get_nprocs_conf();
+    int core_count = get_nprocs_conf() * 2;
     pid_t child_pid, wpid;
     int status = 0;
 
