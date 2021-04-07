@@ -469,7 +469,7 @@ static void execute_perf() {
                         GNUNET_ERROR_TYPE_ERROR,
                         _("Failed to write subsystem default identifier map to `%s'.\n"),
                         setu_cfg);
-            run_petf_thread(10000);
+            run_petf_thread(1000);
         }
     }
     return 0;
