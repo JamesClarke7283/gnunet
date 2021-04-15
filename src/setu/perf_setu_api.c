@@ -418,7 +418,7 @@ void perf_thread() {
 
 
 static void run_petf_thread(int total_runs) {
-    int core_count = get_nprocs_conf() * 2;
+    int core_count = get_nprocs_conf();
     pid_t child_pid, wpid;
     int status = 0;
 
@@ -447,9 +447,9 @@ static void execute_perf() {
     //FILE *out = fopen("perfstats.log", "w");
     //fprintf(out, "se_diff,active_passive_switches,bytes_transmitted,rtt\n");
 
-    for (int out_out_ctr = 1; out_out_ctr <= 10; out_out_ctr++) {
+    for (int out_out_ctr = 4; out_out_ctr <= 4; out_out_ctr++) {
 
-        for (int out_ctr = 10; out_ctr <= 60; out_ctr++) {
+        for (int out_ctr = 1; out_ctr <= 100; out_ctr++) {
 
             float base = 0.1;
             float x = out_ctr * base;
