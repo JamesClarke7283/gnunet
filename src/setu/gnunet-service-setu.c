@@ -1606,10 +1606,10 @@ handle_union_p2p_strata_estimator (void *cls,
 
   perf_rtt.se_diff = diff;
 
-  /**
+
   if (diff > 200)
     diff = diff * 3 / 2;
-**/
+
   strata_estimator_destroy (remote_se);
   strata_estimator_destroy (op->se);
   op->se = NULL;
