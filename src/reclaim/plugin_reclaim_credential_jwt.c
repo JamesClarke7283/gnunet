@@ -158,7 +158,6 @@ jwt_parse_attributes (void *cls,
   struct GNUNET_RECLAIM_AttributeList *attrs;
   char delim[] = ".";
   char *val_str = NULL;
-  GNUNET_log (GNUNET_ERROR_TYPE_DEBUG, "Parsing JWT attributes.\n");
   char *decoded_jwt;
   char *tmp;
   json_t *json_val;
@@ -252,6 +251,8 @@ struct GNUNET_RECLAIM_AttributeList *
 jwt_parse_attributes_c (void *cls,
                         const struct GNUNET_RECLAIM_Credential *cred)
 {
+  if (cred->type != GNUNET_RECLAIM_CREDENTIAL_TYPE_JWT)
+    return NULL;
   return jwt_parse_attributes (cls, cred->data, cred->data_size);
 }
 
@@ -267,6 +268,8 @@ struct GNUNET_RECLAIM_AttributeList *
 jwt_parse_attributes_p (void *cls,
                         const struct GNUNET_RECLAIM_Presentation *cred)
 {
+  if (cred->type != GNUNET_RECLAIM_CREDENTIAL_TYPE_JWT)
+    return NULL;
   return jwt_parse_attributes (cls, cred->data, cred->data_size);
 }
 
@@ -355,7 +358,7 @@ jwt_get_issuer_p (void *cls,
  * @param cred the jwt credential
  * @return a string, containing the isser
  */
-int
+enum GNUNET_GenericReturnValue
 jwt_get_expiration (void *cls,
                     const char *data,
                     size_t data_size,
@@ -396,13 +399,15 @@ jwt_get_expiration (void *cls,
  *
  * @param cls the plugin
  * @param cred the jwt credential
- * @return a string, containing the isser
+ * @return the expirati
  */
-int
+enum GNUNET_GenericReturnValue
 jwt_get_expiration_c (void *cls,
                       const struct GNUNET_RECLAIM_Credential *cred,
                       struct GNUNET_TIME_Absolute *exp)
 {
+  if (GNUNET_RECLAIM_CREDENTIAL_TYPE_JWT != cred->type)
+    return GNUNET_NO;
   return jwt_get_expiration (cls, cred->data, cred->data_size, exp);
 }
 
@@ -414,22 +419,23 @@ jwt_get_expiration_c (void *cls,
  * @param cred the jwt credential
  * @return a string, containing the isser
  */
-int
+enum GNUNET_GenericReturnValue
 jwt_get_expiration_p (void *cls,
                       const struct GNUNET_RECLAIM_Presentation *cred,
                       struct GNUNET_TIME_Absolute *exp)
 {
+  if (GNUNET_RECLAIM_CREDENTIAL_TYPE_JWT != cred->type)
+    return GNUNET_NO;
   return jwt_get_expiration (cls, cred->data, cred->data_size, exp);
 }
 
 
-int
+enum GNUNET_GenericReturnValue
 jwt_create_presentation (void *cls,
                          const struct GNUNET_RECLAIM_Credential *cred,
                          const struct GNUNET_RECLAIM_AttributeList *attrs,
                          struct GNUNET_RECLAIM_Presentation **pres)
 {
-  // FIXME sanity checks??
   if (GNUNET_RECLAIM_CREDENTIAL_TYPE_JWT != cred->type)
     return GNUNET_NO;
   *pres = GNUNET_RECLAIM_presentation_new (GNUNET_RECLAIM_CREDENTIAL_TYPE_JWT,

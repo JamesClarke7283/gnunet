@@ -151,6 +151,9 @@ inspect_attrs (char const *const key,
 {
   struct GNUNET_RECLAIM_AttributeList *attrs = ctx;
 
+  GNUNET_log (GNUNET_ERROR_TYPE_DEBUG,
+              "Found attribue in PABC credential: `%s': `%s'\n",
+              key, value);
   GNUNET_RECLAIM_attribute_list_add (attrs,
                                      key,
                                      NULL,
@@ -193,15 +196,19 @@ pabc_parse_attributes (void *cls,
       (! json_is_object (json_attrs)))
   {
     GNUNET_log (GNUNET_ERROR_TYPE_ERROR,
-                "%s is not a valid pabc credentials (attributes not an object)\n",
+                "%s is not a valid pab credentials (attributes not an object)\n",
                 data);
     json_decref (json_root);
     return NULL;
   }
 
+  GNUNET_log (GNUNET_ERROR_TYPE_DEBUG,
+              "Collecting PABC attributes...\n");
   attrs = GNUNET_new (struct GNUNET_RECLAIM_AttributeList);
   char *attr_str = json_dumps (json_attrs, JSON_DECODE_ANY);
-  pabc_cred_inspect_credential (attr_str, &inspect_attrs, attrs);
+  GNUNET_assert (PABC_OK ==
+                 pabc_cred_inspect_credential (attr_str,
+                                               &inspect_attrs, attrs));
   json_decref (json_root);
   return attrs;
 }
@@ -218,6 +225,8 @@ struct GNUNET_RECLAIM_AttributeList *
 pabc_parse_attributes_c (void *cls,
                          const struct GNUNET_RECLAIM_Credential *cred)
 {
+  if (cred->type != GNUNET_RECLAIM_CREDENTIAL_TYPE_PABC)
+    return NULL;
   return pabc_parse_attributes (cls, cred->data, cred->data_size);
 }
 
@@ -233,6 +242,8 @@ struct GNUNET_RECLAIM_AttributeList *
 pabc_parse_attributes_p (void *cls,
                          const struct GNUNET_RECLAIM_Presentation *cred)
 {
+  if (cred->type != GNUNET_RECLAIM_CREDENTIAL_TYPE_PABC)
+    return NULL;
   return pabc_parse_attributes (cls, cred->data, cred->data_size);
 }
 
@@ -413,11 +424,13 @@ pabc_get_expiration (void *cls,
  * @param cred the pabc credential
  * @return a string, containing the isser
  */
-int
+enum GNUNET_GenericReturnValue
 pabc_get_expiration_c (void *cls,
                        const struct GNUNET_RECLAIM_Credential *cred,
                        struct GNUNET_TIME_Absolute *exp)
 {
+  if (cred->type != GNUNET_RECLAIM_CREDENTIAL_TYPE_PABC)
+    return GNUNET_NO;
   return pabc_get_expiration (cls, cred->data, cred->data_size, exp);
 }
 
@@ -429,11 +442,13 @@ pabc_get_expiration_c (void *cls,
  * @param cred the pabc credential
  * @return a string, containing the isser
  */
-int
+enum GNUNET_GenericReturnValue
 pabc_get_expiration_p (void *cls,
                        const struct GNUNET_RECLAIM_Presentation *cred,
                        struct GNUNET_TIME_Absolute *exp)
 {
+  if (cred->type != GNUNET_RECLAIM_CREDENTIAL_TYPE_PABC)
+    return GNUNET_NO;
   return pabc_get_expiration (cls, cred->data, cred->data_size, exp);
 }
 
