@@ -156,6 +156,12 @@ inspect_attrs (char const *const key,
   GNUNET_log (GNUNET_ERROR_TYPE_DEBUG,
               "Found attribue in PABC credential: `%s': `%s'\n",
               key, value);
+  if (0 == strcmp (key, "expiration"))
+    return;
+  if (0 == strcmp (key, "issuer"))
+    return;
+  if (0 == strcmp (key, "subject"))
+    return;
   GNUNET_RECLAIM_attribute_list_add (attrs,
                                      key,
                                      NULL,
