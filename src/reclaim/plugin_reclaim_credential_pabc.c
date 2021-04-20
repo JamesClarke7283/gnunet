@@ -151,6 +151,8 @@ inspect_attrs (char const *const key,
 {
   struct GNUNET_RECLAIM_AttributeList *attrs = ctx;
 
+  if (NULL == value)
+    return;
   GNUNET_log (GNUNET_ERROR_TYPE_DEBUG,
               "Found attribue in PABC credential: `%s': `%s'\n",
               key, value);
@@ -176,40 +178,13 @@ pabc_parse_attributes (void *cls,
                        size_t data_size)
 {
   struct GNUNET_RECLAIM_AttributeList *attrs;
-  json_t *json_root;
-  json_t *json_attrs;
-  json_error_t *json_err = NULL;
-
-  json_root = json_loads (data, JSON_DECODE_ANY, json_err);
-  if ((NULL == json_root) ||
-      (! json_is_object (json_root)))
-  {
-    GNUNET_log (GNUNET_ERROR_TYPE_ERROR,
-                "%s is not a valid pabc credentials (not an object)\n",
-                data);
-    if (NULL != json_root)
-      json_decref (json_root);
-    return NULL;
-  }
-  json_attrs = json_object_get (json_root, PABC_JSON_PLAIN_ATTRS_KEY);
-  if ((NULL == json_attrs) ||
-      (! json_is_object (json_attrs)))
-  {
-    GNUNET_log (GNUNET_ERROR_TYPE_ERROR,
-                "%s is not a valid pab credentials (attributes not an object)\n",
-                data);
-    json_decref (json_root);
-    return NULL;
-  }
 
   GNUNET_log (GNUNET_ERROR_TYPE_DEBUG,
               "Collecting PABC attributes...\n");
   attrs = GNUNET_new (struct GNUNET_RECLAIM_AttributeList);
-  char *attr_str = json_dumps (json_attrs, JSON_DECODE_ANY);
   GNUNET_assert (PABC_OK ==
-                 pabc_cred_inspect_credential (attr_str,
+                 pabc_cred_inspect_credential (data,
                                                &inspect_attrs, attrs));
-  json_decref (json_root);
   return attrs;
 }
 
