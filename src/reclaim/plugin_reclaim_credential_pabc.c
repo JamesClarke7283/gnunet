@@ -253,7 +253,6 @@ find_attr (char const *const key,
 }
 
 
-
 /**
  * Parse a pabc and return an attribute value.
  *
