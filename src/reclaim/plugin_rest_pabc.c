@@ -264,9 +264,8 @@ set_attributes_from_idtoken (const struct pabc_context *ctx,
                                                json_string_value (value));
     if (PABC_OK != status)
     {
-      GNUNET_log (GNUNET_ERROR_TYPE_ERROR,
-                  "Failed to set attribute.\n");
-      return PABC_FAILURE;
+      GNUNET_log (GNUNET_ERROR_TYPE_WARNING,
+                  "Failed to set attribute `%s'.\n", key);
     }
   }
   return PABC_OK;
@@ -370,7 +369,7 @@ cr_cont (struct GNUNET_REST_RequestHandle *con_handle,
     GNUNET_SCHEDULER_add_now (&do_error, handle);
     return;
   }
-  idtoken_json = json_object_get (idtoken_json, "id_token");
+  idtoken_json = json_object_get (data_json, "id_token");
   if (NULL == idtoken_json)
   {
     GNUNET_log (GNUNET_ERROR_TYPE_ERROR,
@@ -390,13 +389,18 @@ cr_cont (struct GNUNET_REST_RequestHandle *con_handle,
   }
 
   PABC_ASSERT (pabc_new_ctx (&ctx));
-  // FIXME jansson does stupid escaping here maybe expect ecoded?
+  char *pp_str = json_dumps (pp_json, JSON_ENCODE_ANY);
   status = pabc_decode_and_new_public_parameters (ctx,
                                                   &pp,
-                                                  json_string_value (pp_json));
+                                                  pp_str);
+  char *ppid;
+  GNUNET_assert (PABC_OK == pabc_cred_get_ppid_from_pp (pp_str, &ppid));
+  GNUNET_free (pp_str);
   if (status != PABC_OK)
   {
-    GNUNET_log (GNUNET_ERROR_TYPE_ERROR, "Failed to read public parameters.\n");
+    GNUNET_log (GNUNET_ERROR_TYPE_ERROR,
+                "Failed to read public parameters: %s\n",
+                pp_str);
     json_decref (data_json);
     GNUNET_SCHEDULER_add_now (&do_error, handle);
     return;
@@ -457,8 +461,8 @@ cr_cont (struct GNUNET_REST_RequestHandle *con_handle,
     GNUNET_SCHEDULER_add_now (&do_error, handle);
     return;
   }
-  // FIXME: where does this come from???
-  status = pabc_decode_nonce (ctx, nonce, json_string_value (nonce_json));
+  char *nonce_str = json_dumps (nonce_json, JSON_ENCODE_ANY);
+  status = pabc_decode_nonce (ctx, nonce, nonce_str);
   if (status != PABC_OK)
   {
     GNUNET_log (GNUNET_ERROR_TYPE_ERROR, "Failed to decode nonce.\n");
@@ -496,7 +500,9 @@ cr_cont (struct GNUNET_REST_RequestHandle *con_handle,
     return;
   }
   handle->resp_object = json_object ();
-  pabc_encode_credential_request (ctx, pp, cr, &response_str);
+  GNUNET_assert (PABC_OK == pabc_cred_encode_cr (ctx, pp, cr,
+                                                 json_string_value (identity_json),
+                                                 ppid, &response_str));
   if (PABC_OK != status)
   {
     GNUNET_log (GNUNET_ERROR_TYPE_ERROR, "Failed to serialize cr.\n");
@@ -508,9 +514,9 @@ cr_cont (struct GNUNET_REST_RequestHandle *con_handle,
     GNUNET_SCHEDULER_add_now (&do_error, handle);
     return;
   }
+  json_decref (handle->resp_object);
+  handle->resp_object = json_loads (response_str, JSON_DECODE_ANY, &err);
   GNUNET_log (GNUNET_ERROR_TYPE_DEBUG, "%s\n", response_str);
-  json_object_set_new (handle->resp_object, "cr",
-                       json_string (response_str));
   GNUNET_free (response_str);
 
   // clean up
@@ -593,7 +599,7 @@ rest_identity_process_request (struct GNUNET_REST_RequestHandle *rest_handle,
  * @return NULL on error, otherwise the plugin context
  */
 void *
-libgnunet_plugin_rest_reclaim_init (void *cls)
+libgnunet_plugin_rest_pabc_init (void *cls)
 {
   static struct Plugin plugin;
   struct GNUNET_REST_Plugin *api;

@@ -29,7 +29,8 @@ write_file (char const *const filename, const char *buffer)
   struct GNUNET_DISK_FileHandle *fh;
   fh = GNUNET_DISK_file_open (filename,
                               GNUNET_DISK_OPEN_WRITE
-                              | GNUNET_DISK_OPEN_TRUNCATE,
+                              | GNUNET_DISK_OPEN_TRUNCATE
+                              | GNUNET_DISK_OPEN_CREATE,
                               GNUNET_DISK_PERM_USER_WRITE);
   if (fh == NULL)
     return GNUNET_SYSERR;

@@ -144,6 +144,22 @@ pabc_number_to_typename (void *cls, uint32_t type)
 }
 
 
+static void
+inspect_attrs (char const *const key,
+                char const *const value,
+                void *ctx)
+{
+  struct GNUNET_RECLAIM_AttributeList *attrs = ctx;
+
+  GNUNET_RECLAIM_attribute_list_add (attrs,
+                                     key,
+                                     NULL,
+                                     GNUNET_RECLAIM_ATTRIBUTE_TYPE_STRING,
+                                     value,
+                                     strlen (value));
+}
+
+
 /**
  * Parse a pabc and return the respective claim value as Attribute
  *
@@ -156,14 +172,9 @@ pabc_parse_attributes (void *cls,
                        const char *data,
                        size_t data_size)
 {
-  const char *key;
   struct GNUNET_RECLAIM_AttributeList *attrs;
-  char *val_str = NULL;
-  char *tmp;
-  json_t *value;
-  json_t *attr;
-  json_t *json_attrs;
   json_t *json_root;
+  json_t *json_attrs;
   json_error_t *json_err = NULL;
 
   json_root = json_loads (data, JSON_DECODE_ANY, json_err);
@@ -177,55 +188,20 @@ pabc_parse_attributes (void *cls,
       json_decref (json_root);
     return NULL;
   }
-  json_attrs = json_object_get (json_root, "attributes");
+  json_attrs = json_object_get (json_root, PABC_JSON_PLAIN_ATTRS_KEY);
   if ((NULL == json_attrs) ||
-      (! json_is_array (json_attrs)))
+      (! json_is_object (json_attrs)))
   {
     GNUNET_log (GNUNET_ERROR_TYPE_ERROR,
-                "%s is not a valid pabc credentials (attributes not an array)\n",
+                "%s is not a valid pabc credentials (attributes not an object)\n",
                 data);
     json_decref (json_root);
     return NULL;
   }
 
   attrs = GNUNET_new (struct GNUNET_RECLAIM_AttributeList);
-  for (int i = 0; i < json_array_size (json_attrs); i++)
-  {
-    attr = json_array_get (json_attrs, i);
-    if (! json_is_object (attr))
-    {
-      GNUNET_log (GNUNET_ERROR_TYPE_ERROR,
-                  "Found json entry is not an object!\n");
-      GNUNET_RECLAIM_attribute_list_destroy (attrs);
-      json_decref (json_root);
-      return NULL;
-    }
-    /**
-     * This *should* only contain a single pair.
-     */
-    json_object_foreach (attr, key, value)
-    {
-      if ((0 == strcmp ("issuer", key)) ||
-          (0 == strcmp ("expiration", key)) ||
-          (0 == strcmp ("subject", key)))
-        continue;
-      val_str = json_dumps (value, JSON_ENCODE_ANY);
-      tmp = val_str;
-      // Remove leading " from jasson conversion
-      if (tmp[0] == '"')
-        tmp++;
-      // Remove trailing " from jansson conversion
-      if (tmp[strlen (tmp) - 1] == '"')
-        tmp[strlen (tmp) - 1] = '\0';
-      GNUNET_RECLAIM_attribute_list_add (attrs,
-                                         key,
-                                         NULL,
-                                         GNUNET_RECLAIM_ATTRIBUTE_TYPE_STRING,
-                                         tmp,
-                                         strlen (tmp));
-      GNUNET_free (val_str);
-    }
-  }
+  char *attr_str = json_dumps (json_attrs, JSON_DECODE_ANY);
+  pabc_cred_inspect_credential (attr_str, &inspect_attrs, attrs);
   json_decref (json_root);
   return attrs;
 }
@@ -260,6 +236,23 @@ pabc_parse_attributes_p (void *cls,
   return pabc_parse_attributes (cls, cred->data, cred->data_size);
 }
 
+struct Finder
+{
+  const char* target;
+  char *result;
+};
+
+static void
+find_attr (char const *const key,
+                char const *const value,
+                void *ctx)
+{
+  struct Finder *fdr = ctx;
+  if (0 == strcmp (key, fdr->target))
+    fdr->result = GNUNET_strdup (value);
+}
+
+
 
 /**
  * Parse a pabc and return an attribute value.
@@ -267,7 +260,7 @@ pabc_parse_attributes_p (void *cls,
  * @param cls the plugin
  * @param data the pabc credential data
  * @param data_size the pabc credential size
- * @param key the attribute key to look for.
+ * @param skey the attribute key to look for.
  * @return a string, containing the isser
  */
 char *
@@ -276,13 +269,8 @@ pabc_get_attribute (void *cls,
                     size_t data_size,
                     const char *skey)
 {
-  const char *key;
-  char *val_str = NULL;
-  char *tmp;
   json_t *json_root;
   json_t *json_attrs;
-  json_t *value;
-  json_t *attr;
   json_error_t *json_err = NULL;
 
   json_root = json_loads (data, JSON_DECODE_ANY, json_err);
@@ -290,50 +278,29 @@ pabc_get_attribute (void *cls,
       (! json_is_object (json_root)))
   {
     GNUNET_log (GNUNET_ERROR_TYPE_ERROR,
-                "%s is not a valid pabc credentials (not an object)\n",
+                "%s is not a valid pabc credential (not an object)\n",
                 data);
     if (NULL != json_root)
       json_decref (json_root);
     return NULL;
   }
-  json_attrs = json_object_get (json_root, "attributes");
+  json_attrs = json_object_get (json_root, PABC_JSON_PLAIN_ATTRS_KEY);
   if ((NULL == json_attrs) ||
-      (! json_is_array (json_attrs)))
+      (! json_is_object (json_attrs)))
   {
     GNUNET_log (GNUNET_ERROR_TYPE_ERROR,
-                "%s is not a valid pabc credentials (attributes not an array)\n",
+                "%s is not a valid pabc credential (attributes not an object)\n",
                 data);
     json_decref (json_root);
     return NULL;
   }
-
-  for (int i = 0; i < json_array_size (json_attrs); i++)
-  {
-    attr = json_array_get (json_attrs, i);
-    if (! json_is_object (attr))
-      continue;
-    /**
-     * This *should* only contain a single pair.
-     */
-    json_object_foreach (attr, key, value)
-    {
-      if (0 != strcmp (skey, key))
-        continue;
-      val_str = json_dumps (value, JSON_ENCODE_ANY);
-      tmp = val_str;
-      // Remove leading " from jasson conversion
-      if (tmp[0] == '"')
-        tmp++;
-      // Remove trailing " from jansson conversion
-      if (tmp[strlen (tmp) - 1] == '"')
-        tmp[strlen (tmp) - 1] = '\0';
-      GNUNET_free (val_str);
-      json_decref (json_root);
-      return tmp;
-    }
-  }
+  char *attr_str = json_dumps (json_attrs, JSON_DECODE_ANY);
   json_decref (json_root);
-  return NULL;
+  struct Finder fdr;
+  memset (&fdr, 0, sizeof (fdr));
+  fdr.target = skey;
+  pabc_cred_inspect_credential (attr_str, &find_attr, &fdr);
+  return fdr.result;
 }
 
 
@@ -403,9 +370,8 @@ pabc_get_expiration (void *cls,
   json_t *json_root;
   json_t *json_attrs;
   json_t *value;
-  json_t *attr;
+  json_t *exp_j;
   json_error_t *json_err = NULL;
-  const char*key;
 
   json_root = json_loads (data, JSON_DECODE_ANY, json_err);
   if ((NULL == json_root) ||
@@ -418,24 +384,23 @@ pabc_get_expiration (void *cls,
       json_decref (json_root);
     return GNUNET_SYSERR;
   }
-  for (int i = 0; i < json_array_size (json_attrs); i++)
+  json_attrs = json_object_get (json_root, PABC_JSON_PLAIN_ATTRS_KEY);
+  if ((NULL == json_attrs) ||
+      (! json_is_object (json_attrs)))
   {
-    attr = json_array_get (json_attrs, i);
-    if (! json_is_object (attr))
-      continue;
-    /**
-     * This *should* only contain a single pair.
-     */
-    json_object_foreach (attr, key, value)
-    {
-      if (0 != strcmp ("expiration", key))
-        continue;
-      if (! json_is_integer (value))
-        continue;
-      exp->abs_value_us = json_integer_value (value) * 1000 * 1000;
-      json_decref (json_root);
-      return GNUNET_OK;
-    }
+    GNUNET_log (GNUNET_ERROR_TYPE_ERROR,
+                "%s is not a valid pabc credential (attributes not an object)\n",
+                data);
+    json_decref (json_root);
+    return GNUNET_SYSERR;
+  }
+  exp_j = json_object_get (json_attrs, "expiration");
+  if ((NULL != exp_j) &&
+      json_is_integer (exp_j))
+  {
+    exp->abs_value_us = json_integer_value (value) * 1000 * 1000;
+    json_decref (json_root);
+    return GNUNET_OK;
   }
   json_decref (json_root);
   return GNUNET_SYSERR;
