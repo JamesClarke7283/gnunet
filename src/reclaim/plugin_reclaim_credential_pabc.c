@@ -146,8 +146,8 @@ pabc_number_to_typename (void *cls, uint32_t type)
 
 static void
 inspect_attrs (char const *const key,
-                char const *const value,
-                void *ctx)
+               char const *const value,
+               void *ctx)
 {
   struct GNUNET_RECLAIM_AttributeList *attrs = ctx;
 
@@ -228,6 +228,7 @@ pabc_parse_attributes_p (void *cls,
   return pabc_parse_attributes (cls, cred->data, cred->data_size);
 }
 
+
 /**
  * Parse a pabc and return the issuer
  *
@@ -296,43 +297,27 @@ pabc_get_expiration (void *cls,
                      size_t data_size,
                      struct GNUNET_TIME_Absolute *exp)
 {
-  json_t *json_root;
-  json_t *json_attrs;
-  json_t *value;
-  json_t *exp_j;
-  json_error_t *json_err = NULL;
+  uint32_t exp_i;
+  char *exp_str;
 
-  json_root = json_loads (data, JSON_DECODE_ANY, json_err);
-  if ((NULL == json_root) ||
-      (! json_is_object (json_root)))
+  if (PABC_OK != pabc_cred_get_attr_by_name_from_cred (data,
+                                                       "expiration",
+                                                       &exp_str))
   {
     GNUNET_log (GNUNET_ERROR_TYPE_ERROR,
-                "%s is not a valid pabc credentials (not an object)\n",
-                data);
-    if (NULL != json_root)
-      json_decref (json_root);
+                "Unable to retrive expiration from credential\n");
     return GNUNET_SYSERR;
   }
-  json_attrs = json_object_get (json_root, PABC_JSON_PLAIN_ATTRS_KEY);
-  if ((NULL == json_attrs) ||
-      (! json_is_object (json_attrs)))
+
+  if (1 != sscanf (exp_str, "%u", &exp_i))
   {
     GNUNET_log (GNUNET_ERROR_TYPE_ERROR,
-                "%s is not a valid pabc credential (attributes not an object)\n",
-                data);
-    json_decref (json_root);
+                "Invalid expiration `%s'\n", exp_str);
+    GNUNET_free (exp_str);
     return GNUNET_SYSERR;
   }
-  exp_j = json_object_get (json_attrs, "expiration");
-  if ((NULL != exp_j) &&
-      json_is_integer (exp_j))
-  {
-    exp->abs_value_us = json_integer_value (value) * 1000 * 1000;
-    json_decref (json_root);
-    return GNUNET_OK;
-  }
-  json_decref (json_root);
-  return GNUNET_SYSERR;
+  exp->abs_value_us = exp_i * 1000 * 1000;
+  return GNUNET_OK;
 }
 
 
@@ -418,8 +403,8 @@ pabc_create_presentation (void *cls,
     return GNUNET_SYSERR;
   }
   if (PABC_OK != pabc_cred_get_attr_by_name_from_cred (credential->data,
-                                        "subject",
-                                        &subject))
+                                                       "subject",
+                                                       &subject))
   {
     GNUNET_log (GNUNET_ERROR_TYPE_ERROR,
                 "Failed to get subject.\n");

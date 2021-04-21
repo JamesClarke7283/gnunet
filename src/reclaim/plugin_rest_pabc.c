@@ -259,9 +259,23 @@ set_attributes_from_idtoken (const struct pabc_context *ctx,
       continue;
     if (0 == strcmp ("aud", key))
       continue;
+    char *tmp_val;
+    if (json_is_string (value))
+      tmp_val = GNUNET_strdup (json_string_value (value));
+    else
+      tmp_val = json_dumps (value, JSON_ENCODE_ANY);
+    if (NULL == tmp_val)
+    {
+      GNUNET_log (GNUNET_ERROR_TYPE_ERROR,
+                  "Unable to encode JSON value for `%s'\n", key);
+      continue;
+    }
+    GNUNET_log (GNUNET_ERROR_TYPE_ERROR,
+                "Setting `%s' to `%s'\n", key, tmp_val);
     status = pabc_set_attribute_value_by_name (ctx, pp, usr_ctx,
                                                pabc_key,
-                                               json_string_value (value));
+                                               tmp_val);
+    GNUNET_free (tmp_val);
     if (PABC_OK != status)
     {
       GNUNET_log (GNUNET_ERROR_TYPE_WARNING,
@@ -501,7 +515,8 @@ cr_cont (struct GNUNET_REST_RequestHandle *con_handle,
   }
   handle->resp_object = json_object ();
   GNUNET_assert (PABC_OK == pabc_cred_encode_cr (ctx, pp, cr,
-                                                 json_string_value (identity_json),
+                                                 json_string_value (
+                                                   identity_json),
                                                  ppid, &response_str));
   if (PABC_OK != status)
   {
