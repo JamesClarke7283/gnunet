@@ -31,7 +31,8 @@ write_file (char const *const filename, const char *buffer)
                               GNUNET_DISK_OPEN_WRITE
                               | GNUNET_DISK_OPEN_TRUNCATE
                               | GNUNET_DISK_OPEN_CREATE,
-                              GNUNET_DISK_PERM_USER_WRITE);
+                              GNUNET_DISK_PERM_USER_WRITE
+                              | GNUNET_DISK_PERM_USER_READ);
   if (fh == NULL)
     return GNUNET_SYSERR;
   if (GNUNET_SYSERR == GNUNET_DISK_file_write (fh,
@@ -49,7 +50,8 @@ fail:
 static enum GNUNET_GenericReturnValue
 init_pabc_dir ()
 {
-  size_t filename_size = strlen (get_homedir ()) + 1 + strlen (".local") + 1;
+  size_t filename_size = strlen (get_homedir ()) + 1 + strlen (".local") + 1
+                         + strlen ("pabc-reclaim") + 1;
   snprintf (pabc_dir, filename_size, "%s/%s/%s",
             get_homedir (), ".local", "pabc-reclaim");
   return GNUNET_DISK_directory_create (pabc_dir);
@@ -117,6 +119,8 @@ PABC_read_issuer_ppfile (const char *f, struct pabc_context *const ctx)
   }
   if (PABC_OK != pabc_decode_and_new_public_parameters (ctx, &pp, buffer))
   {
+    GNUNET_log (GNUNET_ERROR_TYPE_ERROR,
+                "Failed to decode public parameters\n");
     PABC_FREE_NULL (buffer);
     return NULL;
   }
@@ -131,23 +135,28 @@ PABC_load_public_parameters (struct pabc_context *const ctx,
                              struct pabc_public_parameters **pp)
 {
   char fname[PATH_MAX];
+  char *pp_filename;
   const char *pdir = get_pabcdir ();
 
   if (ctx == NULL)
     return GNUNET_SYSERR;
   if (pp_name == NULL)
     return GNUNET_SYSERR;
-  if (pp == NULL)
-    return GNUNET_SYSERR;
 
+  GNUNET_STRINGS_urlencode (pp_name, strlen (pp_name), &pp_filename);
   if (GNUNET_YES != GNUNET_DISK_directory_test (pdir, GNUNET_YES))
   {
+    GNUNET_free (pp_filename);
     GNUNET_log (GNUNET_ERROR_TYPE_ERROR, "Error reading %s\n", pdir);
     return GNUNET_SYSERR;
   }
-  snprintf (fname, PATH_MAX, "%s/%s%s", pdir, pp_name, PABC_PP_EXT);
+  snprintf (fname, PATH_MAX, "%s/%s%s", pdir, pp_filename, PABC_PP_EXT);
   if (GNUNET_YES != GNUNET_DISK_file_test (fname))
+  {
+    GNUNET_free (pp_filename);
+    GNUNET_log (GNUNET_ERROR_TYPE_ERROR, "Error testing %s\n", fname);
     return GNUNET_SYSERR;
+  }
   *pp = PABC_read_issuer_ppfile (fname, ctx);
   if (*pp)
     return GNUNET_OK;
@@ -162,13 +171,17 @@ PABC_write_public_parameters (char const *const pp_name,
 {
   char *json;
   char *filename;
+  char *pp_filename;
   enum pabc_status status;
   struct pabc_context *ctx = NULL;
+
+  GNUNET_STRINGS_urlencode (pp_name, strlen (pp_name), &pp_filename);
   PABC_ASSERT (pabc_new_ctx (&ctx));
   // store in json file
   status = pabc_encode_public_parameters (ctx, pp, &json);
   if (status != PABC_OK)
   {
+    GNUNET_free (pp_filename);
     GNUNET_log (GNUNET_ERROR_TYPE_ERROR,
                 "Failed to encode public parameters.\n");
     pabc_free_ctx (&ctx);
@@ -176,17 +189,20 @@ PABC_write_public_parameters (char const *const pp_name,
   }
 
   size_t filename_size =
-    strlen (get_pabcdir ()) + 1 + strlen (pp_name) + strlen (PABC_PP_EXT) + 1;
+    strlen (get_pabcdir ()) + 1 + strlen (pp_filename) + strlen (PABC_PP_EXT)
+    + 1;
   filename = GNUNET_malloc (filename_size);
   if (! filename)
   {
+    GNUNET_free (pp_filename);
     PABC_FREE_NULL (json);
     pabc_free_ctx (&ctx);
     return GNUNET_SYSERR;
   }
-  snprintf (filename, filename_size, "%s/%s%s", get_pabcdir (), pp_name,
+  snprintf (filename, filename_size, "%s/%s%s", get_pabcdir (), pp_filename,
             PABC_PP_EXT);
 
+  GNUNET_free (pp_filename);
   if (GNUNET_OK != write_file (filename, json))
   {
     PABC_FREE_NULL (filename);
@@ -201,7 +217,6 @@ PABC_write_public_parameters (char const *const pp_name,
 }
 
 
-
 enum GNUNET_GenericReturnValue
 PABC_write_usr_ctx (char const *const usr_name,
                     char const *const pp_name,
@@ -209,6 +224,11 @@ PABC_write_usr_ctx (char const *const usr_name,
                     struct pabc_public_parameters const *const pp,
                     struct pabc_user_context *const usr_ctx)
 {
+
+  char *pp_filename;
+  char *json = NULL;
+  enum pabc_status status;
+  char *fname = NULL;
 
   if (NULL == usr_name)
   {
@@ -236,23 +256,24 @@ PABC_write_usr_ctx (char const *const usr_name,
     return GNUNET_SYSERR;
   }
 
-  char *json = NULL;
-  enum pabc_status status;
+  GNUNET_STRINGS_urlencode (pp_name, strlen (pp_name), &pp_filename);
   status = pabc_encode_user_ctx (ctx, pp, usr_ctx, &json);
   if (PABC_OK != status)
   {
+    GNUNET_free (pp_filename);
     GNUNET_log (GNUNET_ERROR_TYPE_ERROR, "Failed to encode user context.\n");
     return status;
   }
 
-  char *fname = NULL;
   size_t fname_size = strlen (get_pabcdir ()) + 1 + strlen (usr_name) + 1
-                      + strlen (pp_name) + strlen (PABC_USR_EXT) + 1;
+                      + strlen (pp_filename) + strlen (PABC_USR_EXT) + 1;
   fname = GNUNET_malloc (fname_size);
 
-  snprintf (fname, fname_size, "%s/%s_%s%s", get_pabcdir (), usr_name, pp_name,
+  snprintf (fname, fname_size, "%s/%s_%s%s", get_pabcdir (), usr_name,
+            pp_filename,
             PABC_USR_EXT);
 
+  GNUNET_free (pp_filename);
   if (GNUNET_OK == write_file (fname, json))
   {
     GNUNET_free (fname);
@@ -275,6 +296,12 @@ PABC_read_usr_ctx (char const *const usr_name,
                    struct pabc_public_parameters const *const pp,
                    struct pabc_user_context **usr_ctx)
 {
+  char *json = NULL;
+  char *pp_filename;
+  enum pabc_status status;
+
+  char *fname = NULL;
+
   if (NULL == usr_name)
   {
     GNUNET_log (GNUNET_ERROR_TYPE_ERROR, "No issuer given.\n");
@@ -300,19 +327,19 @@ PABC_read_usr_ctx (char const *const usr_name,
     GNUNET_log (GNUNET_ERROR_TYPE_ERROR, "No user context given.\n");
     return GNUNET_SYSERR;
   }
+  GNUNET_STRINGS_urlencode (pp_name, strlen (pp_name), &pp_filename);
 
-  char *json = NULL;
-  enum pabc_status status;
-
-  char *fname = NULL;
   size_t fname_size = strlen (get_pabcdir ()) + 1 + strlen (usr_name) + 1
-                      + strlen (pp_name) + strlen (PABC_USR_EXT) + 1;
+                      + strlen (pp_filename) + strlen (PABC_USR_EXT) + 1;
   fname = GNUNET_malloc (fname_size);
-  snprintf (fname, fname_size, "%s/%s_%s%s", get_pabcdir (), usr_name, pp_name,
+  snprintf (fname, fname_size, "%s/%s_%s%s", get_pabcdir (), usr_name,
+            pp_filename,
             PABC_USR_EXT);
-
+  GNUNET_free (pp_filename);
   if (GNUNET_OK != read_file (fname, &json))
   {
+    GNUNET_log (GNUNET_ERROR_TYPE_ERROR,
+                "Failed to read `%s'\n", fname);
     PABC_FREE_NULL (fname);
     return GNUNET_SYSERR;
   }

@@ -240,6 +240,9 @@ find_attr (char const *const key,
                 void *ctx)
 {
   struct Finder *fdr = ctx;
+  GNUNET_log (GNUNET_ERROR_TYPE_DEBUG,
+              "Found `%s', looking for `%s'\n",
+              key, fdr->target);
   if (0 == strcmp (key, fdr->target))
     fdr->result = GNUNET_strdup (value);
 }
@@ -260,37 +263,11 @@ pabc_get_attribute (void *cls,
                     size_t data_size,
                     const char *skey)
 {
-  json_t *json_root;
-  json_t *json_attrs;
-  json_error_t *json_err = NULL;
 
-  json_root = json_loads (data, JSON_DECODE_ANY, json_err);
-  if ((NULL == json_root) ||
-      (! json_is_object (json_root)))
-  {
-    GNUNET_log (GNUNET_ERROR_TYPE_ERROR,
-                "%s is not a valid pabc credential (not an object)\n",
-                data);
-    if (NULL != json_root)
-      json_decref (json_root);
-    return NULL;
-  }
-  json_attrs = json_object_get (json_root, PABC_JSON_PLAIN_ATTRS_KEY);
-  if ((NULL == json_attrs) ||
-      (! json_is_object (json_attrs)))
-  {
-    GNUNET_log (GNUNET_ERROR_TYPE_ERROR,
-                "%s is not a valid pabc credential (attributes not an object)\n",
-                data);
-    json_decref (json_root);
-    return NULL;
-  }
-  char *attr_str = json_dumps (json_attrs, JSON_DECODE_ANY);
-  json_decref (json_root);
   struct Finder fdr;
   memset (&fdr, 0, sizeof (fdr));
   fdr.target = skey;
-  pabc_cred_inspect_credential (attr_str, &find_attr, &fdr);
+  pabc_cred_inspect_credential (data, &find_attr, &fdr);
   return fdr.result;
 }
 
@@ -463,9 +440,13 @@ pabc_create_presentation (void *cls,
   issuer = pabc_get_issuer_c (cls, credential);
   if (NULL == issuer)
   {
+    GNUNET_log (GNUNET_ERROR_TYPE_ERROR,
+                "No issuer found in credential\n");
     pabc_free_ctx (&ctx);
     return GNUNET_SYSERR;
   }
+  GNUNET_log (GNUNET_ERROR_TYPE_DEBUG,
+              "Got issuer for credential: %s\n", issuer);
   status = PABC_load_public_parameters (ctx, issuer, &pp);
   if (status != PABC_OK)
   {
