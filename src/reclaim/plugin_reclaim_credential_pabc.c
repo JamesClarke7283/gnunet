@@ -297,7 +297,7 @@ pabc_get_expiration (void *cls,
                      size_t data_size,
                      struct GNUNET_TIME_Absolute *exp)
 {
-  uint32_t exp_i;
+  uint64_t exp_i;
   char *exp_str;
 
   if (PABC_OK != pabc_cred_get_attr_by_name_from_cred (data,
@@ -309,13 +309,18 @@ pabc_get_expiration (void *cls,
     return GNUNET_SYSERR;
   }
 
-  if (1 != sscanf (exp_str, "%u", &exp_i))
+  if (1 != sscanf (exp_str, "%llu", &exp_i))
   {
     GNUNET_log (GNUNET_ERROR_TYPE_ERROR,
                 "Invalid expiration `%s'\n", exp_str);
     GNUNET_free (exp_str);
     return GNUNET_SYSERR;
   }
+  GNUNET_log (GNUNET_ERROR_TYPE_DEBUG,
+              "Converted expiration string `%s' to %llu",
+              exp_str, exp_i);
+
+  GNUNET_free (exp_str);
   exp->abs_value_us = exp_i * 1000 * 1000;
   return GNUNET_OK;
 }
