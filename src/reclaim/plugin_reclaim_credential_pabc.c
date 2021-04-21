@@ -383,11 +383,6 @@ pabc_create_presentation (void *cls,
 
 
   PABC_ASSERT (pabc_new_ctx (&ctx));
-  /**
-   * FIXME, how to get pp_name.
-   * Ideal would be an API that allows us to load pp by
-   * issuer name.
-   */
   issuer = pabc_get_issuer_c (cls, credential);
   if (NULL == issuer)
   {
@@ -491,7 +486,15 @@ pabc_create_presentation (void *cls,
   }
   // print the result
   char *json = NULL;
-  pabc_encode_proof (ctx, pp, proof, &json);
+  char *ppid = NULL;
+  char *userid = NULL;
+  GNUNET_assert (PABC_OK == pabc_cred_get_userid_from_cred (credential->data,
+                                                            &userid));
+  GNUNET_assert (PABC_OK == pabc_cred_get_ppid_from_cred (credential->data,
+                                                          &ppid));
+  pabc_cred_encode_proof (ctx, pp, proof, userid, ppid,  &json);
+  GNUNET_free (ppid);
+  GNUNET_free (userid);
   if (PABC_OK != status)
   {
     GNUNET_log (GNUNET_ERROR_TYPE_ERROR,
@@ -502,11 +505,17 @@ pabc_create_presentation (void *cls,
     pabc_free_public_parameters (ctx, &pp);
     return GNUNET_SYSERR;
   }
-  printf ("%s", json);
+  char *json_enc;
+  GNUNET_STRINGS_base64_encode (json,
+                                strlen (json) + 1,
+                                &json_enc);
+  GNUNET_log (GNUNET_ERROR_TYPE_ERROR,
+              "Presentation: %s\n", json_enc);
   // clean up
   *pres = GNUNET_RECLAIM_presentation_new (GNUNET_RECLAIM_CREDENTIAL_TYPE_PABC,
-                                           json,
-                                           strlen (json) + 1);
+                                           json_enc,
+                                           strlen (json_enc) + 1);
+  GNUNET_free (json_enc);
   PABC_FREE_NULL (json);
   pabc_free_proof (ctx, pp, &proof);
   pabc_free_credential (ctx, pp, &cred);
