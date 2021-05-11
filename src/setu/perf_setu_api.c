@@ -404,7 +404,7 @@ run (void *cls,
                 "Running real set-reconciliation\n");
     //init_set1 ();
     // limit ~23800 element total
-    initRandomSets(470,500,500,32);
+    initRandomSets(300,500,300,32);
 }
 
 void perf_thread() {
