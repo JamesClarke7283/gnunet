@@ -682,6 +682,9 @@ struct perf_rtt_struct
     struct perf_num_send_resived_msg over;
     int se_diff;
     int active_passive_switches;
+    int se_diff_local;
+    int se_diff_remote;
+    int mode_of_operation;
 };
 
 struct perf_rtt_struct perf_rtt;
@@ -726,7 +729,6 @@ sum_sent_received_bytes(int size, struct perf_num_send_resived_msg perf_rtt_stru
 static float
 calculate_perf_rtt() {
 
-    LOG(GNUNET_ERROR_TYPE_ERROR,"CALCUALATE PERFOMANCE VALUES\n");
     /**
      *  Calculate RTT of init phase normally always 1
      */
@@ -737,18 +739,17 @@ calculate_perf_rtt() {
      *  Calculate RGNUNET_SETU_AcceptMessageRT of Fullsync normaly 1 or 1.5 depending
      */
     if (( perf_rtt.element_full.received != 0 ) ||
-         ( perf_rtt.element_full.sent != 0)
-        ) rtt += 1;
+        ( perf_rtt.element_full.sent != 0)
+            ) rtt += 1;
 
-     if (( perf_rtt.request_full.received != 0 ) ||
+    if (( perf_rtt.request_full.received != 0 ) ||
         ( perf_rtt.request_full.sent != 0)
-         ) rtt += 0.5;
+            ) rtt += 0.5;
 
     /**
      *  In case of a differential sync 3 rtt's are needed.
      *  for every active/passive switch additional 3.5 rtt's are used
      */
-    LOG(GNUNET_ERROR_TYPE_ERROR,"ITER: %d\n",  perf_rtt.active_passive_switches);
     if (( perf_rtt.element.received != 0 ) ||
         ( perf_rtt.element.sent != 0)) {
         int iterations = perf_rtt.active_passive_switches;
@@ -758,26 +759,22 @@ calculate_perf_rtt() {
         rtt +=  2.5;
     }
 
+
     /**
      * Calculate data sended size
      */
-    bytes_transmitted += sum_sent_received_bytes(sizeof(GNUNET_MESSAGE_TYPE_SETU_P2P_REQUEST_FULL), perf_rtt.request_full);
-    bytes_transmitted += sum_sent_received_bytes(sizeof(GNUNET_MESSAGE_TYPE_SETU_P2P_FULL_ELEMENT), perf_rtt.element_full);
-    bytes_transmitted += sum_sent_received_bytes(sizeof(GNUNET_MESSAGE_TYPE_SETU_P2P_ELEMENTS), perf_rtt.element);
-    bytes_transmitted += sum_sent_received_bytes(sizeof(GNUNET_MESSAGE_TYPE_SETU_P2P_OPERATION_REQUEST), perf_rtt.operation_request);
-    bytes_transmitted += sum_sent_received_bytes(sizeof(GNUNET_MESSAGE_TYPE_SETU_P2P_SE), perf_rtt.se);
-    bytes_transmitted += sum_sent_received_bytes(sizeof(GNUNET_MESSAGE_TYPE_SETU_P2P_FULL_DONE), perf_rtt.full_done);
-    bytes_transmitted += sum_sent_received_bytes(sizeof(GNUNET_MESSAGE_TYPE_SETU_P2P_IBF), perf_rtt.ibf);
-    bytes_transmitted += sum_sent_received_bytes(sizeof(GNUNET_MESSAGE_TYPE_SETU_P2P_INQUIRY), perf_rtt.inquery);
-    bytes_transmitted += sum_sent_received_bytes(sizeof(GNUNET_MESSAGE_TYPE_SETU_P2P_DEMAND), perf_rtt.demand);
-    bytes_transmitted += sum_sent_received_bytes(sizeof(GNUNET_MESSAGE_TYPE_SETU_P2P_OFFER), perf_rtt.offer);
-    bytes_transmitted += sum_sent_received_bytes(sizeof(GNUNET_MESSAGE_TYPE_SETU_P2P_DONE), perf_rtt.done);
+    bytes_transmitted += sum_sent_received_bytes(4, perf_rtt.request_full);
 
-    LOG(GNUNET_ERROR_TYPE_DEBUG,"Bytes Transmitted: %d\n", bytes_transmitted);
-
-    LOG(GNUNET_ERROR_TYPE_DEBUG,"Reached tradeoff bandwidth/rtt: %f\n", (bytes_transmitted / rtt ));
-
-    LOG(GNUNET_ERROR_TYPE_ERROR,"Estimateded set difference: %d\n", perf_rtt.se_diff);
+    bytes_transmitted += sum_sent_received_bytes(sizeof(struct GNUNET_SETU_ElementMessage), perf_rtt.element_full);
+    bytes_transmitted += sum_sent_received_bytes(sizeof(struct GNUNET_SETU_ElementMessage), perf_rtt.element);
+    // bytes_transmitted += sum_sent_received_bytes(sizeof(GNUNET_MESSAGE_TYPE_SETU_P2P_OPERATION_REQUEST), perf_rtt.operation_request);
+    // bytes_transmitted += sum_sent_received_bytes(sizeof(GNUNET_MESSAGE_TYPE_SETU_P2P_SE), perf_rtt.se);
+    bytes_transmitted += sum_sent_received_bytes(4, perf_rtt.full_done);
+    bytes_transmitted += sum_sent_received_bytes(sizeof(struct IBFMessage), perf_rtt.ibf);
+    bytes_transmitted += sum_sent_received_bytes(sizeof(struct InquiryMessage), perf_rtt.inquery);
+    bytes_transmitted += sum_sent_received_bytes(sizeof(struct GNUNET_MessageHeader), perf_rtt.demand);
+    bytes_transmitted += sum_sent_received_bytes(sizeof(struct GNUNET_MessageHeader), perf_rtt.offer);
+    bytes_transmitted += sum_sent_received_bytes(4, perf_rtt.done);
 
 
 
@@ -793,12 +790,11 @@ calculate_perf_rtt() {
     int decoded = 0;
     if(perf_rtt.active_passive_switches == 0)
         decoded = 1;
-    LOG(GNUNET_ERROR_TYPE_ERROR,"decoded=%d, msg_sent=%d, msg_recv=%d, byte_sent=%d, bytes_recv=%d \n", decoded, perf_rtt.ibf.sent, perf_rtt.ibf.received, perf_rtt.ibf.sent_var_bytes, perf_rtt.ibf.received_var_bytes);
-    int ibf_bytes_transmitted = sum_sent_received_bytes(sizeof(GNUNET_MESSAGE_TYPE_SETU_P2P_IBF), perf_rtt.ibf);
+    int ibf_bytes_transmitted = sum_sent_received_bytes(sizeof(struct IBFMessage), perf_rtt.ibf);
 
 
     FILE *out1 = fopen("perf_failure_bucket_number_factor.csv", "a");
-    fprintf(out1, "%d,%f,%d,%d,%f,%d\n",num_per_bucket,factor,decoded,ibf_bytes_transmitted,rtt,perf_rtt.se_diff);
+    fprintf(out1, "%d,%f,%d,%d,%f,%d,%d,%d,%d,%d\n",num_per_bucket,factor,decoded,ibf_bytes_transmitted,rtt,perf_rtt.se_diff,bytes_transmitted,perf_rtt.se_diff_local,perf_rtt.se_diff_remote, perf_rtt.mode_of_operation);
     fclose(out1);
 
 
@@ -807,9 +803,9 @@ calculate_perf_rtt() {
     * <se_diff>,<active_passive_switches>,<bytes_transmitted>,<rtt>
     */
 
-    FILE *out = fopen("perf_stats.csv", "a");
-    fprintf(out, "%d,%d,%d,%f\n", perf_rtt.se_diff, perf_rtt.active_passive_switches,bytes_transmitted,rtt);
-    fclose(out);
+    // FILE *out = fopen("perf_stats.csv", "a");
+    // fprintf(out, "%d,%d,%d,%f\n", perf_rtt.se_diff, perf_rtt.active_passive_switches,bytes_transmitted,rtt);
+    //fclose(out);
 
     return rtt;
 }
@@ -1658,12 +1654,14 @@ handle_union_p2p_strata_estimator (void *cls,
     if ((op->initial_size <= other_size) ||
         (0 == other_size))
     {
+      perf_rtt.mode_of_operation = 1;
       send_full_set (op);
     }
     else
     {
       struct GNUNET_MQ_Envelope *ev;
 
+      perf_rtt.mode_of_operation = 2;
       LOG (GNUNET_ERROR_TYPE_DEBUG,
            "Telling other peer that we expect its full set\n");
       op->phase = PHASE_FULL_RECEIVING;
@@ -1680,6 +1678,7 @@ handle_union_p2p_strata_estimator (void *cls,
                               "# of ibf sends",
                               1,
                               GNUNET_NO);
+    perf_rtt.mode_of_operation = 0;
     if (GNUNET_OK !=
         send_ibf (op,
                   get_order_from_difference (diff, op->ibf_number_buckets_per_element, op->ibf_bucket_number_factor)))

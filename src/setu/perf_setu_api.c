@@ -449,7 +449,7 @@ static void execute_perf() {
 
     for (int out_out_ctr = 4; out_out_ctr <= 4; out_out_ctr++) {
 
-        for (int out_ctr = 1; out_ctr <= 100; out_ctr++) {
+        for (int out_ctr = 40; out_ctr <= 40; out_ctr++) {
 
             float base = 0.1;
             float x = out_ctr * base;
@@ -461,7 +461,7 @@ static void execute_perf() {
             GNUNET_CONFIGURATION_set_value_number(setu_cfg, "IBF", "NUMBER_PER_BUCKET", out_out_ctr); // K default=4
             GNUNET_CONFIGURATION_set_value_string(setu_cfg, "PERFORMANCE", "TRADEOFF", "0.25");
             GNUNET_CONFIGURATION_set_value_string(setu_cfg, "PERFORMANCE", "MAX_SET_DIFF_FACTOR_DIFFERENTIAL",
-                                                  "20000");//default=0.25
+                                                  "0.25");//default=0.25
 
 
             if (GNUNET_OK != GNUNET_CONFIGURATION_write(setu_cfg, "/tmp/perf_setu.conf"))
