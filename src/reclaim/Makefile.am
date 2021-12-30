@@ -14,7 +14,8 @@ REST_PLUGIN = \
   libgnunet_plugin_rest_reclaim.la
 
 CREDENTIAL_PLUGIN = \
-  libgnunet_plugin_reclaim_credential_jwt.la
+  libgnunet_plugin_reclaim_credential_jwt.la \
+  libgnunet_plugin_reclaim_w3c_verifiable_credential.la
 
 if HAVE_PABC
   CREDENTIAL_PLUGIN += libgnunet_plugin_reclaim_credential_pabc.la
@@ -170,6 +171,18 @@ libgnunet_plugin_reclaim_credential_jwt_la_LIBADD = \
   $(LTLIBINTL)
 libgnunet_plugin_reclaim_credential_jwt_la_LDFLAGS = \
  $(GN_PLUGIN_LDFLAGS)
+
+
+libgnunet_plugin_reclaim_w3c_verifiable_credential_la_SOURCES = \
+  plugin_reclaim_w3c_verifiable_credential.c
+libgnunet_plugin_reclaim_w3c_verifiable_credential_la_LIBADD = \
+  $(top_builddir)/src/util/libgnunetutil.la \
+  libgnunetreclaim.la \
+  -ljansson\
+  $(LTLIBINTL)
+libgnunet_plugin_reclaim_w3c_verifiable_credential_la_LDFLAGS = \
+ $(GN_PLUGIN_LDFLAGS)
+
 
 gnunet_reclaim_SOURCES = \
  gnunet-reclaim.c

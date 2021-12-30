@@ -65,7 +65,12 @@ enum GNUNET_RECLAIM_CredentialType {
   /**
    * libpabc credential
    */
-  GNUNET_RECLAIM_CREDENTIAL_TYPE_PABC = 2
+  GNUNET_RECLAIM_CREDENTIAL_TYPE_PABC = 2,
+
+  /**
+   * verifiable credential
+   */
+  GNUNET_RECLAIM_W3C_VERFIIABLE_CREDENTIAL_TYPE = 3
 };
 
 /**
