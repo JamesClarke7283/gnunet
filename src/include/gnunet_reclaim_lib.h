@@ -70,7 +70,7 @@ enum GNUNET_RECLAIM_CredentialType {
   /**
    * verifiable credential
    */
-  GNUNET_RECLAIM_W3C_VERFIIABLE_CREDENTIAL_TYPE = 3
+  GNUNET_RECLAIM_CREDENTIAL_TYPE_VC = 3
 };
 
 /**

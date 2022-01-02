@@ -1,5 +1,3 @@
-/*
-   This file is part of GNUnet.
    Copyright (C) 2012-2021 GNUnet e.V.
 
    GNUnet is free software: you can redistribute it and/or modify it
@@ -21,7 +19,7 @@
 
 /**
  * @file src/did/test_w3c_ed25519_2020.c
- * @brief Testcases for the w3c Ed25519 formats for SSIs https://w3c-ccg.github.io/lds-ed25519-2020
+ * @brief Testcases for the w3c Ed25519 formats for SSIs https://w3c-ccwg.github.io/lds-ed25519-2020
  * @author Martin Schanzenbach
  */
 

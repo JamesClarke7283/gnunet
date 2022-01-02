@@ -41,14 +41,15 @@
    * @return NULL on error, otherwise human-readable representation of the value
    */
 static char *
-w3cvc_value_to_string (void *cls,
+vc_value_to_string (void *cls,
                      uint32_t type,
                      const void *data,
                      size_t data_size)
 {
   switch (type)
   {
-  case GNUNET_RECLAIM_W3C_VERFIIABLE_CREDENTIAL_TYPE:
+  case GNUNET_RECLAIM_CREDENTIAL_TYPE_VC:
+    printf("DEBUG: vc_value_to_string: %s\n", (char *) data);
     return GNUNET_strndup (data, data_size);
     //return "A super cool verifiable credential\n";
   default:
@@ -69,7 +70,7 @@ w3cvc_value_to_string (void *cls,
  * @return #GNUNET_OK on success
  */
 static int
-w3cvc_string_to_value (void *cls,
+vc_string_to_value (void *cls,
                      uint32_t type,
                      const char *s,
                      void **data,
@@ -80,7 +81,8 @@ w3cvc_string_to_value (void *cls,
 
   switch (type)
   {
-  case GNUNET_RECLAIM_W3C_VERFIIABLE_CREDENTIAL_TYPE:
+  case GNUNET_RECLAIM_CREDENTIAL_TYPE_VC:
+    printf("DEBUG: vc_string_to_value: %s\n", s);
     *data = GNUNET_strdup (s);
     *data_size = strlen (s) + 1;
     return GNUNET_OK;
@@ -99,26 +101,26 @@ static struct
 {
   const char *name;
   uint32_t number;
-} w3cvc_cred_name_map[] = { { "W3CVC", GNUNET_RECLAIM_W3C_VERFIIABLE_CREDENTIAL_TYPE},
+} vc_cred_name_map[] = { { "VC", GNUNET_RECLAIM_CREDENTIAL_TYPE_VC},
                           { NULL, UINT32_MAX } };
 
 /**
    * Convert a type name to the corresponding number.
    *
    * @param cls closure, unused
-   * @param w3cvc_typename name to convert
+   * @param vc_typename name to convert
    * @return corresponding number, UINT32_MAX on error
    */
 static uint32_t
-w3cvc_typename_to_number (void *cls, const char *w3cvc_typename)
+vc_typename_to_number (void *cls, const char *vc_typename)
 {
   unsigned int i;
 
   i = 0;
-  while ((NULL != w3cvc_cred_name_map[i].name) &&
-         (0 != strcasecmp (w3cvc_typename, w3cvc_cred_name_map[i].name)))
+  while ((NULL != vc_cred_name_map[i].name) &&
+         (0 != strcasecmp (vc_typename, vc_cred_name_map[i].name)))
     i++;
-  return w3cvc_cred_name_map[i].number;
+  return vc_cred_name_map[i].number;
 }
 
 
@@ -130,16 +132,16 @@ w3cvc_typename_to_number (void *cls, const char *w3cvc_typename)
  * @return corresponding typestring, NULL on error
  */
 static const char *
-w3cvc_number_to_typename (void *cls, uint32_t type)
+vc_number_to_typename (void *cls, uint32_t type)
 {
   unsigned int i;
 
   i = 0;
-  while ((NULL != w3cvc_cred_name_map[i].name) && (type !=
-                                                 w3cvc_cred_name_map[i].
+  while ((NULL != vc_cred_name_map[i].name) && (type !=
+                                                 vc_cred_name_map[i].
                                                  number))
     i++;
-  return w3cvc_cred_name_map[i].name;
+  return vc_cred_name_map[i].name;
 }
 
 
@@ -151,18 +153,20 @@ w3cvc_number_to_typename (void *cls, uint32_t type)
  * @return a GNUNET_RECLAIM_Attribute, containing the new value
  */
 struct GNUNET_RECLAIM_AttributeList *
-w3cvc_parse_attributes (void *cls,
+vc_parse_attributes (void *cls,
                       const char *data,
                       size_t data_size)
 {
   struct GNUNET_RECLAIM_AttributeList *attrs = GNUNET_new (struct GNUNET_RECLAIM_AttributeList);
+
+  printf("DEBUG: vc_parse_attributes: %s\n", data);
 
   GNUNET_RECLAIM_attribute_list_add (attrs,
                                      "astring",
                                      NULL,
                                      GNUNET_RECLAIM_ATTRIBUTE_TYPE_STRING,
                                      data,
-                                     strlen(data));
+                                     (strlen(data) + 1));
 
   return attrs;
 }
@@ -176,12 +180,12 @@ w3cvc_parse_attributes (void *cls,
  * @return a GNUNET_RECLAIM_Attribute, containing the new value
  */
 struct GNUNET_RECLAIM_AttributeList *
-w3cvc_parse_attributes_c (void *cls,
+vc_parse_attributes_c (void *cls,
                         const struct GNUNET_RECLAIM_Credential *cred)
 {
-  if (cred->type != GNUNET_RECLAIM_W3C_VERFIIABLE_CREDENTIAL_TYPE)
+  if (cred->type != GNUNET_RECLAIM_CREDENTIAL_TYPE_VC)
     return NULL;
-  return w3cvc_parse_attributes (cls, cred->data, cred->data_size);
+  return vc_parse_attributes (cls, cred->data, cred->data_size);
 }
 
 
@@ -193,12 +197,12 @@ w3cvc_parse_attributes_c (void *cls,
  * @return a GNUNET_RECLAIM_Attribute, containing the new value
  */
 struct GNUNET_RECLAIM_AttributeList *
-w3cvc_parse_attributes_p (void *cls,
+vc_parse_attributes_p (void *cls,
                         const struct GNUNET_RECLAIM_Presentation *cred)
 {
-  if (cred->type != GNUNET_RECLAIM_W3C_VERFIIABLE_CREDENTIAL_TYPE)
+  if (cred->type != GNUNET_RECLAIM_CREDENTIAL_TYPE_VC)
     return NULL;
-  return w3cvc_parse_attributes (cls, cred->data, cred->data_size);
+  return vc_parse_attributes (cls, cred->data, cred->data_size);
 }
 
 
@@ -210,11 +214,12 @@ w3cvc_parse_attributes_p (void *cls,
  * @return a string, containing the isser
  */
 char *
-w3cvc_get_issuer (void *cls,
+vc_get_issuer (void *cls,
                 const char *data,
                 size_t data_size)
 {
-  return "some cool boi";
+  char * string = "some cool boi";
+  return GNUNET_strndup(string, strlen(string));
 }
 
 
@@ -226,12 +231,12 @@ w3cvc_get_issuer (void *cls,
  * @return a string, containing the isser
  */
 char *
-w3cvc_get_issuer_c (void *cls,
+vc_get_issuer_c (void *cls,
                   const struct GNUNET_RECLAIM_Credential *cred)
 {
-  if (GNUNET_RECLAIM_W3C_VERFIIABLE_CREDENTIAL_TYPE != cred->type)
+  if (GNUNET_RECLAIM_CREDENTIAL_TYPE_VC != cred->type)
     return NULL;
-  return w3cvc_get_issuer (cls, cred->data, cred->data_size);
+  return vc_get_issuer (cls, cred->data, cred->data_size);
 }
 
 
@@ -243,12 +248,12 @@ w3cvc_get_issuer_c (void *cls,
  * @return a string, containing the isser
  */
 char *
-w3cvc_get_issuer_p (void *cls,
+vc_get_issuer_p (void *cls,
                   const struct GNUNET_RECLAIM_Presentation *cred)
 {
-  if (GNUNET_RECLAIM_W3C_VERFIIABLE_CREDENTIAL_TYPE != cred->type)
+  if (GNUNET_RECLAIM_CREDENTIAL_TYPE_VC != cred->type)
     return NULL;
-  return w3cvc_get_issuer (cls, cred->data, cred->data_size);
+  return vc_get_issuer (cls, cred->data, cred->data_size);
 }
 
 
@@ -260,7 +265,7 @@ w3cvc_get_issuer_p (void *cls,
  * @return a string, containing the expiration
  */
 enum GNUNET_GenericReturnValue
-w3cvc_get_expiration (void *cls,
+vc_get_expiration (void *cls,
                     const char *data,
                     size_t data_size,
                     struct GNUNET_TIME_Absolute *exp)
@@ -278,13 +283,13 @@ w3cvc_get_expiration (void *cls,
  * @return the expirati
  */
 enum GNUNET_GenericReturnValue
-w3cvc_get_expiration_c (void *cls,
+vc_get_expiration_c (void *cls,
                       const struct GNUNET_RECLAIM_Credential *cred,
                       struct GNUNET_TIME_Absolute *exp)
 {
-  if (GNUNET_RECLAIM_W3C_VERFIIABLE_CREDENTIAL_TYPE != cred->type)
+  if (GNUNET_RECLAIM_CREDENTIAL_TYPE_VC != cred->type)
     return GNUNET_NO;
-  return w3cvc_get_expiration (cls, cred->data, cred->data_size, exp);
+  return vc_get_expiration (cls, cred->data, cred->data_size, exp);
 }
 
 
@@ -296,26 +301,26 @@ w3cvc_get_expiration_c (void *cls,
  * @return a string, containing the isser
  */
 enum GNUNET_GenericReturnValue
-w3cvc_get_expiration_p (void *cls,
+vc_get_expiration_p (void *cls,
                       const struct GNUNET_RECLAIM_Presentation *cred,
                       struct GNUNET_TIME_Absolute *exp)
 {
-  if (GNUNET_RECLAIM_W3C_VERFIIABLE_CREDENTIAL_TYPE  != cred->type)
+  if (GNUNET_RECLAIM_CREDENTIAL_TYPE_VC  != cred->type)
     return GNUNET_NO;
-  return w3cvc_get_expiration (cls, cred->data, cred->data_size, exp);
+  return vc_get_expiration (cls, cred->data, cred->data_size, exp);
 }
 
 
 enum GNUNET_GenericReturnValue
-w3cvc_create_presentation (void *cls,
+vc_create_presentation (void *cls,
                          const struct GNUNET_RECLAIM_Credential *cred,
                          const struct GNUNET_RECLAIM_AttributeList *attrs,
                          struct GNUNET_RECLAIM_Presentation **presentation)
 {
-  if (GNUNET_RECLAIM_W3C_VERFIIABLE_CREDENTIAL_TYPE != cred->type)
+  if (GNUNET_RECLAIM_CREDENTIAL_TYPE_VC != cred->type)
     return GNUNET_NO;
   *presentation = GNUNET_RECLAIM_presentation_new (
-    GNUNET_RECLAIM_W3C_VERFIIABLE_CREDENTIAL_TYPE,
+    GNUNET_RECLAIM_CREDENTIAL_TYPE_VC,
     cred->data,
     cred->data_size);
   return GNUNET_OK;
@@ -329,26 +334,26 @@ w3cvc_create_presentation (void *cls,
  * @return the exported block API
  */
 void *
-libgnunet_plugin_reclaim_credential_w3cvc_init (void *cls)
+libgnunet_plugin_reclaim_credential_vc_init (void *cls)
 {
   struct GNUNET_RECLAIM_CredentialPluginFunctions *api;
 
   api = GNUNET_new (struct GNUNET_RECLAIM_CredentialPluginFunctions);
-  api->value_to_string = &w3cvc_value_to_string;
-  api->string_to_value = &w3cvc_string_to_value;
-  api->typename_to_number = &w3cvc_typename_to_number;
-  api->number_to_typename = &w3cvc_number_to_typename;
-  api->get_attributes = &w3cvc_parse_attributes_c;
-  api->get_issuer = &w3cvc_get_issuer_c;
-  api->get_expiration = &w3cvc_get_expiration_c;
-  api->value_to_string_p = &w3cvc_value_to_string;
-  api->string_to_value_p = &w3cvc_string_to_value;
-  api->typename_to_number_p = &w3cvc_typename_to_number;
-  api->number_to_typename_p = &w3cvc_number_to_typename;
-  api->get_attributes_p = &w3cvc_parse_attributes_p;
-  api->get_issuer_p = &w3cvc_get_issuer_p;
-  api->get_expiration_p = &w3cvc_get_expiration_p;
-  api->create_presentation = &w3cvc_create_presentation;
+  api->value_to_string = &vc_value_to_string;
+  api->string_to_value = &vc_string_to_value;
+  api->typename_to_number = &vc_typename_to_number; // done
+  api->number_to_typename = &vc_number_to_typename; // done
+  api->get_attributes = &vc_parse_attributes_c;
+  api->get_issuer = &vc_get_issuer_c;
+  api->get_expiration = &vc_get_expiration_c; // not needed
+  api->value_to_string_p = &vc_value_to_string;
+  api->string_to_value_p = &vc_string_to_value;
+  api->typename_to_number_p = &vc_typename_to_number; // done
+  api->number_to_typename_p = &vc_number_to_typename; // done
+  api->get_attributes_p = &vc_parse_attributes_p;
+  api->get_issuer_p = &vc_get_issuer_p;
+  api->get_expiration_p = &vc_get_expiration_p;
+  api->create_presentation = &vc_create_presentation;
   return api;
 }
 
@@ -360,7 +365,7 @@ libgnunet_plugin_reclaim_credential_w3cvc_init (void *cls)
  * @return NULL
  */
 void *
-libgnunet_plugin_reclaim_credential_w3cvc_done (void *cls)
+libgnunet_plugin_reclaim_credential_vc_done (void *cls)
 {
   struct GNUNET_RECLAIM_CredentialPluginFunctions *api = cls;
 

@@ -621,6 +621,14 @@ cred_iter_finished (void *cls)
   {
     enum GNUNET_RECLAIM_CredentialType ctype =
       GNUNET_RECLAIM_credential_typename_to_number (credential_type);
+
+    if (ctype == UINT32_MAX)
+    {
+      printf("Unknown Credential Type");
+      cleanup_task = GNUNET_SCHEDULER_add_now (&do_cleanup, NULL);
+      return;
+    }
+
     struct GNUNET_RECLAIM_Credential *credential =
       GNUNET_RECLAIM_credential_new (credential_name,
                                      ctype,
@@ -672,6 +680,14 @@ cred_iter_cb (void *cls,
                                                           cred->data,
                                                           cred->data_size);
     cred_type = GNUNET_RECLAIM_credential_number_to_typename (cred->type);
+
+    if (cred->type == UINT32_MAX)
+    {
+      printf("Unknown Credential Type");
+      cleanup_task = GNUNET_SCHEDULER_add_now (&do_cleanup, NULL);
+      return;
+    }
+
     id = GNUNET_STRINGS_data_to_string_alloc (&cred->id, sizeof(cred->id));
     fprintf (stdout,
              "%s: ``%s'' (%s); ID: %s\n",
