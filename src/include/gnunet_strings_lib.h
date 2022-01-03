@@ -95,6 +95,20 @@ enum GNUNET_GenericReturnValue
 GNUNET_STRINGS_fancy_time_to_absolute (const char *fancy_time,
                                        struct GNUNET_TIME_Absolute *atime);
 
+/**
+ * @ingroup time
+ * Convert a given RFC3339 time to our internal
+ * representation.
+ *
+ * @param rfc3339_time human readable string (e.g. %Y-%m-%dT%H:%M:%SZ)
+ * @param atime set to the absolute time
+ * @return #GNUNET_OK on success, #GNUNET_SYSERR on error
+ */
+enum GNUNET_GenericReturnValue
+GNUNET_STRINGS_rfc3339_time_to_absolute (const char *rfc3339_time,
+                                         struct GNUNET_TIME_Absolute *atime);
+
+
 
 /**
  * @ingroup time
@@ -266,6 +280,21 @@ GNUNET_STRINGS_buffer_tokenize (const char *buffer,
  */
 const char *
 GNUNET_STRINGS_absolute_time_to_string (struct GNUNET_TIME_Absolute t);
+
+
+/**
+ * @ingroup time
+ * Like `asctime`, except for GNUnet time.  Converts a GNUnet internal
+ * absolute time (which is in UTC) to a string in local time according to
+ * RFC3339.
+ * Note that the returned value will be overwritten if this function
+ * is called again.
+ *
+ * @param t the absolute time to convert
+ * @return timestamp in human-readable form in local time (RFC3339)
+ */
+const char *
+GNUNET_STRINGS_absolute_time_to_rfc3339 (struct GNUNET_TIME_Absolute t);
 
 
 /**

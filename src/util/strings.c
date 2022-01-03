@@ -355,6 +355,45 @@ GNUNET_STRINGS_fancy_time_to_absolute (const char *fancy_time,
 
 
 enum GNUNET_GenericReturnValue
+GNUNET_STRINGS_rfc3339_time_to_absolute (const char *rfc3339_time,
+                                         struct GNUNET_TIME_Absolute *atime)
+{
+  struct tm tv;
+  time_t t;
+  const char *eos;
+
+  eos = &rfc3339_time[strlen (rfc3339_time)];
+  memset (&tv, 0, sizeof(tv));
+  /**
+   * FIXME: There are a lot more formats for RFC3339.
+   * Actually, we also may want https://www.w3.org/TR/xmlschema11-2/#dateTime
+   * at some point?
+   */
+  if ((eos != strptime (rfc3339_time, "%Y-%m-%dT%H:%M:%SZ", &tv)) &&
+      (eos != strptime (rfc3339_time, "%Y-%m-%dT%H:%M:%S%z", &tv)))
+    return GNUNET_SYSERR;
+  t = timegm (&tv);
+  atime->abs_value_us = (uint64_t) ((uint64_t) t * 1000LL * 1000LL);
+  return GNUNET_OK;
+}
+
+
+const char *
+GNUNET_STRINGS_absolute_time_to_rfc3339 (struct GNUNET_TIME_Absolute t)
+{
+  static GNUNET_THREAD_LOCAL char buf[255];
+  time_t tt;
+  struct tm *tp;
+
+  tt = t.abs_value_us / 1000LL / 1000LL;
+  tp = gmtime (&tt);
+  strftime (buf, sizeof(buf), "%Y-%m-%dT%H:%M:%SZ", tp);
+
+  return buf;
+}
+
+
+enum GNUNET_GenericReturnValue
 GNUNET_STRINGS_fancy_time_to_timestamp (const char *fancy_time,
                                         struct GNUNET_TIME_Timestamp *atime)
 {
