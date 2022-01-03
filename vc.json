@@ -3,9 +3,10 @@
     "https://www.w3.org/2018/credentials/v1",
     "https://www.w3.org/2018/credentials/examples/v1"
   ],
-  "type": ["VerifiableCredential"],
+  "type": "VerifiableCredential",
   "issuer": "did:reclaim:1234",
   "issuanceDate": "2018-02-24T05:28:04Z",
+  "expirationDate": "2025-02-24T00:00:00Z",
   "credentialSubject": {
     "id": "did:example:abcdef1234567",
     "name": "Jane Doe"

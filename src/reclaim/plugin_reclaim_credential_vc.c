@@ -49,7 +49,6 @@ vc_value_to_string (void *cls,
   switch (type)
   {
   case GNUNET_RECLAIM_CREDENTIAL_TYPE_VC:
-    printf("DEBUG: vc_value_to_string: %s\n", (char *) data);
     return GNUNET_strndup (data, data_size);
     //return "A super cool verifiable credential\n";
   default:
@@ -82,7 +81,6 @@ vc_string_to_value (void *cls,
   switch (type)
   {
   case GNUNET_RECLAIM_CREDENTIAL_TYPE_VC:
-    printf("DEBUG: vc_string_to_value: %s\n", s);
     *data = GNUNET_strdup (s);
     *data_size = strlen (s) + 1;
     return GNUNET_OK;
@@ -147,6 +145,7 @@ vc_number_to_typename (void *cls, uint32_t type)
 
 /**
  * Parse a W3C Verifiable Credential and return the respective claim value as Attribute
+ * Only Works for single subject verifiable credentials
  *
  * @param cls the plugin
  * @param cred the W3C Verifiable credential
@@ -154,19 +153,39 @@ vc_number_to_typename (void *cls, uint32_t type)
  */
 struct GNUNET_RECLAIM_AttributeList *
 vc_parse_attributes (void *cls,
-                      const char *data,
+                      const char *cred,
                       size_t data_size)
 {
   struct GNUNET_RECLAIM_AttributeList *attrs = GNUNET_new (struct GNUNET_RECLAIM_AttributeList);
 
-  printf("DEBUG: vc_parse_attributes: %s\n", data);
+  json_t * root;
+  json_t * subject;
+  const char * key;
+  json_t * value;
+  const char * value_str;
 
-  GNUNET_RECLAIM_attribute_list_add (attrs,
-                                     "astring",
-                                     NULL,
-                                     GNUNET_RECLAIM_ATTRIBUTE_TYPE_STRING,
-                                     data,
-                                     (strlen(data) + 1));
+  root = json_loads(cred, JSON_DECODE_ANY, NULL);
+  subject = json_object_get(root, "credentialSubject");
+
+  if(subject == NULL)
+  {
+    printf("The verifiable credential has to contain a Subject\n");
+    return NULL;
+  }
+
+  json_object_foreach(subject, key, value) {
+      if (json_is_string(value))
+      {
+        value_str = json_string_value(value);
+
+        GNUNET_RECLAIM_attribute_list_add (attrs,
+                                           key,
+                                           NULL,
+                                           GNUNET_RECLAIM_ATTRIBUTE_TYPE_STRING,
+                                           value_str,
+                                           (strlen(value_str) + 1));
+      }
+  }
 
   return attrs;
 }
@@ -208,6 +227,7 @@ vc_parse_attributes_p (void *cls,
 
 /**
  * Parse a VC and return the issuer
+ * Does not work for URI Issuer. https://www.w3.org/TR/vc-data-model/#issuer
  *
  * @param cls the plugin
  * @param cred the verifiable credential
@@ -215,11 +235,32 @@ vc_parse_attributes_p (void *cls,
  */
 char *
 vc_get_issuer (void *cls,
-                const char *data,
+                const char *cred,
                 size_t data_size)
 {
-  char * string = "some cool boi";
-  return GNUNET_strndup(string, strlen(string));
+  json_t * root;
+  json_t * issuer;
+  json_t * issuer_id;
+  char * issuer_id_str;
+
+  root = json_loads(cred, JSON_DECODE_ANY, NULL);
+  issuer = json_object_get(root, "credentialSubject");
+
+  if(issuer == NULL)
+  {
+    printf("The verifiable credential has to contain an issuer\n");
+    return NULL;
+  }
+
+  issuer_id = json_object_get(issuer, "id");
+
+  if(issuer_id == NULL){
+    printf("The issuer object of the verifiable credential has to contain an id\n");
+    return NULL;
+  }
+
+  issuer_id_str = json_string_value(issuer_id);
+  return GNUNET_strndup(issuer_id_str, strlen(issuer_id_str));
 }
 
 
@@ -241,7 +282,7 @@ vc_get_issuer_c (void *cls,
 
 
 /**
- * Parse a Verifiable Credential and return the issuer
+ * Parse a Verifiable Presentation and return the issuer
  *
  * @param cls the plugin
  * @param cred the w3cvc credential
@@ -266,10 +307,26 @@ vc_get_issuer_p (void *cls,
  */
 enum GNUNET_GenericReturnValue
 vc_get_expiration (void *cls,
-                    const char *data,
+                    const char *cred,
                     size_t data_size,
                     struct GNUNET_TIME_Absolute *exp)
 {
+  json_t * root;
+  json_t * expiration_date_json;
+  char * expiration_date_str;
+
+  root = json_loads(cred, JSON_DECODE_ANY, NULL);
+  expiration_date_json = json_object_get(root, "issuanceDate");
+
+  if(expiration_date_json == NULL)
+  {
+    return GNUNET_NO;
+  }
+
+  // TODO: Cacluate GNUNET_TIME based on W3C datetime
+  // expiration_date_str = json_string_value(expiration_date_json);
+  // return GNUNET_strndup(expiration_date_str, strlen(expiration_date_str));
+
   exp->abs_value_us = UINT64_MAX;
   return GNUNET_OK;
 }
