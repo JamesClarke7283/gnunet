@@ -1295,14 +1295,13 @@ issue_ticket (struct TicketIssueHandle *ih)
   char *label;
   int i;
   int j;
-  int record_count;
+  int record_count = 1; /* At least 1 record for the ticket */
 
   for (le = ih->attrs->list_head; NULL != le; le = le->next)
-    record_count++;
+    record_count += 2; /* Worst case we have one presentation per attribute */
 
-  // Worst case we have one presentation per attribute
   attrs_record =
-    GNUNET_malloc (1 + 2 * record_count * sizeof(struct GNUNET_GNSRECORD_Data));
+    GNUNET_malloc (record_count * sizeof(struct GNUNET_GNSRECORD_Data));
   i = 0;
   for (le = ih->attrs->list_head; NULL != le; le = le->next)
   {
