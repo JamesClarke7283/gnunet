@@ -131,6 +131,13 @@ main (int argc, char *argv[])
     GNUNET_assert (0);
   }
 
+  at.abs_value_us = 1577906604000000; /* 2020-01-01T19:23:24Z */
+  bc = GNUNET_STRINGS_absolute_time_to_rfc3339 (at);
+  GNUNET_assert (0 == strcmp ("2020-01-01T19:23:24Z", bc));
+  GNUNET_assert (GNUNET_OK ==
+                 GNUNET_STRINGS_rfc3339_time_to_absolute (bc, &atx));
+  GNUNET_assert (at.abs_value_us == atx.abs_value_us);
+
   GNUNET_log_skip (2, GNUNET_NO);
   b = GNUNET_STRINGS_to_utf8 ("TEST", 4, "unknown");
   GNUNET_log_skip (0, GNUNET_YES);
