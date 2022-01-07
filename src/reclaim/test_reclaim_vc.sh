@@ -8,28 +8,27 @@ gnunet-identity -C $ego2
 
 ego1_id=$(gnunet-identity -d | grep $ego1 | sed 's/.*- \(.*\) -.*/\1/')
 ego2_id=$(gnunet-identity -d | grep $ego2 | sed 's/.*- \(.*\) -.*/\1/')
-# gnunet-identity -d
-echo "$ego1: $ego1_id"
-echo "$ego2: $ego2_id"
 
 gnunet-reclaim -e $ego1 -N cred1 -u VC -V $test_vc
 cred1_id=$(gnunet-reclaim -e $ego1 -A | grep cred1 | sed 's/.*ID: \(.*\)/\1/')
-# gnunet-reclaim -e $ego1 -A
-echo "crd1_id: $cred1_id"
 
 gnunet-reclaim -e $ego1 --add=cred1 --value=name --credential-id=$cred1_id
 att1_id=$(gnunet-reclaim -e $ego1 -D | sed 's/.*ID: \(.*\)/\1/')
-# gnunet-reclaim -e $ego1 -D
-echo "att1_id: $att1_id"
  
-gnunet-reclaim -e $ego1 -i cred1 -r $ego2_id
-ticket_id=$(gnunet-reclaim -e $ego1 -T | sed 's/.*ID: \(.*\) | Audience: .*/\1/')
-# gnunet-reclaim -e $ego1 -T
-echo "ticket_id: $ticket_id"
+gnunet-reclaim -e $ego1 -i cred1 -r $ego2_id &> /dev/null
+ticket=$(gnunet-reclaim -e $ego1 -T | sed 's/.*Ticket: \(.*\) | ID:.*/\1/')
+gnunet-reclaim -e $ego2 -C $ticket | grep Presentation | sed 's/Presentation: \(.*\)/\1/' | jq
+proof=$(gnunet-reclaim -e $ego2 -C $ticket | grep Presentation | sed 's/.*"proof":"\(.*\)"}}/\1/')
 
-curl --header "Content-Type: application/json" --data \
-    "{\"issuer\": \"$ego1_id\", \"audience\": \"$ego2_id\", \"rnd\": \"$ticket_id\"}" \
-    localhost:7776/reclaim/consume
+if [ "$proof" != "abc" ]; then
+    echo "Failed."
+    return=1
+else
+    echo "Success"
+    return=0
+fi
 
-# gnunet-identity -D $ego1
-# gnunet-identity -D $ego2
+gnunet-identity -D $ego1
+gnunet-identity -D $ego2
+
+exit $return

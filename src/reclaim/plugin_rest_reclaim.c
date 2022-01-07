@@ -1225,7 +1225,6 @@ consume_cont (void *cls,
   }
   value = json_string (val_str);
   json_object_set_new (handle->resp_object, attr->name, value);
-  json_decref (value);
   GNUNET_free (val_str);
 }
 

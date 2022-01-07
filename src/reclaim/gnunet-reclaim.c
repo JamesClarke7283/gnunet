@@ -307,13 +307,20 @@ process_attrs (void *cls,
     }
   }
   fprintf (stdout,
-           "Name: %s; Value: %s (%s); Flag %u; ID: %s %s\n",
+           "Name: %s; Value: %s (%s); Flag %u; ID: %s\n",
            attr->name,
            (NULL != value_str) ? value_str : "???",
            attr_type,
            attr->flag,
-           id,
-           (NULL == presentation) ? "" : "(ATTESTED)");
+           id
+  );
+
+  // FIXME: This is not right. Use the to_string function of the presentation
+  fprintf (stdout,
+           "Presentation: %s\n",
+           (char *) presentation->data
+  );
+
   GNUNET_free (value_str);
   GNUNET_free (id);
 }
