@@ -41,7 +41,7 @@
    * @return NULL on error, otherwise human-readable representation of the value
    */
 static char *
-vc_value_to_string (void *cls,
+value_to_string (void *cls,
                      uint32_t type,
                      const void *data,
                      size_t data_size)
@@ -69,7 +69,7 @@ vc_value_to_string (void *cls,
  * @return #GNUNET_OK on success
  */
 static int
-vc_string_to_value (void *cls,
+string_to_value (void *cls,
                      uint32_t type,
                      const char *s,
                      void **data,
@@ -142,34 +142,57 @@ vc_number_to_typename (void *cls, uint32_t type)
   return vc_cred_name_map[i].name;
 }
 
+/**
+ * 
+ * @return 
+ */
+json_t *
+get_json_vc_from_json_vp(json_t * cred)
+{
+  json_t * vc_array;
+  json_t * vc;
+
+  vc_array = json_object_get(cred, "verifiableCredential");
+
+  if(vc_array == NULL){
+    printf("The Verifiable Presentation has to contain an Array with Key \"verifiableCredential\"\n");
+    return NULL;
+  }
+
+  vc = json_array_get(vc_array, 0);
+
+  if(vc == NULL){
+    printf("The \"verifiableCredential\" array in the Verifiable Presentation can not be empty\n");
+    return NULL;
+  }
+
+  free(vc_array);
+
+  return vc;
+}
+
 
 /**
- * Parse a W3C Verifiable Credential and return the respective claim value as Attribute
- * Only Works for single subject verifiable credentials
- *
- * @param cls the plugin
- * @param cred the W3C Verifiable credential
- * @return a GNUNET_RECLAIM_Attribute, containing the new value
+ * @brief Parse a json decoded verifiable credential and return the respective claim value as Attribute
+ * @param cred a json decoded verifiable credential
+ * @return a list of Attributes in the verifiable credential
+ * 
  */
 struct GNUNET_RECLAIM_AttributeList *
-vc_parse_attributes (void *cls,
-                      const char *cred,
-                      size_t data_size)
+parse_attributes_from_json_vc(json_t * cred)
 {
   struct GNUNET_RECLAIM_AttributeList *attrs = GNUNET_new (struct GNUNET_RECLAIM_AttributeList);
 
-  json_t * root;
   json_t * subject;
   const char * key;
   json_t * value;
   const char * value_str;
 
-  root = json_loads(cred, JSON_DECODE_ANY, NULL);
-  subject = json_object_get(root, "credentialSubject");
+  subject = json_object_get(cred, "credentialSubject");
 
   if(subject == NULL)
   {
-    printf("The verifiable credential has to contain a Subject\n");
+    printf("The verifiable credential has to contain a subject\n");
     return NULL;
   }
 
@@ -192,24 +215,34 @@ vc_parse_attributes (void *cls,
 
 
 /**
- * Parse a W3C verifiable credential and return the respective claim value as Attribute
+ * Parse a verifiable credential and return the respective claim value as Attribute
  *
  * @param cls the plugin
  * @param cred the w3cvc credential
  * @return a GNUNET_RECLAIM_Attribute, containing the new value
  */
 struct GNUNET_RECLAIM_AttributeList *
-vc_parse_attributes_c (void *cls,
+parse_attributes_c (void *cls,
                         const struct GNUNET_RECLAIM_Credential *cred)
 {
   if (cred->type != GNUNET_RECLAIM_CREDENTIAL_TYPE_VC)
     return NULL;
-  return vc_parse_attributes (cls, cred->data, cred->data_size);
+  else 
+  {
+    struct GNUNET_RECLAIM_AttributeList *attrs;
+
+    json_t * root;
+    root = json_loads(cred->data, JSON_DECODE_ANY, NULL);
+    attrs =  parse_attributes_from_json_vc(root);
+
+    free(root);
+    return attrs;
+  }
 }
 
 
 /**
- * Parse a W3C verifiable presentation and return the respective claim value as Attribute
+ * Parse a verifiable presentation and return the respective claim value as Attribute
  *
  * @param cls the plugin
  * @param cred the w3cvc credential
@@ -217,34 +250,54 @@ vc_parse_attributes_c (void *cls,
  */
 struct GNUNET_RECLAIM_AttributeList *
 vc_parse_attributes_p (void *cls,
-                        const struct GNUNET_RECLAIM_Presentation *cred)
+                        const struct GNUNET_RECLAIM_Presentation *pres)
 {
-  if (cred->type != GNUNET_RECLAIM_CREDENTIAL_TYPE_VC)
+  if (pres->type != GNUNET_RECLAIM_CREDENTIAL_TYPE_VC)
     return NULL;
-  return vc_parse_attributes (cls, cred->data, cred->data_size);
+  else 
+  {
+    struct GNUNET_RECLAIM_AttributeList *attrs;
+
+    json_t * root;
+    json_t * cred;
+    json_error_t * error;
+    char * cred_str;
+
+    root = json_loads(pres->data, JSON_DECODE_ANY, error);
+
+    if(root == NULL)
+    {
+      printf("Could not decode the verifiable presentation\n");
+      return NULL;
+    }
+
+    cred = get_json_vc_from_json_vp(root);
+
+    cred_str = json_dumps(cred, JSON_INDENT(2));
+
+    attrs =  parse_attributes_from_json_vc(cred);
+
+    free(root);
+    free(cred);
+    return attrs;
+  }
 }
 
 
 /**
- * Parse a VC and return the issuer
- * Does not work for URI Issuer. https://www.w3.org/TR/vc-data-model/#issuer
- *
- * @param cls the plugin
- * @param cred the verifiable credential
- * @return a string, containing the isser
+ * @brief Return the issuer of the credential
+ * @param vc decoded json containing a verifiable credential
+ * @return a string containg the issuer
+ * 
  */
-char *
-vc_get_issuer (void *cls,
-                const char *cred,
-                size_t data_size)
+char * 
+get_issuer_from_json_vc(json_t * vc)
 {
-  json_t * root;
   json_t * issuer;
   json_t * issuer_id;
-  char * issuer_id_str;
+  const char * issuer_id_str;
 
-  root = json_loads(cred, JSON_DECODE_ANY, NULL);
-  issuer = json_object_get(root, "credentialSubject");
+  issuer = json_object_get(vc, "issuer");
 
   if(issuer == NULL)
   {
@@ -260,24 +313,38 @@ vc_get_issuer (void *cls,
   }
 
   issuer_id_str = json_string_value(issuer_id);
+
+  free(issuer);
+  free(issuer_id);
+
   return GNUNET_strndup(issuer_id_str, strlen(issuer_id_str));
 }
 
 
 /**
  * Parse a Verifiable Credential and return the issuer
+ * Does not work for URI Issuer. https://www.w3.org/TR/vc-data-model/#issuer
  *
  * @param cls the plugin
  * @param cred the verifiable credential
  * @return a string, containing the isser
  */
 char *
-vc_get_issuer_c (void *cls,
+get_issuer_c (void *cls,
                   const struct GNUNET_RECLAIM_Credential *cred)
 {
   if (GNUNET_RECLAIM_CREDENTIAL_TYPE_VC != cred->type)
     return NULL;
-  return vc_get_issuer (cls, cred->data, cred->data_size);
+  else 
+  {
+    json_t * root;
+    char * issuer_id_str;
+
+    root = json_loads(cred->data, JSON_DECODE_ANY, NULL);
+    issuer_id_str = get_issuer_from_json_vc(root);
+    free(root);
+    return issuer_id_str;
+  }
 }
 
 
@@ -289,45 +356,42 @@ vc_get_issuer_c (void *cls,
  * @return a string, containing the isser
  */
 char *
-vc_get_issuer_p (void *cls,
-                  const struct GNUNET_RECLAIM_Presentation *cred)
+get_issuer_p (void *cls,
+                 const struct GNUNET_RECLAIM_Presentation *pres)
 {
-  if (GNUNET_RECLAIM_CREDENTIAL_TYPE_VC != cred->type)
+  if (GNUNET_RECLAIM_CREDENTIAL_TYPE_VC != pres->type)
     return NULL;
-  return vc_get_issuer (cls, cred->data, cred->data_size);
+  else 
+  {
+    json_t * root;
+    json_t * cred;
+    char * issuer_id_str;
+
+    root = json_loads(pres->data, JSON_DECODE_ANY, NULL);
+    cred = get_json_vc_from_json_vp(root);
+    issuer_id_str = get_issuer_from_json_vc(cred);
+    free(root);
+    free(cred);
+    return issuer_id_str;
+  }
 }
 
-
-/**
- * Parse a Verifiable Credential and return the expiration
- *
- * @param cls the plugin
- * @param cred the w3cvc credential
- * @return a string, containing the expiration
- */
 enum GNUNET_GenericReturnValue
-vc_get_expiration (void *cls,
-                    const char *cred,
-                    size_t data_size,
-                    struct GNUNET_TIME_Absolute *exp)
+get_expiration_from_json_vc(json_t * cred,
+                            struct GNUNET_TIME_Absolute * exp)
 {
-  json_t * root;
   json_t * expiration_date_json;
-  char * expiration_date_str;
+  const char * expiration_date_str;
 
-  root = json_loads(cred, JSON_DECODE_ANY, NULL);
-  expiration_date_json = json_object_get(root, "issuanceDate");
+  expiration_date_json = json_object_get(cred, "issuanceDate");
 
   if(expiration_date_json == NULL)
   {
     return GNUNET_NO;
   }
 
-  // TODO: Cacluate GNUNET_TIME based on W3C datetime
-  // expiration_date_str = json_string_value(expiration_date_json);
-  // return GNUNET_strndup(expiration_date_str, strlen(expiration_date_str));
-
-  exp->abs_value_us = UINT64_MAX;
+  expiration_date_str = json_string_value(expiration_date_json);
+  GNUNET_STRINGS_rfc3339_time_to_absolute(expiration_date_str, exp);
   return GNUNET_OK;
 }
 
@@ -345,8 +409,14 @@ vc_get_expiration_c (void *cls,
                       struct GNUNET_TIME_Absolute *exp)
 {
   if (GNUNET_RECLAIM_CREDENTIAL_TYPE_VC != cred->type)
-    return GNUNET_NO;
-  return vc_get_expiration (cls, cred->data, cred->data_size, exp);
+    return GNUNET_SYSERR;
+  else 
+  {
+    json_t * root;
+
+    root = json_loads(cred->data, JSON_DECODE_ANY, NULL);
+    return get_expiration_from_json_vc(root, exp);
+  }
 }
 
 
@@ -359,12 +429,21 @@ vc_get_expiration_c (void *cls,
  */
 enum GNUNET_GenericReturnValue
 vc_get_expiration_p (void *cls,
-                      const struct GNUNET_RECLAIM_Presentation *cred,
+                      const struct GNUNET_RECLAIM_Presentation *pres,
                       struct GNUNET_TIME_Absolute *exp)
 {
-  if (GNUNET_RECLAIM_CREDENTIAL_TYPE_VC  != cred->type)
-    return GNUNET_NO;
-  return vc_get_expiration (cls, cred->data, cred->data_size, exp);
+  if (GNUNET_RECLAIM_CREDENTIAL_TYPE_VC != pres->type)
+    return GNUNET_SYSERR;
+  else 
+  {
+    json_t * root;
+    json_t * cred;
+    char * issuer_id_str;
+
+    root = json_loads(pres->data, JSON_DECODE_ANY, NULL);
+    cred = get_json_vc_from_json_vp(root);
+    return get_expiration_from_json_vc(cred, exp);
+  }
 }
 
 
@@ -374,12 +453,51 @@ vc_create_presentation (void *cls,
                          const struct GNUNET_RECLAIM_AttributeList *attrs,
                          struct GNUNET_RECLAIM_Presentation **presentation)
 {
+  // Check if Ego has a DID Docuement
+  // Get date string for now
+  json_t * root;
+  json_t * context_array;
+  json_t * credential_array;
+  json_t * credential;
+  json_t * proof;
+
+  char * presentation_str;
+  const char * now;
+
   if (GNUNET_RECLAIM_CREDENTIAL_TYPE_VC != cred->type)
     return GNUNET_NO;
+
+  now = GNUNET_STRINGS_absolute_time_to_rfc3339(GNUNET_TIME_absolute_get());
+
+  root = json_object();
+
+  context_array = json_array();
+  json_array_append(context_array, json_string("https://www.w3.org/2018/credentials/v1"));
+  json_object_set(root, "@context", context_array);
+
+  json_object_set(root, "type", json_string("VerifiablePresentation"));
+
+  credential_array = json_array();
+  credential = json_loads(cred->data, JSON_DECODE_ANY, NULL);
+  json_array_append(credential_array, credential);
+  json_object_set(root, "verifiableCredential", credential_array);
+
+  proof = json_object();
+  json_object_set(proof, "type", json_string("EDdSASignature2021"));
+  json_object_set(proof, "created", json_string(now));
+  json_object_set(proof, "proofPurpose", json_string("assertionMethod"));
+  json_object_set(proof, "verificationMethod", json_string("did:reclaim:1234key-1"));
+  // FIXME: # inside the verificationMethod value makes the encoded json not decodeable by jannson
+  // json_object_set(proof, "verificationMethod", json_string("did:reclaim:1234#key-1"));
+  json_object_set(proof, "signature", json_string("abc"));
+  json_object_set(root, "proof", proof);
+
+  presentation_str = json_dumps(root, JSON_INDENT(2));
+
   *presentation = GNUNET_RECLAIM_presentation_new (
     GNUNET_RECLAIM_CREDENTIAL_TYPE_VC,
-    cred->data,
-    cred->data_size);
+    (void *) presentation_str,
+    strlen(presentation_str));
   return GNUNET_OK;
 }
 
@@ -396,19 +514,19 @@ libgnunet_plugin_reclaim_credential_vc_init (void *cls)
   struct GNUNET_RECLAIM_CredentialPluginFunctions *api;
 
   api = GNUNET_new (struct GNUNET_RECLAIM_CredentialPluginFunctions);
-  api->value_to_string = &vc_value_to_string;
-  api->string_to_value = &vc_string_to_value;
-  api->typename_to_number = &vc_typename_to_number; // done
-  api->number_to_typename = &vc_number_to_typename; // done
-  api->get_attributes = &vc_parse_attributes_c;
-  api->get_issuer = &vc_get_issuer_c;
-  api->get_expiration = &vc_get_expiration_c; // not needed
-  api->value_to_string_p = &vc_value_to_string;
-  api->string_to_value_p = &vc_string_to_value;
-  api->typename_to_number_p = &vc_typename_to_number; // done
-  api->number_to_typename_p = &vc_number_to_typename; // done
+  api->value_to_string = &value_to_string;
+  api->string_to_value = &string_to_value;
+  api->typename_to_number = &vc_typename_to_number;
+  api->number_to_typename = &vc_number_to_typename;
+  api->get_attributes = &parse_attributes_c;
+  api->get_issuer = &get_issuer_c;
+  api->get_expiration = &vc_get_expiration_c;
+  api->value_to_string_p = &value_to_string;
+  api->string_to_value_p = &string_to_value;
+  api->typename_to_number_p = &vc_typename_to_number;
+  api->number_to_typename_p = &vc_number_to_typename;
   api->get_attributes_p = &vc_parse_attributes_p;
-  api->get_issuer_p = &vc_get_issuer_p;
+  api->get_issuer_p = &get_issuer_p;
   api->get_expiration_p = &vc_get_expiration_p;
   api->create_presentation = &vc_create_presentation;
   return api;
@@ -431,4 +549,4 @@ libgnunet_plugin_reclaim_credential_vc_done (void *cls)
 }
 
 
-/* end of plugin_reclaim_w3c_verifiable_credential_type.c */
+/* end of plugin_reclaim_credential_vc.c */

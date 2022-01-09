@@ -317,7 +317,7 @@ process_attrs (void *cls,
 
   // FIXME: This is not right. Use the to_string function of the presentation
   fprintf (stdout,
-           "Presentation: %s\n",
+           "Presentation:\n%s\n",
            (char *) presentation->data
   );
 
