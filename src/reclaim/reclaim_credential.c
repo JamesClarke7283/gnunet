@@ -1036,6 +1036,7 @@ GNUNET_RECLAIM_presentation_get_expiration (const struct
  *
  * @param cred the credential to use
  * @param attrs the attributes to present from the credential
+ * @param ego the ego (subject) who creates the presentation
  * @return the credential presentation presenting the attributes according
  *         to the presentation mechanism of the credential
  *         or NULL on error.
@@ -1044,6 +1045,7 @@ int
 GNUNET_RECLAIM_credential_get_presentation (
   const struct GNUNET_RECLAIM_Credential *cred,
   const struct GNUNET_RECLAIM_AttributeList *attrs,
+  const struct GNUNET_IDENTITY_Ego *ego,
   struct GNUNET_RECLAIM_Presentation **presentation)
 {
   unsigned int i;
@@ -1055,6 +1057,7 @@ GNUNET_RECLAIM_credential_get_presentation (
     if (GNUNET_OK !=  plugin->api->create_presentation (plugin->api->cls,
                                                         cred,
                                                         attrs,
+                                                        ego,
                                                         presentation))
       continue;
     (*presentation)->credential_id = cred->id;

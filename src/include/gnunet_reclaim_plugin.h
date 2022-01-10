@@ -32,6 +32,7 @@
 
 #include "gnunet_util_lib.h"
 #include "gnunet_reclaim_lib.h"
+#include "gnunet_identity_service.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -305,6 +306,7 @@ typedef int (*GNUNET_RECLAIM_CredentialToPresentation) (
   void *cls,
   const struct GNUNET_RECLAIM_Credential *cred,
   const struct GNUNET_RECLAIM_AttributeList *attrs,
+  const struct GNUNET_IDENTITY_Ego *ego,
   struct GNUNET_RECLAIM_Presentation **presentation);
 
 /**

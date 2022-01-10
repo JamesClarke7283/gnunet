@@ -28,6 +28,7 @@
 #include "platform.h"
 #include "gnunet_util_lib.h"
 #include "gnunet_reclaim_plugin.h"
+#include "gnunet_identity_service.h"
 #include <inttypes.h>
 #include <jansson.h>
 
@@ -451,6 +452,7 @@ enum GNUNET_GenericReturnValue
 vc_create_presentation (void *cls,
                          const struct GNUNET_RECLAIM_Credential *cred,
                          const struct GNUNET_RECLAIM_AttributeList *attrs,
+                         const struct GNUNET_IDENTITY_Ego *ego,
                          struct GNUNET_RECLAIM_Presentation **presentation)
 {
   // Check if Ego has a DID Docuement
@@ -460,6 +462,11 @@ vc_create_presentation (void *cls,
   json_t * credential_array;
   json_t * credential;
   json_t * proof;
+
+  struct GNUNET_IDENTITY_PublicKey pkey;
+  GNUNET_IDENTITY_ego_get_public_key(ego, &pkey);
+  
+  printf("DEBUG - %s\n", GNUNET_IDENTITY_public_key_to_string(&pkey));
 
   char * json_str;
   char * presentation_str;

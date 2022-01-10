@@ -177,6 +177,7 @@ libgnunet_plugin_reclaim_credential_vc_la_SOURCES = \
   plugin_reclaim_credential_vc.c
 libgnunet_plugin_reclaim_credential_vc_la_LIBADD = \
   $(top_builddir)/src/util/libgnunetutil.la \
+  $(top_builddir)/src/identity/libgnunetidentity.la \
   libgnunetreclaim.la \
   -ljansson\
   $(LTLIBINTL)

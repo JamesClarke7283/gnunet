@@ -28,6 +28,7 @@
 #include "platform.h"
 #include "gnunet_util_lib.h"
 #include "gnunet_reclaim_plugin.h"
+#include "gnunet_identity_service.h"
 #include <inttypes.h>
 #include <jansson.h>
 
@@ -437,6 +438,7 @@ enum GNUNET_GenericReturnValue
 jwt_create_presentation (void *cls,
                          const struct GNUNET_RECLAIM_Credential *cred,
                          const struct GNUNET_RECLAIM_AttributeList *attrs,
+                         const struct GNUNET_IDENTITY_Ego *ego,
                          struct GNUNET_RECLAIM_Presentation **presentation)
 {
   if (GNUNET_RECLAIM_CREDENTIAL_TYPE_JWT != cred->type)

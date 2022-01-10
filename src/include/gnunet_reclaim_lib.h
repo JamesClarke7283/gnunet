@@ -38,6 +38,7 @@ extern "C" {
 #endif
 
 #include "gnunet_util_lib.h"
+#include "gnunet_identity_service.h"
 
 enum GNUNET_RECLAIM_AttributeType {
   /**
@@ -847,6 +848,7 @@ int
 GNUNET_RECLAIM_credential_get_presentation (
                               const struct GNUNET_RECLAIM_Credential *cred,
                               const struct GNUNET_RECLAIM_AttributeList *attrs,
+                              const struct GNUNET_IDENTITY_Ego *ego,
                               struct GNUNET_RECLAIM_Presentation **presentation);
 
 
