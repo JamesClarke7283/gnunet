@@ -461,6 +461,7 @@ vc_create_presentation (void *cls,
   json_t * credential;
   json_t * proof;
 
+  char * json_str;
   char * presentation_str;
   const char * now;
 
@@ -486,18 +487,23 @@ vc_create_presentation (void *cls,
   json_object_set(proof, "type", json_string("EDdSASignature2021"));
   json_object_set(proof, "created", json_string(now));
   json_object_set(proof, "proofPurpose", json_string("assertionMethod"));
-  json_object_set(proof, "verificationMethod", json_string("did:reclaim:1234key-1"));
-  // FIXME: # inside the verificationMethod value makes the encoded json not decodeable by jannson
-  // json_object_set(proof, "verificationMethod", json_string("did:reclaim:1234#key-1"));
+  json_object_set(proof, "verificationMethod", json_string("did:reclaim:1234#key-1"));
   json_object_set(proof, "signature", json_string("abc"));
   json_object_set(root, "proof", proof);
 
-  presentation_str = json_dumps(root, JSON_INDENT(2));
+  // Encode JSON and append \0 character
+  json_str = json_dumps(root, JSON_INDENT(2));
+  presentation_str = malloc(strlen(json_str) + 1);
+  strcpy(presentation_str, json_str);
+  presentation_str[strlen(json_str)] = '\0';
 
   *presentation = GNUNET_RECLAIM_presentation_new (
     GNUNET_RECLAIM_CREDENTIAL_TYPE_VC,
     (void *) presentation_str,
     strlen(presentation_str));
+
+  free(presentation_str);
+  free(json_str);
   return GNUNET_OK;
 }
 
