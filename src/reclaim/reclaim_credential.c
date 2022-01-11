@@ -1045,7 +1045,7 @@ int
 GNUNET_RECLAIM_credential_get_presentation (
   const struct GNUNET_RECLAIM_Credential *cred,
   const struct GNUNET_RECLAIM_AttributeList *attrs,
-  const struct GNUNET_IDENTITY_Ego *ego,
+  const struct GNUNET_IDENTITY_PrivateKey *pk,
   struct GNUNET_RECLAIM_Presentation **presentation)
 {
   unsigned int i;
@@ -1057,7 +1057,7 @@ GNUNET_RECLAIM_credential_get_presentation (
     if (GNUNET_OK !=  plugin->api->create_presentation (plugin->api->cls,
                                                         cred,
                                                         attrs,
-                                                        ego,
+                                                        pk,
                                                         presentation))
       continue;
     (*presentation)->credential_id = cred->id;

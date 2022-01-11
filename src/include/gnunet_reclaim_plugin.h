@@ -306,7 +306,7 @@ typedef int (*GNUNET_RECLAIM_CredentialToPresentation) (
   void *cls,
   const struct GNUNET_RECLAIM_Credential *cred,
   const struct GNUNET_RECLAIM_AttributeList *attrs,
-  const struct GNUNET_IDENTITY_Ego *ego,
+  const struct GNUNET_IDENTITY_PrivateKey *pk,
   struct GNUNET_RECLAIM_Presentation **presentation);
 
 /**

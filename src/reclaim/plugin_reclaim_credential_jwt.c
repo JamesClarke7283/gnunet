@@ -438,7 +438,7 @@ enum GNUNET_GenericReturnValue
 jwt_create_presentation (void *cls,
                          const struct GNUNET_RECLAIM_Credential *cred,
                          const struct GNUNET_RECLAIM_AttributeList *attrs,
-                         const struct GNUNET_IDENTITY_Ego *ego,
+                         const struct GNUNET_IDENTITY_PrivateKey *pk,
                          struct GNUNET_RECLAIM_Presentation **presentation)
 {
   if (GNUNET_RECLAIM_CREDENTIAL_TYPE_JWT != cred->type)

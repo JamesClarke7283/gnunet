@@ -4,8 +4,8 @@ ego2="ego2_$(tr -dc a-z </dev/urandom | head -c 8 ; echo '')"
 test_vc='{"@context":["https://www.w3.org/2018/credentials/v1"],"type":["VerifiableCredential"],"issuer":"did:reclaim:1234","issuanceDate":"2018-02-24T05:28:04Z","expirationDate":"2025-02-24T00:00:00Z","credentialSubject":{"id":"did:example:abcdef1234567","name":"Tristan"},"proof":{"type":"RsaSignature2018","created":"2017-06-18T21:19:10Z","proofPurpose":"assertionMethod","verificationMethod":"did:reclaim:1234#key-1","proof":"abc"}}'
 
 # Create Identities 
-gnunet-identity -C $ego1
-gnunet-identity -C $ego2
+gnunet-identity -C $ego1 --eddsa
+gnunet-identity -C $ego2 --eddsa
 
 ego1_id=$(gnunet-identity -d | grep $ego1 | sed 's/.*- \(.*\) -.*/\1/')
 ego2_id=$(gnunet-identity -d | grep $ego2 | sed 's/.*- \(.*\) -.*/\1/')

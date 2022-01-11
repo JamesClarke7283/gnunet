@@ -848,7 +848,7 @@ int
 GNUNET_RECLAIM_credential_get_presentation (
                               const struct GNUNET_RECLAIM_Credential *cred,
                               const struct GNUNET_RECLAIM_AttributeList *attrs,
-                              const struct GNUNET_IDENTITY_Ego *ego,
+                              const struct GNUNET_IDENTITY_PrivateKey *pk,
                               struct GNUNET_RECLAIM_Presentation **presentation);
 
 

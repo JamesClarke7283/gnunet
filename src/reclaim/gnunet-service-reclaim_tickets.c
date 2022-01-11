@@ -1527,7 +1527,7 @@ filter_tickets_cb (void *cls,
         if (GNUNET_OK != GNUNET_RECLAIM_credential_get_presentation (
               cred,
               tih->attrs,
-              NULL,
+              zone,
               &presentation))
         {
           GNUNET_log (GNUNET_ERROR_TYPE_ERROR,
