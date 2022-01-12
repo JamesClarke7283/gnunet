@@ -30,6 +30,7 @@
 #include "gnunet_reclaim_plugin.h"
 #include "gnunet_identity_service.h"
 #include "gnunet_signatures.h"
+#include "plugin_reclaim_vc_embedded_proof.h"
 #include <inttypes.h>
 #include <jansson.h>
 
@@ -448,57 +449,6 @@ vc_get_expiration_p (void *cls,
   }
 }
 
-char * 
-generate_signature_vp(json_t ** pres, 
-                      const struct GNUNET_IDENTITY_PrivateKey * pk)
-{
-    char * data;
-    json_t * proof;
-
-    struct GNUNET_IDENTITY_Signature sig;
-    ssize_t sig_size;
-
-    struct GNUNET_CRYPTO_EccSignaturePurpose * sig_purpose;
-    ssize_t sig_purpose_size;
-
-    void * sig_buf;
-    ssize_t sig_buf_size;
-
-    char * sig_str;
-    ssize_t sig_str_size;
-
-    char * sig_str_final;
-
-    // Add empty signature key-value -> encode json -> delete empty signature key-value
-    // FIXME: Needs a real Canonicalization Scheme 
-    proof = json_object_get(*pres, "proof");
-    json_object_set(proof, "signature", json_string(""));
-    data = json_dumps(*pres, JSON_COMPACT);
-    json_object_del(proof, "signature");
-
-    // Generate Signature
-    sig_purpose_size = sizeof(struct GNUNET_CRYPTO_EccSignaturePurpose) + strlen(data);
-    sig_purpose = malloc(sig_purpose_size);
-    sig_purpose->size = htonl(sig_purpose_size);
-    sig_purpose->purpose = htonl(GNUNET_SIGNATURE_PURPOSE_TEST); 
-    memcpy(&sig_purpose[1], (void *) data, strlen(data));
-
-    GNUNET_IDENTITY_sign_(pk, 
-                         sig_purpose, 
-                         &sig);
-                    
-    free(sig_purpose);
-
-    // Convert Signature to string
-    sig_size = GNUNET_IDENTITY_signature_get_length(&sig);
-    sig_buf = malloc(sig_size);
-    sig_buf_size = GNUNET_IDENTITY_write_signature_to_buffer(&sig, sig_buf, sig_size);
-    sig_str_size = GNUNET_STRINGS_base64_encode(sig_buf, sig_buf_size, &sig_str);
-    free(sig_buf);
-
-    // sprintf(sig_str_final, "Pls %zu help, %zu Im %zu lost\n", sig_size, sig_buf_size, sig_str_size);
-    return sig_str;
-}
 
 enum GNUNET_GenericReturnValue
 vc_create_presentation (void *cls,
@@ -513,7 +463,11 @@ vc_create_presentation (void *cls,
   json_t * credential;
   json_t * proof;
 
+  struct GNUNET_IDENTITY_PublicKey *pubk;
+
   char * pk_str;
+  char * pubk_str;
+  char * verification_method;
   char * json_str;
   char * presentation_str;
   char * sig;
@@ -524,7 +478,16 @@ vc_create_presentation (void *cls,
   if (GNUNET_RECLAIM_CREDENTIAL_TYPE_VC != cred->type)
     return GNUNET_NO;
 
+  // Get current time
   now = GNUNET_STRINGS_absolute_time_to_rfc3339(GNUNET_TIME_absolute_get());
+
+  // Generate verification method did key ref from private key
+  GNUNET_IDENTITY_key_get_public(pk,
+                                 pubk);
+  pubk_str = GNUNET_IDENTITY_public_key_to_string(pubk);
+  verification_method = malloc(sizeof(char)*100); // FIXME: Get real len of DID
+  sprintf(verification_method, "did:reclaim:%s#key-1", pubk_str);
+  free(pubk_str);
 
   root = json_object();
 
@@ -543,7 +506,7 @@ vc_create_presentation (void *cls,
   json_object_set(proof, "type", json_string("ReclaimPresentationSig2022"));
   json_object_set(proof, "created", json_string(now));
   json_object_set(proof, "proofPurpose", json_string("assertionMethod"));
-  json_object_set(proof, "verificationMethod", json_string("did:reclaim:1234#key-1"));
+  json_object_set(proof, "verificationMethod", json_string(verification_method));
   json_object_set(root, "proof", proof);
 
   sig = generate_signature_vp(&root, pk);
@@ -560,6 +523,7 @@ vc_create_presentation (void *cls,
     (void *) presentation_str,
     strlen(presentation_str));
 
+  free(verification_method);
   free(presentation_str);
   free(json_str);
   return GNUNET_OK;

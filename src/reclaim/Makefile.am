@@ -184,6 +184,13 @@ libgnunet_plugin_reclaim_credential_vc_la_LIBADD = \
 libgnunet_plugin_reclaim_credential_vc_la_LDFLAGS = \
  $(GN_PLUGIN_LDFLAGS)
 
+libgnunet_plugin_reclaim_vc_embedded_proof_la_SOURCES = \
+  plugin_reclaim_vc_embedded_proof.c
+libgnunet_plugin_reclaim_vc_embedded_proof_la_LIBADD = \
+  $(top_builddir)/src/util/libgnunetutil.la \
+  $(top_builddir)/src/identity/libgnunetidentity.la \
+  -ljansson\
+  $(LTLIBINTL)
 
 gnunet_reclaim_SOURCES = \
  gnunet-reclaim.c
