@@ -19,14 +19,13 @@
  */
 
 /**
- * @file reclaim/reclaim_vc_embedded_proof.c
+ * @file reclaim/libgnunet_reclaim_vc_crypto.c
  * @author Tristan Schwieren
  */
 
 #include "gnunet_util_lib.h"
 #include "gnunet_identity_service.h"
 #include "gnunet_signatures.h"
-#include "gnunet_strings_lib.h"
 #include <jansson.h>
 
 
@@ -101,7 +100,7 @@ verify_vp(char * vp)
 
     char * data;
     json_t * proof;
-    char * verification_method;
+    const char * verification_method;
     char * pubk_str;
     struct GNUNET_IDENTITY_PublicKey * pubk;
 
@@ -114,7 +113,7 @@ verify_vp(char * vp)
     void * sig_buf;
     ssize_t sig_buf_size;
 
-    char * sig_str;
+    const char * sig_str;
     ssize_t sig_str_size;
 
     int valid;
@@ -144,7 +143,6 @@ verify_vp(char * vp)
     
     free(proof);
     free(pres);
-    free(sig_str);
     free(sig_buf);
 
     // Generate Purpose

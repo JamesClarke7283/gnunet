@@ -19,14 +19,12 @@
  */
 
 /**
- * @file reclaim/reclaim_vc_embedded_proof.c
+ * @file reclaim/libgnunet_reclaim_vc_crypto.h
  * @author Tristan Schwieren
  */
 
 #include "gnunet_util_lib.h"
 #include "gnunet_identity_service.h"
-#include "gnunet_signatures.h"
-#include "gnunet_strings_lib.h"
 #include <jansson.h>
 
 

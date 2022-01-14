@@ -30,7 +30,7 @@
 #include "gnunet_reclaim_plugin.h"
 #include "gnunet_identity_service.h"
 #include "gnunet_signatures.h"
-#include "plugin_reclaim_vc_embedded_proof.h"
+#include "libgnunet_reclaim_vc_crypto.h"
 #include <inttypes.h>
 #include <jansson.h>
 

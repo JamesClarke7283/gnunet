@@ -15,6 +15,7 @@ REST_PLUGIN = \
 
 CREDENTIAL_PLUGIN = \
   libgnunet_plugin_reclaim_credential_jwt.la \
+  libgnunet_reclaim_vc_crypto.la \
   libgnunet_plugin_reclaim_credential_vc.la
 
 if HAVE_PABC
@@ -172,25 +173,25 @@ libgnunet_plugin_reclaim_credential_jwt_la_LIBADD = \
 libgnunet_plugin_reclaim_credential_jwt_la_LDFLAGS = \
  $(GN_PLUGIN_LDFLAGS)
 
+libgnunet_reclaim_vc_crypto_la_SOURCES = \
+  libgnunet_reclaim_vc_crypto.c
+libgnunet_reclaim_vc_crypto_la_LIBADD = \
+  $(top_builddir)/src/util/libgnunetutil.la \
+  $(top_builddir)/src/identity/libgnunetidentity.la \
+  -ljansson\
+  $(LTLIBINTL)
 
 libgnunet_plugin_reclaim_credential_vc_la_SOURCES = \
   plugin_reclaim_credential_vc.c
 libgnunet_plugin_reclaim_credential_vc_la_LIBADD = \
   $(top_builddir)/src/util/libgnunetutil.la \
   $(top_builddir)/src/identity/libgnunetidentity.la \
+  $(top_builddir)/src/reclaim/libgnunetreclaimvccrypto.la \
   libgnunetreclaim.la \
   -ljansson\
   $(LTLIBINTL)
 libgnunet_plugin_reclaim_credential_vc_la_LDFLAGS = \
  $(GN_PLUGIN_LDFLAGS)
-
-libgnunet_plugin_reclaim_vc_embedded_proof_la_SOURCES = \
-  plugin_reclaim_vc_embedded_proof.c
-libgnunet_plugin_reclaim_vc_embedded_proof_la_LIBADD = \
-  $(top_builddir)/src/util/libgnunetutil.la \
-  $(top_builddir)/src/identity/libgnunetidentity.la \
-  -ljansson\
-  $(LTLIBINTL)
 
 gnunet_reclaim_SOURCES = \
  gnunet-reclaim.c
