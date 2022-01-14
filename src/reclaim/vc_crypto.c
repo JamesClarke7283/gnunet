@@ -19,7 +19,7 @@
  */
 
 /**
- * @file reclaim/libgnunet_reclaim_vc_crypto.c
+ * @file reclaim/vc_crypto.c
  * @author Tristan Schwieren
  */
 
@@ -36,132 +36,139 @@
  * @param pk The private key which is used to generate the Signature
  * @param result The verifiable presentation containing a valid signature is returned
  */
-char * 
-generate_signature_vp(json_t * pres, 
-                      const struct GNUNET_IDENTITY_PrivateKey * pk)
+char *
+generate_signature_vp (json_t *pres,
+                       const struct GNUNET_IDENTITY_PrivateKey *pk)
 {
-    // TODO: make sig multibase
-    char * data;
-    json_t * proof;
+  // TODO: make sig multibase
+  char *data;
+  json_t *proof;
 
-    struct GNUNET_IDENTITY_Signature sig;
-    ssize_t sig_size;
+  struct GNUNET_IDENTITY_Signature sig;
+  ssize_t sig_size;
 
-    struct GNUNET_CRYPTO_EccSignaturePurpose * sig_purpose;
-    ssize_t sig_purpose_size;
+  struct GNUNET_CRYPTO_EccSignaturePurpose *sig_purpose;
+  ssize_t sig_purpose_size;
 
-    void * sig_buf;
-    ssize_t sig_buf_size;
+  void *sig_buf;
+  ssize_t sig_buf_size;
 
-    char * sig_str;
-    ssize_t sig_str_size;
+  char *sig_str;
+  ssize_t sig_str_size;
 
-    char * sig_str_final;
+  char *sig_str_final;
 
-    // Add empty signature key-value -> encode json -> delete empty signature key-value
-    // FIXME: Needs a real Canonicalization Scheme 
-    proof = json_object_get(pres, "proof");
-    json_object_set(proof, "signature", json_string(""));
-    data = json_dumps(pres, JSON_COMPACT);
-    json_object_del(proof, "signature");
-    free(proof);
+  // Add empty signature key-value -> encode json -> delete empty signature key-value
+  // FIXME: Needs a real Canonicalization Scheme
+  proof = json_object_get (pres, "proof");
+  json_object_set_new (proof, "signature", json_string (""));
+  data = json_dumps (pres, JSON_COMPACT);
+  json_object_del (proof, "signature");
 
-    // Generate Signature
-    sig_purpose_size = sizeof(struct GNUNET_CRYPTO_EccSignaturePurpose) + strlen(data);
-    sig_purpose = malloc(sig_purpose_size);
-    sig_purpose->size = htonl(sig_purpose_size);
-    sig_purpose->purpose = htonl(GNUNET_SIGNATURE_PURPOSE_TEST); 
-    memcpy(&sig_purpose[1], (void *) data, strlen(data));
+  // Generate Signature
+  sig_purpose_size = sizeof(struct GNUNET_CRYPTO_EccSignaturePurpose)
+    + strlen (data);
+  sig_purpose = malloc (sig_purpose_size);
+  sig_purpose->size = htonl (sig_purpose_size);
+  sig_purpose->purpose = htonl (GNUNET_SIGNATURE_PURPOSE_TEST); //FIXME: Actual purpose in GANA
+  memcpy (&sig_purpose[1], (void *) data, strlen (data));
 
-    GNUNET_IDENTITY_sign_(pk, 
-                         sig_purpose, 
+  GNUNET_IDENTITY_sign_ (pk,
+                         sig_purpose,
                          &sig);
-                    
-    free(data);
-    free(sig_purpose);
 
-    // Convert Signature to string
-    sig_size = GNUNET_IDENTITY_signature_get_length(&sig);
-    sig_buf = malloc(sig_size);
-    sig_buf_size = GNUNET_IDENTITY_write_signature_to_buffer(&sig, sig_buf, sig_size);
-    sig_str_size = GNUNET_STRINGS_base64_encode(sig_buf, sig_buf_size, &sig_str);
-    free(sig_buf);
+  GNUNET_free (data);
+  GNUNET_free (sig_purpose);
 
-    return sig_str;
+  // Convert Signature to string
+  sig_size = GNUNET_IDENTITY_signature_get_length (&sig);
+  sig_buf = malloc (sig_size);
+  sig_buf_size = GNUNET_IDENTITY_write_signature_to_buffer (&sig, sig_buf,
+                                                            sig_size);
+  sig_str_size = GNUNET_STRINGS_base64_encode (sig_buf, sig_buf_size, &sig_str);
+  GNUNET_free (sig_buf);
+
+  return sig_str;
 }
 
 /**
  * @brief Verfiy the the Proof of the verfiable presentation
  * @return Return 1 if the verfiable Presentation has been issued by the subject and not been manipulated in any way. Return 0 if not
  */
-int 
-verify_vp(char * vp)
+int
+verify_vp (char *vp)
 {
-    json_t * pres;
+  json_t *pres;
 
-    char * data;
-    json_t * proof;
-    const char * verification_method;
-    char * pubk_str;
-    struct GNUNET_IDENTITY_PublicKey * pubk;
+  char *data;
+  json_t *proof;
+  const char *verification_method;
+  char *pubk_str;
+  struct GNUNET_IDENTITY_PublicKey *pubk;
 
-    struct GNUNET_IDENTITY_Signature * sig;
-    ssize_t sig_size;
+  struct GNUNET_IDENTITY_Signature sig;
+  ssize_t sig_size;
 
-    struct GNUNET_CRYPTO_EccSignaturePurpose * sig_purpose;
-    ssize_t sig_purpose_size;
+  struct GNUNET_CRYPTO_EccSignaturePurpose *sig_purpose;
+  ssize_t sig_purpose_size;
 
-    void * sig_buf;
-    ssize_t sig_buf_size;
+  void *sig_buf;
+  ssize_t sig_buf_size;
 
-    const char * sig_str;
-    ssize_t sig_str_size;
+  const char *sig_str;
+  ssize_t sig_str_size;
 
-    int valid;
+  int valid;
 
-    pres = json_loads(vp, JSON_DECODE_ANY, NULL);
+  pres = json_loads (vp, JSON_DECODE_ANY, NULL);
 
-    // Add empty signature key-value -> encode json -> delete empty signature key-value
-    // FIXME: Needs a real Canonicalization Scheme 
-    proof = json_object_get(pres, "proof");
-    json_object_del(proof, "signature");
-    json_object_set(proof, "signature", json_string(""));
-    data = json_dumps(pres, JSON_COMPACT);
+  if (NULL == pres)
+    return 0; //GNUNET_SYSERR?
+  // Add empty signature key-value -> encode json -> delete empty signature key-value
+  // FIXME: Needs a real Canonicalization Scheme
+  proof = json_object_get (pres, "proof");
+  if (NULL == proof)
+    return 0; //GNUNET_SYSERR?
+  // Get signature
+  sig_str = json_string_value (json_object_get (proof, "signature"));
+  sig_str_size = strlen (sig_str);
+  sig_buf = malloc (sig_str_size);
+  sig_buf_size = GNUNET_STRINGS_base64_decode (sig_str, sig_str_size, sig_buf);
+  sig_size = GNUNET_IDENTITY_read_signature_from_buffer (&sig, sig_buf,
+                                                         sig_buf_size);
+  GNUNET_free (sig_buf);
 
-    // Get pubkey from reclaim did
-    verification_method = json_string_value(json_object_get(proof, "verificationMethod"));
-    pubk_str = malloc(sizeof(char)*100); // FIXME: Get the real public key len
-    sscanf(verification_method, "did:reclaim:%s#key-1", pubk_str);
-    GNUNET_IDENTITY_public_key_from_string(pubk_str, pubk);
-    free(pubk_str);
+  json_object_del (proof, "signature");
+  json_object_set (proof, "signature", json_string (""));
+  data = json_dumps (pres, JSON_COMPACT);
 
-    // Get signature
-    sig_str = json_string_value(json_object_get(proof, "signature"));
-    sig_str_size = strlen(sig_str);
-    sig_buf = malloc(sig_str_size);
-    sig_buf_size = GNUNET_STRINGS_base64_decode(sig_str, sig_str_size, sig_buf);
-    sig_size = GNUNET_IDENTITY_read_signature_from_buffer(sig, sig_buf, sig_buf_size);
-    
-    free(proof);
-    free(pres);
-    free(sig_buf);
+  // Get pubkey from reclaim did
+  verification_method = json_string_value (json_object_get (proof,
+                                                            "verificationMethod"));
+  //FIXME: conversion DID -> Pubkey in library
+  pubk_str = malloc (sizeof(char) * 100); // FIXME: Get the real public key len
+  if (1 != sscanf (verification_method, "did:reclaim:%s#key-1", pubk_str))
+    return 0; //GNUNET_SYSERR free stuff
+  GNUNET_IDENTITY_public_key_from_string (pubk_str, pubk);
+  GNUNET_free (pubk_str);
 
-    // Generate Purpose
-    sig_purpose_size = sizeof(struct GNUNET_CRYPTO_EccSignaturePurpose) + strlen(data);
-    sig_purpose = malloc(sig_purpose_size);
-    sig_purpose->size = htonl(sig_purpose_size);
-    sig_purpose->purpose = htonl(GNUNET_SIGNATURE_PURPOSE_TEST); 
-    memcpy(&sig_purpose[1], (void *) data, strlen(data));
+  json_decref (pres);
 
-    valid = GNUNET_IDENTITY_signature_verify_(GNUNET_SIGNATURE_PURPOSE_TEST,
-                                              sig_purpose,
-                                              sig,
-                                              pubk);
+  // Generate Purpose
+  sig_purpose_size = sizeof(struct GNUNET_CRYPTO_EccSignaturePurpose) + strlen (
+    data);
+  sig_purpose = malloc (sig_purpose_size);
+  sig_purpose->size = htonl (sig_purpose_size);
+  sig_purpose->purpose = htonl (GNUNET_SIGNATURE_PURPOSE_TEST);
+  memcpy (&sig_purpose[1], (void *) data, strlen (data));
 
-    free(data);
-    free(sig_purpose);
-    free(pubk);
-    free(sig);
+  valid = GNUNET_IDENTITY_signature_verify_ (GNUNET_SIGNATURE_PURPOSE_TEST,
+                                             sig_purpose,
+                                             &sig,
+                                             pubk);
 
-    return valid;
+  GNUNET_free (data);
+  GNUNET_free (sig_purpose);
+
+  return valid;
 }

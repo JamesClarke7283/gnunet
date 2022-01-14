@@ -45,15 +45,15 @@
    */
 static char *
 value_to_string (void *cls,
-                     uint32_t type,
-                     const void *data,
-                     size_t data_size)
+                 uint32_t type,
+                 const void *data,
+                 size_t data_size)
 {
   switch (type)
   {
   case GNUNET_RECLAIM_CREDENTIAL_TYPE_VC:
     return GNUNET_strndup (data, data_size);
-    //return "A super cool verifiable credential\n";
+  // return "A super cool verifiable credential\n";
   default:
     return NULL;
   }
@@ -73,10 +73,10 @@ value_to_string (void *cls,
  */
 static int
 string_to_value (void *cls,
-                     uint32_t type,
-                     const char *s,
-                     void **data,
-                     size_t *data_size)
+                 uint32_t type,
+                 const char *s,
+                 void **data,
+                 size_t *data_size)
 {
   if (NULL == s)
     return GNUNET_SYSERR;
@@ -103,7 +103,7 @@ static struct
   const char *name;
   uint32_t number;
 } vc_cred_name_map[] = { { "VC", GNUNET_RECLAIM_CREDENTIAL_TYPE_VC},
-                          { NULL, UINT32_MAX } };
+                         { NULL, UINT32_MAX } };
 
 /**
    * Convert a type name to the corresponding number.
@@ -139,37 +139,39 @@ vc_number_to_typename (void *cls, uint32_t type)
 
   i = 0;
   while ((NULL != vc_cred_name_map[i].name) && (type !=
-                                                 vc_cred_name_map[i].
-                                                 number))
+                                                vc_cred_name_map[i].
+                                                number))
     i++;
   return vc_cred_name_map[i].name;
 }
 
 /**
- * 
- * @return 
+ *
+ * @return
  */
-json_t *
-get_json_vc_from_json_vp(json_t * cred)
+static json_t *
+get_json_vc_from_json_vp (json_t *cred)
 {
-  json_t * vc_array;
-  json_t * vc;
+  json_t *vc_array;
+  json_t *vc;
 
-  vc_array = json_object_get(cred, "verifiableCredential");
+  vc_array = json_object_get (cred, "verifiableCredential");
 
-  if(vc_array == NULL){
-    printf("The Verifiable Presentation has to contain an Array with Key \"verifiableCredential\"\n");
+  if (vc_array == NULL)
+  {
+    printf (
+      "The Verifiable Presentation has to contain an Array with Key \"verifiableCredential\"\n");
     return NULL;
   }
 
-  vc = json_array_get(vc_array, 0);
+  vc = json_array_get (vc_array, 0);
 
-  if(vc == NULL){
-    printf("The \"verifiableCredential\" array in the Verifiable Presentation can not be empty\n");
+  if (vc == NULL)
+  {
+    printf (
+      "The \"verifiableCredential\" array in the Verifiable Presentation can not be empty\n");
     return NULL;
   }
-
-  free(vc_array);
 
   return vc;
 }
@@ -179,38 +181,39 @@ get_json_vc_from_json_vp(json_t * cred)
  * @brief Parse a json decoded verifiable credential and return the respective claim value as Attribute
  * @param cred a json decoded verifiable credential
  * @return a list of Attributes in the verifiable credential
- * 
+ *
  */
-struct GNUNET_RECLAIM_AttributeList *
-parse_attributes_from_json_vc(json_t * cred)
+static struct GNUNET_RECLAIM_AttributeList *
+parse_attributes_from_json_vc (const json_t *cred)
 {
-  struct GNUNET_RECLAIM_AttributeList *attrs = GNUNET_new (struct GNUNET_RECLAIM_AttributeList);
+  struct GNUNET_RECLAIM_AttributeList *attrs = GNUNET_new (struct
+                                                           GNUNET_RECLAIM_AttributeList);
 
-  json_t * subject;
-  const char * key;
-  json_t * value;
-  const char * value_str;
+  json_t *subject;
+  const char *key;
+  json_t *value;
+  const char *value_str;
 
-  subject = json_object_get(cred, "credentialSubject");
+  subject = json_object_get (cred, "credentialSubject");
 
-  if(subject == NULL)
+  if (subject == NULL)
   {
-    printf("The verifiable credential has to contain a subject\n");
+    printf ("The verifiable credential has to contain a subject\n");
     return NULL;
   }
 
-  json_object_foreach(subject, key, value) {
-      if (json_is_string(value))
-      {
-        value_str = json_string_value(value);
+  json_object_foreach (subject, key, value) {
+    if (json_is_string (value))
+    {
+      value_str = json_string_value (value);
 
-        GNUNET_RECLAIM_attribute_list_add (attrs,
-                                           key,
-                                           NULL,
-                                           GNUNET_RECLAIM_ATTRIBUTE_TYPE_STRING,
-                                           value_str,
-                                           (strlen(value_str) + 1));
-      }
+      GNUNET_RECLAIM_attribute_list_add (attrs,
+                                         key,
+                                         NULL,
+                                         GNUNET_RECLAIM_ATTRIBUTE_TYPE_STRING,
+                                         value_str,
+                                         (strlen (value_str) + 1));
+    }
   }
 
   return attrs;
@@ -226,21 +229,18 @@ parse_attributes_from_json_vc(json_t * cred)
  */
 struct GNUNET_RECLAIM_AttributeList *
 parse_attributes_c (void *cls,
-                        const struct GNUNET_RECLAIM_Credential *cred)
+                    const struct GNUNET_RECLAIM_Credential *cred)
 {
+  struct GNUNET_RECLAIM_AttributeList *attrs;
+  json_t *root;
+
   if (cred->type != GNUNET_RECLAIM_CREDENTIAL_TYPE_VC)
     return NULL;
-  else 
-  {
-    struct GNUNET_RECLAIM_AttributeList *attrs;
 
-    json_t * root;
-    root = json_loads(cred->data, JSON_DECODE_ANY, NULL);
-    attrs =  parse_attributes_from_json_vc(root);
-
-    free(root);
-    return attrs;
-  }
+  root = json_loads (cred->data, JSON_DECODE_ANY, NULL);
+  attrs =  parse_attributes_from_json_vc (root);
+  json_decref (root);
+  return attrs;
 }
 
 
@@ -253,37 +253,29 @@ parse_attributes_c (void *cls,
  */
 struct GNUNET_RECLAIM_AttributeList *
 vc_parse_attributes_p (void *cls,
-                        const struct GNUNET_RECLAIM_Presentation *pres)
+                       const struct GNUNET_RECLAIM_Presentation *pres)
 {
+  struct GNUNET_RECLAIM_AttributeList *attrs;
+  json_t *root;
+  json_t *cred;
+  json_error_t *error;
+
   if (pres->type != GNUNET_RECLAIM_CREDENTIAL_TYPE_VC)
     return NULL;
-  else 
+
+  root = json_loads (pres->data, JSON_DECODE_ANY, error);
+
+  if (root == NULL)
   {
-    struct GNUNET_RECLAIM_AttributeList *attrs;
-
-    json_t * root;
-    json_t * cred;
-    json_error_t * error;
-    char * cred_str;
-
-    root = json_loads(pres->data, JSON_DECODE_ANY, error);
-
-    if(root == NULL)
-    {
-      printf("Could not decode the verifiable presentation\n");
-      return NULL;
-    }
-
-    cred = get_json_vc_from_json_vp(root);
-
-    cred_str = json_dumps(cred, JSON_INDENT(2));
-
-    attrs =  parse_attributes_from_json_vc(cred);
-
-    free(root);
-    free(cred);
-    return attrs;
+    GNUNET_log (GNUNET_ERROR_TYPE_ERROR,
+                "Could not decode the verifiable presentation\n");
+    return NULL;
   }
+
+  cred = get_json_vc_from_json_vp (root);
+  attrs =  parse_attributes_from_json_vc (cred);
+  json_decref (root);
+  return attrs;
 }
 
 
@@ -291,36 +283,35 @@ vc_parse_attributes_p (void *cls,
  * @brief Return the issuer of the credential
  * @param vc decoded json containing a verifiable credential
  * @return a string containg the issuer
- * 
+ *
  */
-char * 
-get_issuer_from_json_vc(json_t * vc)
+char *
+get_issuer_from_json_vc (json_t *vc)
 {
-  json_t * issuer;
-  json_t * issuer_id;
-  const char * issuer_id_str;
+  json_t *issuer;
+  json_t *issuer_id;
+  const char *issuer_id_str;
 
-  issuer = json_object_get(vc, "issuer");
+  issuer = json_object_get (vc, "issuer");
 
-  if(issuer == NULL)
+  if (issuer == NULL)
   {
-    printf("The verifiable credential has to contain an issuer\n");
+    printf ("The verifiable credential has to contain an issuer\n");
     return NULL;
   }
 
-  issuer_id = json_object_get(issuer, "id");
+  issuer_id = json_object_get (issuer, "id");
 
-  if(issuer_id == NULL){
-    printf("The issuer object of the verifiable credential has to contain an id\n");
+  if (issuer_id == NULL)
+  {
+    printf (
+      "The issuer object of the verifiable credential has to contain an id\n");
     return NULL;
   }
 
-  issuer_id_str = json_string_value(issuer_id);
+  issuer_id_str = json_string_value (issuer_id);
 
-  free(issuer);
-  free(issuer_id);
-
-  return GNUNET_strndup(issuer_id_str, strlen(issuer_id_str));
+  return GNUNET_strndup (issuer_id_str, strlen (issuer_id_str));
 }
 
 
@@ -334,20 +325,17 @@ get_issuer_from_json_vc(json_t * vc)
  */
 char *
 get_issuer_c (void *cls,
-                  const struct GNUNET_RECLAIM_Credential *cred)
+              const struct GNUNET_RECLAIM_Credential *cred)
 {
+  json_t *root;
+  char *issuer_id_str;
+
   if (GNUNET_RECLAIM_CREDENTIAL_TYPE_VC != cred->type)
     return NULL;
-  else 
-  {
-    json_t * root;
-    char * issuer_id_str;
-
-    root = json_loads(cred->data, JSON_DECODE_ANY, NULL);
-    issuer_id_str = get_issuer_from_json_vc(root);
-    free(root);
-    return issuer_id_str;
-  }
+  root = json_loads (cred->data, JSON_DECODE_ANY, NULL);
+  issuer_id_str = get_issuer_from_json_vc (root);
+  json_decref (root);
+  return issuer_id_str;
 }
 
 
@@ -360,41 +348,35 @@ get_issuer_c (void *cls,
  */
 char *
 get_issuer_p (void *cls,
-                 const struct GNUNET_RECLAIM_Presentation *pres)
+              const struct GNUNET_RECLAIM_Presentation *pres)
 {
+  json_t *root;
+  json_t *cred;
+  char *issuer_id_str;
+
   if (GNUNET_RECLAIM_CREDENTIAL_TYPE_VC != pres->type)
     return NULL;
-  else 
-  {
-    json_t * root;
-    json_t * cred;
-    char * issuer_id_str;
-
-    root = json_loads(pres->data, JSON_DECODE_ANY, NULL);
-    cred = get_json_vc_from_json_vp(root);
-    issuer_id_str = get_issuer_from_json_vc(cred);
-    free(root);
-    free(cred);
-    return issuer_id_str;
-  }
+  root = json_loads (pres->data, JSON_DECODE_ANY, NULL);
+  cred = get_json_vc_from_json_vp (root);
+  issuer_id_str = get_issuer_from_json_vc (cred);
+  json_decref (root);
+  return issuer_id_str;
 }
 
 enum GNUNET_GenericReturnValue
-get_expiration_from_json_vc(json_t * cred,
-                            struct GNUNET_TIME_Absolute * exp)
+get_expiration_from_json_vc (json_t *cred,
+                             struct GNUNET_TIME_Absolute *exp)
 {
-  json_t * expiration_date_json;
-  const char * expiration_date_str;
+  json_t *expiration_date_json;
+  const char *expiration_date_str;
 
-  expiration_date_json = json_object_get(cred, "issuanceDate");
+  expiration_date_json = json_object_get (cred, "issuanceDate");
 
-  if(expiration_date_json == NULL)
-  {
+  if (expiration_date_json == NULL)
     return GNUNET_NO;
-  }
 
-  expiration_date_str = json_string_value(expiration_date_json);
-  GNUNET_STRINGS_rfc3339_time_to_absolute(expiration_date_str, exp);
+  expiration_date_str = json_string_value (expiration_date_json);
+  GNUNET_STRINGS_rfc3339_time_to_absolute (expiration_date_str, exp);
   return GNUNET_OK;
 }
 
@@ -408,18 +390,18 @@ get_expiration_from_json_vc(json_t * cred,
  */
 enum GNUNET_GenericReturnValue
 vc_get_expiration_c (void *cls,
-                      const struct GNUNET_RECLAIM_Credential *cred,
-                      struct GNUNET_TIME_Absolute *exp)
+                     const struct GNUNET_RECLAIM_Credential *cred,
+                     struct GNUNET_TIME_Absolute *exp)
 {
+  json_t *root;
+  enum GNUNET_GenericReturnValue ret;
   if (GNUNET_RECLAIM_CREDENTIAL_TYPE_VC != cred->type)
     return GNUNET_SYSERR;
-  else 
-  {
-    json_t * root;
 
-    root = json_loads(cred->data, JSON_DECODE_ANY, NULL);
-    return get_expiration_from_json_vc(root, exp);
-  }
+  root = json_loads (cred->data, JSON_DECODE_ANY, NULL);
+  ret = get_expiration_from_json_vc (root, exp);
+  json_decref (root);
+  return ret;
 }
 
 
@@ -432,100 +414,104 @@ vc_get_expiration_c (void *cls,
  */
 enum GNUNET_GenericReturnValue
 vc_get_expiration_p (void *cls,
-                      const struct GNUNET_RECLAIM_Presentation *pres,
-                      struct GNUNET_TIME_Absolute *exp)
+                     const struct GNUNET_RECLAIM_Presentation *pres,
+                     struct GNUNET_TIME_Absolute *exp)
 {
+  json_t *root;
+  json_t *cred;
+  char *issuer_id_str;
+  enum GNUNET_GenericReturnValue ret;
+
   if (GNUNET_RECLAIM_CREDENTIAL_TYPE_VC != pres->type)
     return GNUNET_SYSERR;
-  else 
-  {
-    json_t * root;
-    json_t * cred;
-    char * issuer_id_str;
-
-    root = json_loads(pres->data, JSON_DECODE_ANY, NULL);
-    cred = get_json_vc_from_json_vp(root);
-    return get_expiration_from_json_vc(cred, exp);
-  }
+  root = json_loads (pres->data, JSON_DECODE_ANY, NULL);
+  cred = get_json_vc_from_json_vp (root);
+  ret = get_expiration_from_json_vc (cred, exp);
+  json_decref (root);
+  return ret;
 }
 
 
 enum GNUNET_GenericReturnValue
 vc_create_presentation (void *cls,
-                         const struct GNUNET_RECLAIM_Credential *cred,
-                         const struct GNUNET_RECLAIM_AttributeList *attrs,
-                         const struct GNUNET_IDENTITY_PrivateKey *pk,
-                         struct GNUNET_RECLAIM_Presentation **presentation)
+                        const struct GNUNET_RECLAIM_Credential *cred,
+                        const struct GNUNET_RECLAIM_AttributeList *attrs,
+                        const struct GNUNET_IDENTITY_PrivateKey *pk,
+                        struct GNUNET_RECLAIM_Presentation **presentation)
 {
-  json_t * root;
-  json_t * context_array;
-  json_t * credential_array;
-  json_t * credential;
-  json_t * proof;
+  json_t *root;
+  json_t *context_array;
+  json_t *credential_array;
+  json_t *credential;
+  json_t *proof;
 
   struct GNUNET_IDENTITY_PublicKey *pubk;
 
-  char * pk_str;
-  char * pubk_str;
-  char * verification_method;
-  char * json_str;
-  char * presentation_str;
-  char * sig;
-  const char * now;
-
-  pk_str = GNUNET_IDENTITY_private_key_to_string(pk);
+  char *pubk_str;
+  char *verification_method;
+  char *json_str;
+  char *presentation_str;
+  char *sig;
+  const char *now;
 
   if (GNUNET_RECLAIM_CREDENTIAL_TYPE_VC != cred->type)
     return GNUNET_NO;
 
   // Get current time
-  now = GNUNET_STRINGS_absolute_time_to_rfc3339(GNUNET_TIME_absolute_get());
+  now = GNUNET_STRINGS_absolute_time_to_rfc3339 (GNUNET_TIME_absolute_get ());
+
+  root = json_object ();
+
+  context_array = json_array ();
+  json_array_append_new (context_array, json_string (
+                       "https://www.w3.org/2018/credentials/v1"));
+  json_object_set_new (root, "@context", context_array);
+
+  json_object_set_new (root, "type", json_string ("VerifiablePresentation"));
+
+  credential_array = json_array ();
+  credential = json_loads (cred->data, JSON_DECODE_ANY, NULL);
+  if (NULL == credential)
+  {
+    json_decref (root);
+    return GNUNET_SYSERR;
+  }
+  json_array_append_new (credential_array, credential);
+  json_object_set_new (root, "verifiableCredential", credential_array);
 
   // Generate verification method did key ref from private key
-  GNUNET_IDENTITY_key_get_public(pk,
-                                 pubk);
-  pubk_str = GNUNET_IDENTITY_public_key_to_string(pubk);
-  verification_method = malloc(sizeof(char)*100); // FIXME: Get real len of DID
-  sprintf(verification_method, "did:reclaim:%s#key-1", pubk_str);
-  free(pubk_str);
+  GNUNET_IDENTITY_key_get_public (pk,
+                                  pubk);
+  pubk_str = GNUNET_IDENTITY_public_key_to_string (pubk);
+  sprintf (verification_method, "did:reclaim:%s#key-1", pubk_str);
+  GNUNET_asprintf (&verification_method, "did:reclaim:%s#key-1", pubk_str);
+  GNUNET_free (pubk_str);
 
-  root = json_object();
+  proof = json_object ();
+  json_object_set_new (proof, "type", json_string ("ReclaimPresentationSig2022"));
+  json_object_set_new (proof, "created", json_string (now));
+  json_object_set_new (proof, "proofPurpose", json_string ("assertionMethod"));
+  json_object_set_new (proof, "verificationMethod", json_string (
+                     verification_method));
+  json_object_set_new (root, "proof", proof);
 
-  context_array = json_array();
-  json_array_append(context_array, json_string("https://www.w3.org/2018/credentials/v1"));
-  json_object_set(root, "@context", context_array);
-
-  json_object_set(root, "type", json_string("VerifiablePresentation"));
-
-  credential_array = json_array();
-  credential = json_loads(cred->data, JSON_DECODE_ANY, NULL);
-  json_array_append(credential_array, credential);
-  json_object_set(root, "verifiableCredential", credential_array);
-
-  proof = json_object();
-  json_object_set(proof, "type", json_string("ReclaimPresentationSig2022"));
-  json_object_set(proof, "created", json_string(now));
-  json_object_set(proof, "proofPurpose", json_string("assertionMethod"));
-  json_object_set(proof, "verificationMethod", json_string(verification_method));
-  json_object_set(root, "proof", proof);
-
-  sig = generate_signature_vp(root, pk);
-  json_object_set(proof, "signature", json_string(sig));
+  GNUNET_free (verification_method);
+  sig = generate_signature_vp (root, pk);
+  json_object_set_new (proof, "signature", json_string (sig));
 
   // Encode JSON and append \0 character
-  json_str = json_dumps(root, JSON_INDENT(2));
-  presentation_str = malloc(strlen(json_str) + 1);
-  strcpy(presentation_str, json_str);
-  presentation_str[strlen(json_str)] = '\0';
-
+  json_str = json_dumps (root, JSON_INDENT (2));
+  if (NULL == json_str)
+  {
+    json_decref (root);
+    return GNUNET_SYSERR;
+  }
   *presentation = GNUNET_RECLAIM_presentation_new (
     GNUNET_RECLAIM_CREDENTIAL_TYPE_VC,
-    (void *) presentation_str,
-    strlen(presentation_str));
+    json_str,
+    strlen (json_str) + 1);
 
-  free(verification_method);
-  free(presentation_str);
-  free(json_str);
+  GNUNET_free (json_str);
   return GNUNET_OK;
 }
 
