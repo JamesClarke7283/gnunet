@@ -23,6 +23,7 @@
  * @author Tristan Schwieren
  */
 
+#include "platform.h"
 #include "gnunet_util_lib.h"
 #include "gnunet_identity_service.h"
 #include <jansson.h>
@@ -35,7 +36,7 @@
  * @param result The verifiable presentation containing a valid signature is returned
  */
 char * 
-generate_signature_vp(json_t ** pres, 
+generate_signature_vp(json_t * pres, 
                       const struct GNUNET_IDENTITY_PrivateKey * pk);
 
 /**

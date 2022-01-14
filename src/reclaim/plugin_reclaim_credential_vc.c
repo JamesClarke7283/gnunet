@@ -30,7 +30,7 @@
 #include "gnunet_reclaim_plugin.h"
 #include "gnunet_identity_service.h"
 #include "gnunet_signatures.h"
-#include "libgnunet_reclaim_vc_crypto.h"
+#include "vc_crypto.h"
 #include <inttypes.h>
 #include <jansson.h>
 
@@ -509,7 +509,7 @@ vc_create_presentation (void *cls,
   json_object_set(proof, "verificationMethod", json_string(verification_method));
   json_object_set(root, "proof", proof);
 
-  sig = generate_signature_vp(&root, pk);
+  sig = generate_signature_vp(root, pk);
   json_object_set(proof, "signature", json_string(sig));
 
   // Encode JSON and append \0 character

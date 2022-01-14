@@ -23,6 +23,7 @@
  * @author Tristan Schwieren
  */
 
+#include "platform.h"
 #include "gnunet_util_lib.h"
 #include "gnunet_identity_service.h"
 #include "gnunet_signatures.h"
@@ -36,7 +37,7 @@
  * @param result The verifiable presentation containing a valid signature is returned
  */
 char * 
-generate_signature_vp(json_t ** pres, 
+generate_signature_vp(json_t * pres, 
                       const struct GNUNET_IDENTITY_PrivateKey * pk)
 {
     // TODO: make sig multibase
@@ -59,9 +60,9 @@ generate_signature_vp(json_t ** pres,
 
     // Add empty signature key-value -> encode json -> delete empty signature key-value
     // FIXME: Needs a real Canonicalization Scheme 
-    proof = json_object_get(*pres, "proof");
+    proof = json_object_get(pres, "proof");
     json_object_set(proof, "signature", json_string(""));
-    data = json_dumps(*pres, JSON_COMPACT);
+    data = json_dumps(pres, JSON_COMPACT);
     json_object_del(proof, "signature");
     free(proof);
 
