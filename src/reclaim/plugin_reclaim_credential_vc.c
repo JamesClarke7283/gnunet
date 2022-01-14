@@ -454,7 +454,7 @@ vc_create_presentation (void *cls,
   json_t *credential;
   json_t *proof;
 
-  struct GNUNET_IDENTITY_PublicKey *pubk;
+  struct GNUNET_IDENTITY_PublicKey pubk;
 
   char *pubk_str;
   char *verification_method;
@@ -490,8 +490,8 @@ vc_create_presentation (void *cls,
 
   // Generate verification method did key ref from private key
   GNUNET_IDENTITY_key_get_public (pk,
-                                  pubk);
-  pubk_str = GNUNET_IDENTITY_public_key_to_string (pubk);
+                                  &pubk);
+  pubk_str = GNUNET_IDENTITY_public_key_to_string (&pubk);
   sprintf (verification_method, "did:reclaim:%s#key-1", pubk_str);
   GNUNET_asprintf (&verification_method, "did:reclaim:%s#key-1", pubk_str);
   GNUNET_free (pubk_str);
