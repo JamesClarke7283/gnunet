@@ -640,7 +640,7 @@ cred_iter_finished (void *cls)
       GNUNET_RECLAIM_credential_new (credential_name,
                                      ctype,
                                      attr_value,
-                                     strlen (attr_value));
+                                     strlen (attr_value) + 1);
     reclaim_op = GNUNET_RECLAIM_credential_store (reclaim_handle,
                                                   pkey,
                                                   credential,
