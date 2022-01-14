@@ -492,7 +492,6 @@ vc_create_presentation (void *cls,
   GNUNET_IDENTITY_key_get_public (pk,
                                   &pubk);
   pubk_str = GNUNET_IDENTITY_public_key_to_string (&pubk);
-  sprintf (verification_method, "did:reclaim:%s#key-1", pubk_str);
   GNUNET_asprintf (&verification_method, "did:reclaim:%s#key-1", pubk_str);
   GNUNET_free (pubk_str);
 
