@@ -35,6 +35,15 @@
 #include <jansson.h>
 
 /**
+ * TODO:
+ *   - Do we want actual RDF/LD-PROOFs? (DANGER: A lot of work for parsing/canonicalization)
+ *   - Do we want JSON Web Token VCs??
+ *   - Specification for ReclaimPresentationSig2022
+ *   - Refactor functions (such as pubkey extraction from DID) to library (maybe libgnunetreclaim{did,vc}
+ *   - Sanity checks (for verification)
+ */
+
+/**
    * Convert the 'value' of an verifiable credential to a string.
    *
    * @param cls closure
