@@ -93,5 +93,6 @@ SUBDIRS = \
   secretsharing \
   reclaim \
   messenger \
+  multicast \
   $(EXP_DIR) \
   integration-tests
