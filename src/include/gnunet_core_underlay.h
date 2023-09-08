@@ -24,9 +24,9 @@
  * @author Julius Bünger
  *
  * @file
- * API of the services underlying core (transport or libp2p)
+ * API of the services underlying core (transport, libp2p, ...)
  *
- * @defgroup CONG COre Next Generation service
+ * @defgroup CORE
  * Secure Communication with other peers
  *
  * @see [Documentation](https://gnunet.org/core-service) TODO
@@ -64,16 +64,17 @@ struct GNUNET_CORE_UNDERLAY_Handle;
  * peer connected to us.
  *
  * @param cls closure
- * @param peer the identity of the peer that connected; this
- *        pointer will remain valid until the disconnect, hence
- *        applications do not necessarily have to make a copy
- *        of the value if they only need it until disconnect
+ * @param peer_cls closure returned by #GNUNET_CORE_UNDERLAY_connect_to_peer
+ * @param num_addresses number of addresses of the connecting peer
+ * @param addresses address URIs of the connecting peer
  * @param mq message queue to use to transmit to @a peer
  * @return closure to use in MQ handlers
  */
 typedef void *(*GNUNET_CORE_UNDERLAY_NotifyConnect) (
   void *cls,
-  const struct GNUNET_PeerIdentity *peer,
+  void *peer_cls,
+  uint32_t num_addresses;
+  const char *addresses[static num_addresses],
   struct GNUNET_MQ_Handle *mq);
 
 
@@ -84,13 +85,11 @@ typedef void *(*GNUNET_CORE_UNDERLAY_NotifyConnect) (
  * henceforth.
  *
  * @param cls closure from #GNUNET_CORE_UNDERLAY_connect
- * @param peer the peer that disconnected
  * @param handlers_cls closure of the handlers, was returned from the
  *                     connect notification callback
  */
 typedef void (*GNUNET_CORE_UNDERLAY_NotifyDisconnect) (
   void *cls,
-  const struct GNUNET_PeerIdentity *peer,
   void *handler_cls);
 
 
@@ -99,16 +98,12 @@ typedef void (*GNUNET_CORE_UNDERLAY_NotifyDisconnect) (
  * update its peer identity accordingly.
  *
  * @param cls closure from #GNUNET_CORE_UNDERLAY_connect
- * @param addresses Array of underlay addresses TODO see what formats libp2p support
- * @param num_addresses Length of the array
- * @param handler_cls IF NECESSARY closure of the handlers, was returned from
- *                    the connect notification callback
+ * @param network_location_hash hash of the address URIs representing our
+ *                              current network location
  */
 typedef void (*GNUNET_CORE_UNDERLAY_NotifyAddressChange) (
   void *cls,
-  const struct GNUNET_TRANSPORT_AddressIdentifier *addresses,
-  uint32_t num_addresses,
-  /*void *handler_cls*/);
+  struct GNUNET_HashCode network_location_hash);
 
 
 /**
@@ -116,25 +111,22 @@ typedef void (*GNUNET_CORE_UNDERLAY_NotifyAddressChange) (
  * complete (or fail) asynchronously.
  *
  * @param cfg configuration to use
- * @param self our own identity (API should check that it matches
- *             the identity found by core underlay), or NULL (no check) @param
- *             handlers array of message handlers; note that the closures
- *             provided will be ignored and replaced with the respective return
- *             value from @a nc @param handlers array with handlers to call
- *             when we receive messages, or NULL @param cls closure for the @a
- *             nc, @a nd and @a neb callbacks
+ * @param handlers array of message handlers or NULL; note that the closures
+ *                 provided will be ignored and replaced with the respective
+ *                 return value from @a nc
+ * @param cls closure for the @a nc, @a nd and @a na callbacks
  * @param nc function to call on connect events, or NULL
  * @param nd function to call on disconnect events, or NULL
- * @param neb function to call if we have excess bandwidth to a peer, or NULL
+ * @param na function to call on address changes, or NULL
  * @return NULL on error
  */
 struct GNUNET_CORE_UNDERLAY_Handle *
 GNUNET_CORE_UNDERLAY_connect (const struct GNUNET_CONFIGURATION_Handle *cfg,
-                              const struct GNUNET_PeerIdentity *self,
                               const struct GNUNET_MQ_MessageHandler *handlers,
                               void *cls,
                               GNUNET_CORE_UNDERLAY_NotifyConnect nc,
-                              GNUNET_CORE_UNDERLAY_NotifyDisconnect nd);
+                              GNUNET_CORE_UNDERLAY_NotifyDisconnect nd,
+                              GNUNET_CORE_UNDERLAY_NotifyAddressChange na);
 
 
 /**
@@ -163,36 +155,27 @@ GNUNET_CORE_UNDERLAY_disconnect (struct GNUNET_CORE_UNDERLAY_Handle *handle);
  * be full and CORE UNDERLAY will stop providing messages to CORE for @a
  * pid.
  *
- * @param ch core handle
+ * @param ch core underlay handle
  * @param pid which peer was the message from that was fully processed by CORE
  */
 void
-GNUNET_CORE_UNDERLAY_receive_continue (struct GNUNET_CORE_UNDERLAY_Handle *ch,
-                                       const struct GNUNET_PeerIdentity *pid);
+GNUNET_CORE_UNDERLAY_receive_continue (struct GNUNET_CORE_UNDERLAY_Handle *ch);
 
 
 /**
- * Checks if a given peer is connected to us and get the message queue.
- * Convenience function.
+ * Instruct the underlay to try to connect to another peer.
  *
- * @param handle connection to core underlay service
- * @param peer the peer to check
- * @return NULL if disconnected, otherwise message queue for @a peer
- */
-struct GNUNET_MQ_Handle *
-GNUNET_CORE_UNDERLAY_get_mq (struct GNUNET_CORE_UNDERLAY_Handle *handle,
-                             const struct GNUNET_PeerIdentity *peer);
-
-
-/**
- * Pass the our new Peer ID to the core underlay.
+ * Once the connection was successful, the #GNUNET_CORE_UNDERLAY_NotifyConnect
+ * will be called with a mq towards the peer.
  *
- * @param handle connection to core underlay service
- * @param peer our new Peer ID
+ * @param ch core underlay handle
+ * @param peer_address URI of the peer to connect to
+ * @return peer_closure given to #GNUNET_CORE_UNDERLAY_NotifyConnect once the
+ *                      connection was established
  */
-void
-GNUNET_CORE_UNDERLAY_update_pid (struct GNUNET_CORE_UNDERLAY_Handle *handle,
-                                 const struct GNUNET_PeerIdentity *peer);
+void *
+GNUNET_CORE_UNDERLAY_connect_to_peer (struct GNUNET_CORE_UNDERLAY_Handle *ch,
+                                      const char *peer_address);
 
 
 #if 0 /* keep Emacsens' auto-indent happy */
