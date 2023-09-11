@@ -64,7 +64,6 @@ struct GNUNET_CORE_UNDERLAY_Handle;
  * peer connected to us.
  *
  * @param cls closure
- * @param peer_cls closure returned by #GNUNET_CORE_UNDERLAY_connect_to_peer
  * @param num_addresses number of addresses of the connecting peer
  * @param addresses address URIs of the connecting peer
  * @param mq message queue to use to transmit to @a peer
@@ -72,7 +71,6 @@ struct GNUNET_CORE_UNDERLAY_Handle;
  */
 typedef void *(*GNUNET_CORE_UNDERLAY_NotifyConnect) (
   void *cls,
-  void *peer_cls,
   uint32_t num_addresses;
   const char *addresses[static num_addresses],
   struct GNUNET_MQ_Handle *mq);
@@ -100,10 +98,14 @@ typedef void (*GNUNET_CORE_UNDERLAY_NotifyDisconnect) (
  * @param cls closure from #GNUNET_CORE_UNDERLAY_connect
  * @param network_location_hash hash of the address URIs representing our
  *                              current network location
+ * @param network_generation_id the id of the current network generation (this
+ *                              id changes each time the network location
+ *                              changes)
  */
 typedef void (*GNUNET_CORE_UNDERLAY_NotifyAddressChange) (
   void *cls,
-  struct GNUNET_HashCode network_location_hash);
+  struct GNUNET_HashCode network_location_hash,
+  struct uint64_t network_generation_id);
 
 
 /**
@@ -143,7 +145,7 @@ GNUNET_CORE_UNDERLAY_disconnect (struct GNUNET_CORE_UNDERLAY_Handle *handle);
  * that the CORE service has finished processing a message from
  * CORE UNDERLAY (via the @code{handlers} of #GNUNET_CORE_UNDERLAY_connect())
  * and that it is thus now OK for CORE UNDERLAY to send more messages
- * for @a pid.
+ * for the peer with @a mq.
  *
  * Used to provide flow control, this is our equivalent to
  * #GNUNET_SERVICE_client_continue() of an ordinary service.
@@ -152,14 +154,15 @@ GNUNET_CORE_UNDERLAY_disconnect (struct GNUNET_CORE_UNDERLAY_Handle *handle);
  * messages destined for the same peer even without an intermediate
  * call to this function. However, CORE must still call this function
  * once per message received, as otherwise eventually the window will
- * be full and CORE UNDERLAY will stop providing messages to CORE for @a
- * pid.
+ * be full and CORE UNDERLAY will stop providing messages to CORE on @a
+ * mq.
  *
  * @param ch core underlay handle
- * @param pid which peer was the message from that was fully processed by CORE
+ * @param mq continue receiving on this message queue
  */
 void
-GNUNET_CORE_UNDERLAY_receive_continue (struct GNUNET_CORE_UNDERLAY_Handle *ch);
+GNUNET_CORE_UNDERLAY_receive_continue (struct GNUNET_CORE_UNDERLAY_Handle *ch,
+                                       struct GNUNET_MQ_Handle *mq);
 
 
 /**
@@ -170,12 +173,15 @@ GNUNET_CORE_UNDERLAY_receive_continue (struct GNUNET_CORE_UNDERLAY_Handle *ch);
  *
  * @param ch core underlay handle
  * @param peer_address URI of the peer to connect to
- * @return peer_closure given to #GNUNET_CORE_UNDERLAY_NotifyConnect once the
- *                      connection was established
+ * @param pp what kind of priority will the application require (can be
+ *           #GNUNET_MQ_PRIO_BACKGROUND, we will still try to connect)
+ * @param bw desired bandwidth, can be zero (we will still try to connect)
  */
-void *
+void
 GNUNET_CORE_UNDERLAY_connect_to_peer (struct GNUNET_CORE_UNDERLAY_Handle *ch,
-                                      const char *peer_address);
+                                      const char *peer_address
+                                      enum GNUNET_MQ_PriorityPreferences pp,
+                                      struct GNUNET_BANDWIDTH_Value32NBO bw);
 
 
 #if 0 /* keep Emacsens' auto-indent happy */
