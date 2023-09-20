@@ -22,9 +22,13 @@ plugin_LTLIBRARIES = \
 TESTING_LIBS = \
   libgnunetcoretesting.la
 
+UNDERLAY_DUMMY_LIBS = \
+  libgnunetcoreunderlaydummy.la
+
 lib_LTLIBRARIES = \
-  libgnunetcore.la
-# libgnunettestingcore.la
+  libgnunetcore.la \
+  $(UNDERLAY_DUMMY_LIBS)
+#  libgnunettestingcore.la
 
 libgnunetcore_la_SOURCES = \
   core_api.c core.h \
@@ -53,6 +57,14 @@ libgnunet_test_core_plugin_cmd_run_emu_la_LIBADD = \
 libgnunet_test_core_plugin_cmd_run_emu_la_LDFLAGS = \
   $(GN_PLUGIN_LDFLAGS)
 
+libgnunetcoreunderlaydummy_la_SOURCES = \
+  gnunet_core_underlay_dummy.h gnunet_core_underlay_dummy.c
+libgnunetcoreunderlaydummy_la_LIBADD = \
+  $(top_builddir)/src/lib/util/libgnunetutil.la
+libgnunetcoreunderlaydummy_la_LDFLAGS = \
+  $(GN_LIB_LDFLAGS)
+
+
 #libgnunet_test_core_plugin_cmd_just_run_la_SOURCES = \
 # test_core_plugin_cmd_just_run.c
 #libgnunet_test_core_plugin_cmd_just_run_la_LIBADD = \
@@ -71,7 +83,7 @@ libgnunet_test_core_plugin_cmd_run_emu_la_LDFLAGS = \
 #  $(GN_PLUGIN_LDFLAGS)
 
 libgnunetcoretesting_la_SOURCES = \
-  core_api_cmd_connecting_peers.c 
+  core_api_cmd_connecting_peers.c
 libgnunetcoretesting_la_LIBADD = \
   $(top_builddir)/src/service/testing/libgnunettesting.la \
   $(top_builddir)/src/service/arm/libgnunetarm.la \
@@ -105,9 +117,13 @@ gnunet_service_core_LDADD = \
 #TESTING_TESTS = \
 # test_core_api_send_to_self
 
+DUMMY_TESTS = \
+  test_core_underlay_dummy
+
 check_PROGRAMS = \
  test_core_api_start_only \
- $(TESTING_TESTS)
+ $(TESTING_TESTS) \
+ $(DUMMY_TESTS)
 
 # Only test TNG if we run experimental
 #check_SCRIPTS= \
@@ -131,6 +147,12 @@ test_core_api_start_only_SOURCES = \
 test_core_api_start_only_LDADD = \
  $(top_builddir)/src/lib/testing/libgnunettesting.la \
  libgnunetcore.la \
+ $(top_builddir)/src/lib/util/libgnunetutil.la
+
+test_core_underlay_dummy_SOURCES = \
+ test_core_underlay_dummy.c
+test_core_underlay_dummy_LDADD = \
+ libgnunetcoreunderlaydummy.la \
  $(top_builddir)/src/lib/util/libgnunetutil.la
 
 EXTRA_DIST = \
