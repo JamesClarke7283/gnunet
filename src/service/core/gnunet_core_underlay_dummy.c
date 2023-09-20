@@ -42,10 +42,13 @@ extern "C" {
 #endif
 
 
+// FIXME use gnunet's own wrappers!
 #include <sys/socket.h>
 #include <unistd.h>
+#include <errno.h>
 #include "gnunet_core_underlay_dummy.h"
 #include "gnunet_util_lib.h"
+#include "gnunet_scheduler_lib.h"
 
 #define LOG(kind, ...) GNUNET_log_from (kind, "core-underlay-dummy", __VA_ARGS__)
 
@@ -59,9 +62,125 @@ extern "C" {
  */
 struct GNUNET_CORE_UNDERLAY_DUMMY_Handle
 {
+  // TODO document
   GNUNET_CORE_UNDERLAY_DUMMY_NotifyConnect notify_connect;
+  GNUNET_CORE_UNDERLAY_DUMMY_NotifyDisconnect notify_disconnect;
+  GNUNET_CORE_UNDERLAY_DUMMY_NotifyAddressChange notify_address_change;
+  void *cls;
   char *recv_addr;
+  int64_t fd;
+  struct GNUNET_HashCode network_location_hash;
+  uint64_t network_generation_id;
+  struct GNUNET_SCHEDULER_Task *listen_task;
+  struct GNUNET_SCHEDULER_Task *open_socket_task;
 };
+
+
+/**
+ * Listen for a connection on the dummy's socket
+ *
+ * @param cls the hanlde to the dummy passed as closure
+ */
+void do_listen (void *cls)
+{
+  struct GNUNET_CORE_UNDERLAY_DUMMY_Handle *h = cls;
+
+  h->listen_task = NULL;
+  int64_t fd_client;
+  struct sockaddr_un addr_client;
+  struct sockaddr_un addr_from;
+  socklen_t from_len = sizeof(addr_from);
+
+  LOG(GNUNET_ERROR_TYPE_INFO, "Listening for incoming connections\n");
+  fd_client = accept (h->fd, (struct sockaddr *) &addr_client, &from_len);
+  if (fd_client < 0)
+  {
+    //LOG(GNUNET_ERROR_TYPE_ERROR, "Error accepting incoming connection, %s", strerror(errno));
+    LOG(GNUNET_ERROR_TYPE_ERROR, "Error accepting incoming connection\n");
+    close (h->fd);
+    close (fd_client);
+    return;
+  }
+  LOG(GNUNET_ERROR_TYPE_INFO, "Peer connected\n");
+  // TODO use GNUNET_CORE_UNDERLAY_NotifyConnect to signal that another 'peer'
+  // connected
+  //
+  // TODO pass received messages to mq
+  //h->listen_task = GNUNET_SCHEDULER_add_now (do_listen, h);
+}
+
+
+/**
+ * Shut the dummy down
+ *
+ * Release our sockets, free memory and cancel scheduled tasks.
+ *
+ * @param cls handle to the dummy passed as closure
+ */
+void do_shutdown (void *cls)
+{
+  struct GNUNET_CORE_UNDERLAY_DUMMY_Handle *h = cls;
+
+  if (NULL != h->listen_task) GNUNET_SCHEDULER_cancel (h->listen_task);
+  // TODO release all sockets
+  close(h->fd);
+  // TODO free all memory
+}
+
+/**
+ * Main running task
+ *
+ * Sets up socket.
+ *
+ * @param cls
+ */
+void do_open_socket (void *cls)
+{
+  struct GNUNET_CORE_UNDERLAY_DUMMY_Handle *h = cls;
+  struct sockaddr_un addr;
+  char buff[BUFF_SIZE];
+
+  if ((h->fd = socket(AF_UNIX, SOCK_STREAM, 0)) < 0)
+  {
+    LOG(GNUNET_ERROR_TYPE_ERROR, "Fd does not open\n");
+    return;
+  }
+
+  memset(&addr, 0, sizeof (addr));
+  addr.sun_family = AF_UNIX;
+  unlink (SERVER_ADDR_BASE);
+  if (bind (h->fd, (struct sockaddr *)&addr, sizeof(struct sockaddr_un)) < 0)
+  {
+    // TODO use a counter to just use the 'next' free socket
+    LOG(GNUNET_ERROR_TYPE_ERROR, "Faild binding to socket\n");
+    close(h->fd);
+    return;
+  }
+
+  h->recv_addr = GNUNET_malloc (strlen (SERVER_ADDR_BASE) + 1);
+  h->recv_addr = GNUNET_strdup (SERVER_ADDR_BASE);
+  if (NULL != h->notify_address_change)
+  {
+    // FIXME compute the network_location_hash and network_generation_id
+    // FIXME _schedule_now()
+    h->notify_address_change (h->cls,
+                              h->network_location_hash,
+                              h->network_generation_id);
+  }
+
+  LOG(GNUNET_ERROR_TYPE_INFO, "Mark socket as accepting connections\n");
+  if (listen (h->fd, BACKLOG) < 0)
+  {
+    //LOG(GNUNET_ERROR_TYPE_ERROR, "Failed listening to socket: %s", strerror(errno));
+    LOG(GNUNET_ERROR_TYPE_ERROR, "Failed listening to socket\n");
+    close(h->fd);
+    return;
+  }
+  LOG(GNUNET_ERROR_TYPE_INFO, "Going to listen for connections\n");
+
+  h->listen_task = GNUNET_SCHEDULER_add_now (do_listen, h);
+  LOG(GNUNET_ERROR_TYPE_INFO, "Listen task: %p\n", h->listen_task);
+}
 
 
 /**
@@ -91,58 +210,22 @@ GNUNET_CORE_UNDERLAY_DUMMY_connect (const struct GNUNET_CONFIGURATION_Handle *cf
   // has or has not its open connections
 
   struct GNUNET_CORE_UNDERLAY_DUMMY_Handle *h;
-  int64_t fd, fd_client;
-  struct sockaddr_un addr;
-  struct sockaddr_un addr_client;
-  int64_t len;
-  char buff[BUFF_SIZE];
-  struct sockaddr_un addr_from;
-  socklen_t from_len = sizeof(addr_from);
 
   h = GNUNET_malloc (sizeof (struct GNUNET_CORE_UNDERLAY_DUMMY_Handle));
   h->notify_connect = nc;
+  h->notify_disconnect = nd;
+  h->notify_address_change = na;
+  h->cls = cls;
+  // FIXME treat 0 as special, invalid value?
+  memset (&h->network_location_hash, 0, sizeof (struct GNUNET_HashCode));
+  // FIXME treat 0 as special, invalid value?
+  h->network_generation_id = 0;
 
-  if ((fd = socket(PF_UNIX, SOCK_DGRAM, 0)) < 0)
-  {
-    LOG(GNUNET_ERROR_TYPE_ERROR, "Fd does not open");
-    return NULL;
-  }
+  // FIXME this needs to potentially be cancelled in _disconnect
+  h->open_socket_task = GNUNET_SCHEDULER_add_now (do_open_socket, h);
 
-  memset(&addr, 0, sizeof (addr));
-  addr.sun_family = AF_UNIX;
-  strcpy (addr.sun_path, SERVER_ADDR_BASE);
-  unlink (SERVER_ADDR_BASE);
-  if (bind (fd, (struct sockaddr *)&addr, sizeof(addr)) < 0)
-  {
-    // TODO use a counter to just use the 'next' free socket
-    LOG(GNUNET_ERROR_TYPE_ERROR, "Faild binding to socket");
-    close(fd);
-    return NULL;
-  }
-  // TODO we could now use GNUNET_CORE_UNDERLAY_NotifyAddressChange to signal
-  // that we actually got the address
-  h->recv_addr = GNUNET_malloc (strlen (SERVER_ADDR_BASE));
-  h->recv_addr = GNUNET_strdup (SERVER_ADDR_BASE);
+  LOG(GNUNET_ERROR_TYPE_INFO, "Core connected\n");
 
-  if (listen (fd, BACKLOG) < 0)
-  {
-    LOG(GNUNET_ERROR_TYPE_ERROR, "Failed listening to socket");
-    close(fd);
-    return NULL;
-  }
-
-  fd_client = accept (fd, (struct sockaddr *) &addr_client, &from_len);
-  if (fd_client < 0)
-  {
-    LOG(GNUNET_ERROR_TYPE_ERROR, "Error accepting incoming connection");
-    close (fd);
-    close (fd_client);
-    return NULL;
-  }
-  // TODO use GNUNET_CORE_UNDERLAY_NotifyConnect to signal that another 'peer'
-  // connected
-  //
-  // TODO pass received messages to mq
   return h;
 }
 
@@ -156,7 +239,22 @@ void
 GNUNET_CORE_UNDERLAY_DUMMY_disconnect
 (struct GNUNET_CORE_UNDERLAY_DUMMY_Handle *handle)
 {
+  LOG (GNUNET_ERROR_TYPE_INFO, "Core disconnects\n");
+  LOG (GNUNET_ERROR_TYPE_DEBUG, "Core disconnects\n");
+  LOG (GNUNET_ERROR_TYPE_INFO, "listen task: %p\n", handle->listen_task);
   // TODO delete and close everything
+  if (NULL != handle->listen_task)
+  {
+    LOG (GNUNET_ERROR_TYPE_INFO, "Cancelling listen task\n");
+    GNUNET_SCHEDULER_cancel (handle->listen_task);
+  }
+  if (NULL != handle->open_socket_task)
+  {
+    LOG (GNUNET_ERROR_TYPE_INFO, "Cancelling open socket task\n");
+    GNUNET_SCHEDULER_cancel (handle->open_socket_task);
+  }
+
+  //GNUNET_SCHEDULER_shutdown ();
 }
 
 
@@ -214,7 +312,7 @@ GNUNET_CORE_UNDERLAY_DUMMY_connect_to_peer (
 
   if ((fd = socket (AF_UNIX, SOCK_STREAM, 0) ) < 0)
   {
-    LOG(GNUNET_ERROR_TYPE_ERROR, "Failure opening socket");
+    LOG(GNUNET_ERROR_TYPE_ERROR, "Failure opening socket\n");
     return;
   }
 
@@ -225,7 +323,7 @@ GNUNET_CORE_UNDERLAY_DUMMY_connect_to_peer (
   unlink (CLIENT_ADDR_BASE);
   if (bind (fd, (struct sockaddr *) &addr, sizeof (addr)) < 0)
   {
-    LOG(GNUNET_ERROR_TYPE_ERROR, "Failed to bind to socket");
+    LOG(GNUNET_ERROR_TYPE_ERROR, "Failed to bind to socket\n");
     return;
   }
 
@@ -233,11 +331,11 @@ GNUNET_CORE_UNDERLAY_DUMMY_connect_to_peer (
   strcpy (addr_receiver.sun_path, peer_address);
   if (connect (fd, (struct sockaddr *) &addr_receiver, sizeof(addr)) < 0)
   {
-    LOG(GNUNET_ERROR_TYPE_ERROR, "failed to connect to the socket");
+    LOG(GNUNET_ERROR_TYPE_ERROR, "failed to connect to the socket\n");
     return;
   }
   //GNUNET_MQ_queue_for_callbacks ()
-  //h.notify_connect(cls, 1, peer_address, mq);
+  //h.notify_connect(cls, 1, peer_address, mq); // if non NULL!
   //  FIXME: proper array
   //  FIXME: proper address format
 }

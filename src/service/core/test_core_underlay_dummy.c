@@ -62,14 +62,14 @@ void address_change_cb (void *cls,
                         uint64_t network_generation_id)
 {
   address_callback = GNUNET_YES;
-  //LOG(GNUNET_ERROR_TYPE_INFO, "Got informed of address change");
-  printf("Got informed of address change\n");
+  LOG(GNUNET_ERROR_TYPE_INFO, "Got informed of address change\n");
 }
 
-int main (void)
+
+void run_test (void *cls)
 {
-  LOG(GNUNET_ERROR_TYPE_INFO, "Connecting to underlay dummy");
-  printf("Connecting to underlay dummy\n");
+  GNUNET_log_setup ("test-core-underlay-dummy", "DEBUG", NULL);
+  LOG(GNUNET_ERROR_TYPE_INFO, "Connecting to underlay dummy\n");
   struct GNUNET_CORE_UNDERLAY_DUMMY_Handle *h =
     GNUNET_CORE_UNDERLAY_DUMMY_connect (NULL, //cfg
                                         NULL, // handlers
@@ -77,11 +77,15 @@ int main (void)
                                         NULL, // nc
                                         NULL, // nd
                                         address_change_cb); // na
-  LOG(GNUNET_ERROR_TYPE_INFO, "Connected to underlay dummy, disconnecting");
-  printf("Connected to underlay dummy, disconnecting\n");
+  LOG(GNUNET_ERROR_TYPE_INFO, "Connected to underlay dummy, disconnecting\n");
   GNUNET_CORE_UNDERLAY_DUMMY_disconnect (h);
-  LOG(GNUNET_ERROR_TYPE_INFO, "Disconnected to underlay dummy");
-  printf("Disconnected from underlay dummy\n");
+  LOG(GNUNET_ERROR_TYPE_INFO, "Disconnected from underlay dummy\n");
+}
+
+int main (void)
+{
+  GNUNET_SCHEDULER_run (run_test, NULL);
+  //GNUNET_SCHEDULER_shutdown ();
 
   if (GNUNET_YES != address_callback) return -1;
   return 0;
