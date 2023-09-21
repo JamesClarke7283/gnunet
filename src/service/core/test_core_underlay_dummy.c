@@ -47,13 +47,20 @@ extern "C" {
 
 uint8_t address_callback = GNUNET_NO;
 
+static struct GNUNET_SCHEDULER_Task *timeout_task;
+
+void *notify_connect_cb (
+  void *cls,
+  uint32_t num_addresses,
+  const char *addresses[static num_addresses],
+  struct GNUNET_MQ_Handle *mq)
+{
+  LOG (GNUNET_ERROR_TYPE_INFO,
+      "Got notified about successful connection to peer with %u address: `%s'\n",
+      num_addresses,
+      addresses[num_addresses - 1]);
+}
 // TODO
-//
-//typedef void *(*GNUNET_CORE_UNDERLAY_DUMMY_NotifyConnect) (
-//  void *cls,
-//  uint32_t num_addresses,
-//  const char *addresses[static num_addresses],
-//  struct GNUNET_MQ_Handle *mq);
 //typedef void (*GNUNET_CORE_UNDERLAY_DUMMY_NotifyDisconnect) (
 //  void *cls,
 //  void *handler_cls);
@@ -65,6 +72,22 @@ void address_change_cb (void *cls,
   LOG(GNUNET_ERROR_TYPE_INFO, "Got informed of address change\n");
 }
 
+void do_shutdown (void *cls)
+{
+  struct GNUNET_CORE_UNDERLAY_DUMMY_Handle *h = cls;
+
+  GNUNET_CORE_UNDERLAY_DUMMY_disconnect (h);
+  LOG(GNUNET_ERROR_TYPE_INFO, "Disconnected from underlay dummy\n");
+}
+
+void do_timeout (void *cls)
+{
+  timeout_task = NULL;
+
+  LOG(GNUNET_ERROR_TYPE_INFO, "Disconnecting from underlay dummy\n");
+  GNUNET_SCHEDULER_shutdown ();
+}
+
 
 void run_test (void *cls)
 {
@@ -74,12 +97,14 @@ void run_test (void *cls)
     GNUNET_CORE_UNDERLAY_DUMMY_connect (NULL, //cfg
                                         NULL, // handlers
                                         NULL, // cls
-                                        NULL, // nc
+                                        notify_connect_cb, // nc
                                         NULL, // nd
                                         address_change_cb); // na
-  LOG(GNUNET_ERROR_TYPE_INFO, "Connected to underlay dummy, disconnecting\n");
-  GNUNET_CORE_UNDERLAY_DUMMY_disconnect (h);
-  LOG(GNUNET_ERROR_TYPE_INFO, "Disconnected from underlay dummy\n");
+  GNUNET_SCHEDULER_add_shutdown (do_shutdown, h);
+  LOG(GNUNET_ERROR_TYPE_INFO, "Connected to underlay dummy\n");
+  //timeout_task = GNUNET_SCHEDULER_add_delayed (GNUNET_TIME_UNIT_SECONDS,
+  //                                             do_timeout,
+  //                                             NULL);
 }
 
 int main (void)
