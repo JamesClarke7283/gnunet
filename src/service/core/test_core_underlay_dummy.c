@@ -45,6 +45,10 @@ extern "C" {
 
 #define LOG(kind, ...) GNUNET_log_from (kind, "core", __VA_ARGS__)
 
+#define SOCK_NAME_BASE "/tmp/gnunet-core-underlay-dummy-socket"
+
+struct GNUNET_CORE_UNDERLAY_DUMMY_Handle *h1, *h2;
+
 uint8_t address_callback = GNUNET_NO;
 
 static struct GNUNET_SCHEDULER_Task *timeout_task;
@@ -60,10 +64,12 @@ void *notify_connect_cb (
       num_addresses,
       addresses[num_addresses - 1]);
 }
+
 // TODO
 //typedef void (*GNUNET_CORE_UNDERLAY_DUMMY_NotifyDisconnect) (
 //  void *cls,
 //  void *handler_cls);
+
 void address_change_cb (void *cls,
                         struct GNUNET_HashCode network_location_hash,
                         uint64_t network_generation_id)
@@ -74,9 +80,10 @@ void address_change_cb (void *cls,
 
 void do_shutdown (void *cls)
 {
-  struct GNUNET_CORE_UNDERLAY_DUMMY_Handle *h = cls;
+  //struct GNUNET_CORE_UNDERLAY_DUMMY_Handle *h = cls;
 
-  GNUNET_CORE_UNDERLAY_DUMMY_disconnect (h);
+  GNUNET_CORE_UNDERLAY_DUMMY_disconnect (h1);
+  GNUNET_CORE_UNDERLAY_DUMMY_disconnect (h2);
   LOG(GNUNET_ERROR_TYPE_INFO, "Disconnected from underlay dummy\n");
 }
 
@@ -93,18 +100,31 @@ void run_test (void *cls)
 {
   GNUNET_log_setup ("test-core-underlay-dummy", "DEBUG", NULL);
   LOG(GNUNET_ERROR_TYPE_INFO, "Connecting to underlay dummy\n");
-  struct GNUNET_CORE_UNDERLAY_DUMMY_Handle *h =
-    GNUNET_CORE_UNDERLAY_DUMMY_connect (NULL, //cfg
-                                        NULL, // handlers
-                                        NULL, // cls
-                                        notify_connect_cb, // nc
-                                        NULL, // nd
-                                        address_change_cb); // na
-  GNUNET_SCHEDULER_add_shutdown (do_shutdown, h);
+  h1 = GNUNET_CORE_UNDERLAY_DUMMY_connect (NULL, //cfg
+                                           NULL, // handlers
+                                           NULL, // cls
+                                           notify_connect_cb, // nc
+                                           NULL, // nd
+                                           address_change_cb); // na
+  h2 = GNUNET_CORE_UNDERLAY_DUMMY_connect (NULL, //cfg
+                                           NULL, // handlers
+                                           NULL, // cls
+                                           notify_connect_cb, // nc
+                                           NULL, // nd
+                                           address_change_cb); // na
+  GNUNET_SCHEDULER_add_shutdown (do_shutdown, NULL);
   LOG(GNUNET_ERROR_TYPE_INFO, "Connected to underlay dummy\n");
-  //timeout_task = GNUNET_SCHEDULER_add_delayed (GNUNET_TIME_UNIT_SECONDS,
-  //                                             do_timeout,
-  //                                             NULL);
+  GNUNET_CORE_UNDERLAY_DUMMY_connect_to_peer (h1,
+                                              SOCK_NAME_BASE "1",
+                                              GNUNET_MQ_PRIO_BEST_EFFORT,
+                                              GNUNET_BANDWIDTH_VALUE_MAX);
+  GNUNET_CORE_UNDERLAY_DUMMY_connect_to_peer (h2,
+                                              SOCK_NAME_BASE "1",
+                                              GNUNET_MQ_PRIO_BEST_EFFORT,
+                                              GNUNET_BANDWIDTH_VALUE_MAX);
+  timeout_task = GNUNET_SCHEDULER_add_delayed (GNUNET_TIME_UNIT_SECONDS,
+                                               do_timeout,
+                                               NULL);
 }
 
 int main (void)
