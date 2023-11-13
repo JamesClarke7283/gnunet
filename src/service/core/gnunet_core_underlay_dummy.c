@@ -42,10 +42,9 @@ extern "C" {
 #endif
 
 
-// FIXME use gnunet's own wrappers!
-#include <sys/socket.h>
 #include <unistd.h>
 #include <errno.h>
+#include <string.h>
 #include "gnunet_core_underlay_dummy.h"
 #include "gnunet_util_lib.h"
 #include "gnunet_scheduler_lib.h"
@@ -61,83 +60,213 @@ extern "C" {
  */
 struct GNUNET_CORE_UNDERLAY_DUMMY_Handle
 {
-  // TODO document
+  /**
+   * Callback (from/to client) to call when another peer connects.
+   */
   GNUNET_CORE_UNDERLAY_DUMMY_NotifyConnect notify_connect;
+
+  /**
+   * Callback (from/to client) to call when a peer disconnects.
+   */
   GNUNET_CORE_UNDERLAY_DUMMY_NotifyDisconnect notify_disconnect;
+
+  /**
+   * Callback (from/to client) to call when our address changes.
+   */
   GNUNET_CORE_UNDERLAY_DUMMY_NotifyAddressChange notify_address_change;
+
+  /**
+   * Array of message handlers given by the client.
+   */
+  struct GNUNET_MQ_MessageHandler *handlers;
+
+  /**
+   * Message queue towards the connected peer.
+   * TODO our implementation currently allows for only one connected peer -
+   * build more flexible data structures.
+   */
   struct GNUNET_MQ_Handle *mq;
+
+  /**
+   * Closure for the mq towards the client.
+   */
   void *cls_mq;
+
+  /**
+   * Closure for handlers TODO which handlers???
+   */
   void *cls;
+
+  /**
+   * Name of the listening socket.
+   */
   char *sock_name;
+
+  /**
+   * Socket on which we listen for incoming connections.
+   * TODO rename -> sock_listen
+   */
   struct GNUNET_NETWORK_Handle *sock_self;
+
+  /**
+   * Socket for the connected peer.
+   * TODO our implementation currently allows for only one connected peer -
+   * build more flexible data structures.
+   * TODO rename -> sock
+   */
   struct GNUNET_NETWORK_Handle *sock_other;
+
+  /**
+   * Hash over the current address(es).
+   */
   struct GNUNET_HashCode network_location_hash;
+
+  /**
+   * FIXME honestly I forgot what was planned for this. Look it up in notes!
+   */
   uint64_t network_generation_id;
+
+  /**
+   * Task that waits for incoming connections
+   */
   struct GNUNET_SCHEDULER_Task *listen_task;
-  struct GNUNET_SCHEDULER_Task *open_socket_task;
+
+  /**
+   * Task waiting for incoming messages.
+   */
   struct GNUNET_SCHEDULER_Task *recv_task;
+
+  /**
+   * Task to notify core about address changes.
+   */
   struct GNUNET_SCHEDULER_Task *notify_address_change_task;
-  // TODO create mechanism to manage peers
+
+  /**
+   * Task waiting until the socket becomes ready to be written to.
+   */
+  struct GNUNET_SCHEDULER_Task *write_task;
+
+  /**
+   * Currently handled message.
+   */
+  struct GNUNET_MessageHeader *msg_next;
+  // TODO create mechanism to manage peers/queues
 };
 
 
+/**
+ * @brief Callback scheduled to run when there is something to read from the
+ * socket. Reads the data from the socket and passes it to the message queue.
+ *
+ * @param cls Closure: The hanlde to the underlay dummy
+ */
 static void
 do_read (void *cls)
 {
   struct GNUNET_CORE_UNDERLAY_DUMMY_Handle *h = cls;
 
   ssize_t ret;
-  char buf[65536] GNUNET_ALIGN; // XXX
+  char buf[65536] GNUNET_ALIGN;
+  struct GNUNET_MessageHeader *msg;
 
+  h->recv_task = NULL;
   ret = GNUNET_NETWORK_socket_recv (h->sock_other,
                                     buf,
                                     sizeof(buf));
-  // FIXME this might return an empty string
-  if ((GNUNET_SYSERR == ret) && ((errno == EAGAIN) || (errno == ENOBUFS)))
-    return;
-  if (GNUNET_SYSERR == ret)
-  {
-    GNUNET_log_strerror (GNUNET_ERROR_TYPE_WARNING, "recvfrom");
-    return;
-  }
-  //LOG (GNUNET_ERROR_TYPE_INFO, "Read %d bytes: `%s'\n", (int) ret, (char *) buf);
-  // TODO pass received messages to mq
+  //LOG (GNUNET_ERROR_TYPE_INFO, "Read %d bytes\n", (int) ret);
+  msg = GNUNET_malloc (ret);
+  GNUNET_memcpy (msg, buf, ret);
+  GNUNET_MQ_handle_message (h->handlers, msg);
+  // TODO re-schedule recv_task
 }
 
 
+/**
+ * @brief Callback scheduled to run once the socket is ready for writing.
+ * Writes the message to the socket.
+ *
+ * @param cls Closure: The handle of the underlay dummy
+ */
 static void
 write_cb (void *cls)
 {
-  //sent = GNUNET_NETWORK_socket_sendto (sock_self,
-  //                                     msg,
-  //                                     msg_size,
-  //                                     (const struct sockaddr *) queue->address,
-  //                                     queue->address_len);
-  //write_task = GNUNET_SCHEDULER_add_write_net (GNUNET_TIME_UNIT_FOREVER_REL,
+  ssize_t sent;
+  struct GNUNET_CORE_UNDERLAY_DUMMY_Handle *h = cls;
+
+  h->write_task = NULL;
+  sent = GNUNET_NETWORK_socket_send (h->sock_other,
+                                     h->msg_next,
+                                     sizeof(h->msg_next));
+  if (GNUNET_SYSERR == sent)
+  {
+    LOG (GNUNET_ERROR_TYPE_ERROR, "Failed to send message\n");
+    return; // TODO proper handling
+  }
+  LOG (GNUNET_ERROR_TYPE_INFO, "Successfully sent message\n");
+  GNUNET_free (h->msg_next);
+  h->msg_next = NULL;
+  // TODO reschedule for the next round. With the current implementation of the
+  // single message buffer, this doesn't make sense
+  //h->write_task = GNUNET_SCHEDULER_add_write_net (GNUNET_TIME_UNIT_FOREVER_REL,
   //                                             sock_self,
   //                                             &write_cb,
   //                                             NULL);
+  // TODO GNUNET_MQ_impl_send_continue
 }
 
+/**
+ * @brief Callback called from the MQ to send a message over a socket.
+ * Schedules the sending of the message once the socket is ready.
+ *
+ * @param mq The message queue
+ * @param msg The message to send
+ * @param impl_state The handle of the underlay dummy
+ */
 static void
 mq_send_impl (struct GNUNET_MQ_Handle *mq,
-         const struct GNUNET_MessageHeader *msg,
-         void *impl_state)
+              const struct GNUNET_MessageHeader *msg,
+              void *impl_state)
 {
-  // TODO
-  //if (NULL == write_task)
-  //  write_task = GNUNET_SCHEDULER_add_write_net (GNUNET_TIME_UNIT_FOREVER_REL,
-  //                                               sock_self,
-  //                                               &write_cb,
-  //                                               NULL);
+  struct GNUNET_CORE_UNDERLAY_DUMMY_Handle *h = impl_state;
+
+  LOG(GNUNET_ERROR_TYPE_INFO, "from mq_send_impl\n");
+  if (NULL != h->msg_next) return; // This is a very sloppy implementation - a
+                                   // dummy. This might cause problems later
+  h->msg_next = GNUNET_new (struct GNUNET_MessageHeader);
+  GNUNET_memcpy (h->msg_next, msg, sizeof (msg));
+  if (NULL == h->write_task)
+  {
+    h->write_task =
+      GNUNET_SCHEDULER_add_write_net (GNUNET_TIME_UNIT_FOREVER_REL,
+                                      h->sock_other,
+                                      &write_cb,
+                                      h);
+    LOG(GNUNET_ERROR_TYPE_INFO, "Scheduled sending of message\n");
+  }
+  else
+  {
+    LOG(GNUNET_ERROR_TYPE_INFO, "Not scheduled sending of message - already scheduled a task for that\n");
+  }
 }
 
+/**
+ * @brief Callback to destroy the message queue
+ *
+ * @param mq message queue to destroy
+ * @param impl_state The handle of the underlay dummy
+ */
 static void
 mq_destroy_impl (struct GNUNET_MQ_Handle *mq, void *impl_state)
 {
   // TODO
 }
 
+/**
+ * @brief Callback to cancel sending a message.
+ *
+ * @param mq The message queue the message was supposed to be sent over.
+ * @param impl_state The handle of the underlay dummy
+ */
 static void
 mq_cancel_impl (struct GNUNET_MQ_Handle *mq, void *impl_state)
 {
@@ -145,7 +274,7 @@ mq_cancel_impl (struct GNUNET_MQ_Handle *mq, void *impl_state)
 }
 
 /**
- * Listen for a connection on the dummy's socket
+ * Accept a connection on the dummy's socket
  *
  * @param cls the hanlde to the dummy passed as closure
  */
@@ -155,17 +284,19 @@ do_accept (void *cls)
   struct GNUNET_CORE_UNDERLAY_DUMMY_Handle *h = cls;
 
   struct GNUNET_NETWORK_Handle *sock_other;
-  struct sockaddr_un *addr_other = GNUNET_new (struct sockaddr_un);
+  struct sockaddr_un addr_other;
+  struct sockaddr *addr_other_p;
   socklen_t addr_other_len = sizeof(addr_other);
 
   GNUNET_assert (NULL != h->sock_self);
+  GNUNET_assert (NULL == h->sock_other);
 
   h->listen_task = NULL;
 
-  LOG(GNUNET_ERROR_TYPE_INFO, "Listening for incoming connections\n");
+  LOG(GNUNET_ERROR_TYPE_INFO, "Accepting incoming connection\n");
   sock_other = GNUNET_NETWORK_socket_accept (h->sock_self,
-                                              (struct sockaddr *) addr_other,
-                                              &addr_other_len);
+                                             (struct sockaddr *) &addr_other,
+                                             &addr_other_len);
   if (NULL == sock_other)
   {
     //LOG(GNUNET_ERROR_TYPE_ERROR, "Error accepting incoming connection, %s", strerror(errno));
@@ -179,31 +310,44 @@ do_accept (void *cls)
   {
     // TODO maybe do some of this even if handler doesnt exist
     char **addresses = GNUNET_new_array (1, char *);
-    addresses[0] = GNUNET_malloc (sizeof (char) * strlen (addr_other->sun_path));
+    addresses[0] = GNUNET_malloc (sizeof (char) * strlen (addr_other.sun_path));
     addresses[0][0] = '\0';
-    GNUNET_memcpy (addresses[0], addr_other->sun_path, strlen (addr_other->sun_path));
-    //char *address = GNUNET_malloc (sizeof (char) * strlen (addr_other->sun_path));
-    //GNUNET_memcpy (address, addr_other->sun_path, strlen (addr_other->sun_path));
+    //GNUNET_memcpy (addresses[0], addr_other.sun_path, strlen (addr_other.sun_path));
+    addresses[0] = GNUNET_strdup (addr_other.sun_path);
+    //char *address = GNUNET_malloc (sizeof (char) * strlen (addr_other.sun_path));
     LOG (GNUNET_ERROR_TYPE_INFO, "addr_other_len: %u\n", addr_other_len);
-    LOG (GNUNET_ERROR_TYPE_INFO, "strlen(addr_other->sun_path): %u\n", strlen(addr_other->sun_path));
-    LOG (GNUNET_ERROR_TYPE_INFO, "Sanity check0: %s\n", addr_other->sun_path);
+    LOG (GNUNET_ERROR_TYPE_INFO, "strlen(addr_other.sun_path): %u\n", strlen(addr_other.sun_path));
+    LOG (GNUNET_ERROR_TYPE_INFO, "Sanity check0: %s\n", addr_other.sun_path);
     LOG (GNUNET_ERROR_TYPE_INFO, "Sanity check1: %s\n", addresses[0]);
+    //addr_other_p = GNUNET_NETWORK_get_addr (sock_other);
+    //LOG (GNUNET_ERROR_TYPE_INFO, "Sanity check2: %s\n", addr_other_p->sa_data);
     h->mq =
       GNUNET_MQ_queue_for_callbacks (mq_send_impl,
                                      mq_destroy_impl,
                                      mq_cancel_impl,
-                                     NULL, // impl_state - gets passed to _impls
-                                     NULL, // handlers - may be NULL?
+                                     h, // impl_state - gets passed to _impls
+                                        // TODO we probably need to replace
+                                        // this by Queues per peer (or so)
+                                     h->handlers, // handlers - may be NULL?
                                      NULL, // mq_error_handler_impl
                                      NULL);// cls
     h->cls_mq = h->notify_connect (h->cls, 1, (const char **) addresses, h->mq);
   }
+  GNUNET_assert (NULL == h->recv_task);
   h->recv_task = GNUNET_SCHEDULER_add_read_net (GNUNET_TIME_UNIT_FOREVER_REL,
                                                 h->sock_other,
                                                 do_read,
                                                 h);
 }
 
+/**
+ * @brief Notify core about address change.
+ *
+ * This is in an extra function so the callback gets called after the
+ * GNUNET_CORE_UNDERLAY_DUMMY_connect() finishes.
+ *
+ * @param cls Closure: The handle of the dummy underlay.
+ */
 static void
 do_notify_address_change (void *cls)
 {
@@ -218,9 +362,7 @@ do_notify_address_change (void *cls)
 /**
  * Opens UNIX domain socket.
  *
- * FIXME don't schedule this function only schedule the callback
- *
- * @param cls
+ * @param cls Closure: The handle of the dummy underlay.
  */
 static void
 do_open_socket (void *cls)
@@ -232,8 +374,6 @@ do_open_socket (void *cls)
   uint64_t sock_name_ctr; // Append to the socket name to avoid collisions
   uint8_t ret;
   // TODO check that everything gets freed and closed in error cases
-
-  h->open_socket_task = NULL;
 
   h->sock_self = GNUNET_NETWORK_socket_create (AF_UNIX, SOCK_STREAM, 0);
   if (NULL == h->sock_self)
@@ -266,11 +406,8 @@ do_open_socket (void *cls)
     }
   } while (GNUNET_OK != ret);
   LOG(GNUNET_ERROR_TYPE_INFO, "Bound to `%s'\n", addr_un->sun_path);
-  //h->sock_name = GNUNET_malloc (strlen () + 1);
-  h->sock_name = GNUNET_strdup (addr_un->sun_path); // TODO is this allready
+  h->sock_name = GNUNET_strdup (addr_un->sun_path);
   GNUNET_free (addr_un);
-
-                                            // allocating its own mem?
 
   if (NULL != h->notify_address_change)
   {
@@ -325,11 +462,22 @@ GNUNET_CORE_UNDERLAY_DUMMY_connect (const struct GNUNET_CONFIGURATION_Handle *cf
   // has or has not its open connections
 
   struct GNUNET_CORE_UNDERLAY_DUMMY_Handle *h;
+  uint32_t i;
 
   h = GNUNET_malloc (sizeof (struct GNUNET_CORE_UNDERLAY_DUMMY_Handle));
   h->notify_connect = nc;
   h->notify_disconnect = nd;
   h->notify_address_change = na;
+  //h->handlers = handlers;
+  if (NULL != handlers)
+  {
+    for (i = 0; NULL != handlers[i].cb; i++)
+      ;
+    h->handlers = GNUNET_new_array (i + 1, struct GNUNET_MQ_MessageHandler);
+    GNUNET_memcpy (h->handlers,
+                   handlers,
+                   i * sizeof(struct GNUNET_MQ_MessageHandler));
+  }
   h->cls = cls;
   // FIXME treat 0 as special, invalid value?
   memset (&h->network_location_hash, 0, sizeof (struct GNUNET_HashCode));
@@ -337,8 +485,7 @@ GNUNET_CORE_UNDERLAY_DUMMY_connect (const struct GNUNET_CONFIGURATION_Handle *cf
   h->network_generation_id = 0;
 
   // FIXME this needs to potentially be cancelled in _disconnect
-  //h->open_socket_task = GNUNET_SCHEDULER_add_now (do_open_socket, h);
-  do_open_socket(h);
+  do_open_socket(h); // TODO we could inline this function
 
   LOG(GNUNET_ERROR_TYPE_INFO, "Core connected\n");
 
@@ -362,15 +509,6 @@ GNUNET_CORE_UNDERLAY_DUMMY_disconnect
   {
     LOG (GNUNET_ERROR_TYPE_INFO, "Cancelling listen task\n");
     GNUNET_SCHEDULER_cancel (handle->listen_task);
-  }
-  if (NULL != handle->open_socket_task)
-  {
-    LOG (GNUNET_ERROR_TYPE_INFO, "Cancelling open socket task\n");
-    GNUNET_SCHEDULER_cancel (handle->open_socket_task);
-  }
-  if (NULL != handle->open_socket_task)
-  {
-    GNUNET_SCHEDULER_cancel (handle->notify_address_change_task);
   }
   if (NULL != handle->sock_self)
   {
@@ -410,6 +548,7 @@ GNUNET_CORE_UNDERLAY_DUMMY_receive_continue (
     struct GNUNET_CORE_UNDERLAY_DUMMY_Handle *ch,
     struct GNUNET_MQ_Handle *mq)
 {
+  // TODO we currently have a window size of 1 - expand it!
 }
 
 
@@ -433,50 +572,65 @@ GNUNET_CORE_UNDERLAY_DUMMY_connect_to_peer (
     enum GNUNET_MQ_PriorityPreferences pp,
     struct GNUNET_BANDWIDTH_Value32NBO bw)
 {
-  struct sockaddr_un *addr_other;
+  struct sockaddr_un addr_other;
 
   LOG(GNUNET_ERROR_TYPE_INFO, "Trying to connect to socket: `%s'\n", peer_address);
-  // FIXME check whether we have an open socket first! if not - reschedule!
-  if (NULL == h->sock_self)
-  {
-    // FIXME better handling?
-    //       reschedule!
-    LOG(GNUNET_ERROR_TYPE_INFO, "Not able to connect - own socket is not yet open\n");
-    return;
-  }
-  if (0 != strcmp (peer_address, h->sock_name))
+  if (0 == strcmp (peer_address, h->sock_name))
   {
     // Don't connect to own socket!
     // FIXME better handling
     LOG(GNUNET_ERROR_TYPE_INFO, "Not going to connect to own address\n");
     return;
   }
-  //if (NULL == h->sock_self)
-  //{
-  //  h->sock_self = GNUNET_NETWORK_socket_create (AF_UNIX, SOCK_STREAM, 0);
-  //}
-  //if (NULL == h->sock_self)
-  //{
-  //  LOG(GNUNET_ERROR_TYPE_ERROR, "Fd does not open\n");
-  //  GNUNET_NETWORK_socket_close (h->sock_self);
-  //  return;
-  //}
-
-  addr_other = GNUNET_new (struct sockaddr_un);
-  addr_other->sun_family = AF_UNIX;
-  strcpy (addr_other->sun_path, peer_address);
-  if (GNUNET_OK != GNUNET_NETWORK_socket_connect (h->sock_self,
-                                                  (struct sockaddr *) &addr_other,
-                                                  sizeof(addr_other)) < 0)
+  GNUNET_assert (NULL == h->sock_other);
+  h->sock_other = GNUNET_NETWORK_socket_create (AF_UNIX, SOCK_STREAM, 0);
+  if (NULL == h->sock_other)
   {
-    LOG(GNUNET_ERROR_TYPE_ERROR, "failed to connect to the socket\n");
+    LOG(GNUNET_ERROR_TYPE_ERROR, "Socket does not open\n");
+    return;
+  }
+
+  addr_other.sun_family = AF_UNIX;
+  //strcpy (addr_other.sun_path, peer_address);
+  GNUNET_memcpy (addr_other.sun_path, peer_address, strlen (peer_address));
+  if (GNUNET_OK != GNUNET_NETWORK_socket_connect (h->sock_other,
+                                                  (struct sockaddr *) &addr_other,
+                                                  sizeof(addr_other)))
+                                                  //sizeof(struct sockaddr_un)))
+                                                  //sizeof(struct sockaddr)))
+  {
+    LOG(GNUNET_ERROR_TYPE_ERROR, "failed to connect to the socket: %u %s\n", errno, strerror(errno));
+    //LOG (GNUNET_ERROR_TYPE_INFO, "Sanity check: %s\n", addr_other.sun_path);
     return;
   }
   LOG(GNUNET_ERROR_TYPE_INFO, "Successfully connected to socket\n");
-  //GNUNET_MQ_queue_for_callbacks ()
-  //h.notify_connect(cls, 1, peer_address, mq); // if non NULL!
+  GNUNET_assert (NULL == h->recv_task);
+  h->recv_task = GNUNET_SCHEDULER_add_read_net (GNUNET_TIME_UNIT_FOREVER_REL,
+                                                h->sock_other,
+                                                do_read,
+                                                h);
+  GNUNET_assert (NULL == h->mq);
+  h->mq =
+    GNUNET_MQ_queue_for_callbacks (mq_send_impl,
+                                   mq_destroy_impl,
+                                   mq_cancel_impl,
+                                   h, // impl_state - gets passed to _impls
+                                      // TODO we probably need to replace
+                                      // this by Queues per peer (or so)
+                                   h->handlers, // handlers - may be NULL?
+                                   NULL, // mq_error_handler_impl
+                                   NULL);
+  if (NULL != h->notify_connect)
+  {
+    h->notify_connect(h->cls,
+                      1,
+                      (const char **) &peer_address, // FIXME put on heap -
+                                                     // don't pass stack
+                                                     // address
+                      h->mq);
+  }
   //  FIXME: proper array
-  //  FIXME: proper address format
+  //  FIXME: proper address format ("dummy:<sock_name>")
 }
 
 

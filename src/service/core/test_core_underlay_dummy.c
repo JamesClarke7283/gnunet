@@ -47,9 +47,19 @@ extern "C" {
 
 #define SOCK_NAME_BASE "/tmp/gnunet-core-underlay-dummy-socket"
 
-struct GNUNET_CORE_UNDERLAY_DUMMY_Handle *h1, *h2;
+#define MTYPE 12345
 
-uint8_t address_callback = GNUNET_NO;
+struct DummyContext
+{
+  struct GNUNET_CORE_UNDERLAY_DUMMY_Handle *h;
+  //struct GNUNET_MQ_Handle *mq;
+} *dc1, *dc2;
+
+uint8_t result_address_callback = GNUNET_NO;
+uint8_t result_connect_cb_0 = GNUNET_NO;
+uint8_t result_connect_cb_1 = GNUNET_NO;
+uint8_t result_reply_0 = GNUNET_NO;
+uint8_t result_reply_1 = GNUNET_NO;
 
 static struct GNUNET_SCHEDULER_Task *timeout_task;
 
@@ -59,10 +69,26 @@ void *notify_connect_cb (
   const char *addresses[static num_addresses],
   struct GNUNET_MQ_Handle *mq)
 {
+  struct DummyContext *dc = (struct DummyContext *) cls;
+  struct GNUNET_MQ_Envelope *env;
+  struct GNUNET_MessageHeader *msg;
+
   LOG (GNUNET_ERROR_TYPE_INFO,
       "Got notified about successful connection to peer with %u address: `%s'\n",
       num_addresses,
       addresses[num_addresses - 1]);
+  if (GNUNET_NO == result_connect_cb_0) {
+    result_connect_cb_0 = GNUNET_YES;
+  } else if (GNUNET_YES == result_connect_cb_0 &&
+             GNUNET_NO == result_connect_cb_1) {
+    result_connect_cb_1 = GNUNET_YES;
+  }
+  env = GNUNET_MQ_msg (msg, MTYPE); // TODO
+  // a real implementation would set message fields here
+  GNUNET_MQ_send (mq, env);
+  LOG (GNUNET_ERROR_TYPE_INFO, "Sent message through message queue\n");
+
+  return dc;
 }
 
 // TODO
@@ -74,16 +100,23 @@ void address_change_cb (void *cls,
                         struct GNUNET_HashCode network_location_hash,
                         uint64_t network_generation_id)
 {
-  address_callback = GNUNET_YES;
+  struct DummyContext *dc = cls;
+  result_address_callback = GNUNET_YES;
   LOG(GNUNET_ERROR_TYPE_INFO, "Got informed of address change\n");
+  GNUNET_CORE_UNDERLAY_DUMMY_connect_to_peer (dc->h,
+                                              SOCK_NAME_BASE "1",
+                                              GNUNET_MQ_PRIO_BEST_EFFORT,
+                                              GNUNET_BANDWIDTH_VALUE_MAX);
 }
 
 void do_shutdown (void *cls)
 {
   //struct GNUNET_CORE_UNDERLAY_DUMMY_Handle *h = cls;
 
-  GNUNET_CORE_UNDERLAY_DUMMY_disconnect (h1);
-  GNUNET_CORE_UNDERLAY_DUMMY_disconnect (h2);
+  GNUNET_CORE_UNDERLAY_DUMMY_disconnect (dc1->h);
+  GNUNET_CORE_UNDERLAY_DUMMY_disconnect (dc2->h);
+  GNUNET_free (dc1);
+  GNUNET_free (dc2);
   LOG(GNUNET_ERROR_TYPE_INFO, "Disconnected from underlay dummy\n");
 }
 
@@ -96,32 +129,47 @@ void do_timeout (void *cls)
 }
 
 
-void run_test (void *cls)
+static void
+handle_test (void *cls, const struct GNUNET_MessageHeader *msg)
 {
+  struct DummyContext *dc = (struct DummyContext *) cls;
+
+  LOG (GNUNET_ERROR_TYPE_INFO, "received test message\n");
+
+  if (GNUNET_NO == result_reply_0) {
+    result_reply_0 = GNUNET_YES;
+  } else if (GNUNET_YES == result_reply_0 && GNUNET_NO == result_reply_1) {
+    result_reply_1 = GNUNET_YES;
+  }
+}
+
+
+static void run_test (void *cls)
+{
+  struct GNUNET_MQ_MessageHandler handlers[] =
+  {
+    GNUNET_MQ_hd_fixed_size (test, MTYPE, struct GNUNET_MessageHeader, NULL),
+    GNUNET_MQ_handler_end ()
+  };
   GNUNET_log_setup ("test-core-underlay-dummy", "DEBUG", NULL);
+  dc1 = GNUNET_new(struct DummyContext);
+  dc2 = GNUNET_new(struct DummyContext);
   LOG(GNUNET_ERROR_TYPE_INFO, "Connecting to underlay dummy\n");
-  h1 = GNUNET_CORE_UNDERLAY_DUMMY_connect (NULL, //cfg
-                                           NULL, // handlers
-                                           NULL, // cls
-                                           notify_connect_cb, // nc
-                                           NULL, // nd
-                                           address_change_cb); // na
-  h2 = GNUNET_CORE_UNDERLAY_DUMMY_connect (NULL, //cfg
-                                           NULL, // handlers
-                                           NULL, // cls
-                                           notify_connect_cb, // nc
-                                           NULL, // nd
-                                           address_change_cb); // na
+  dc1->h = GNUNET_CORE_UNDERLAY_DUMMY_connect (NULL, //cfg
+                                               handlers,
+                                               dc1, // cls
+                                               notify_connect_cb, // nc
+                                               NULL, // nd
+                                               address_change_cb); // na
+  LOG(GNUNET_ERROR_TYPE_INFO, "Connected to underlay dummy 1\n");
+  dc2->h = GNUNET_CORE_UNDERLAY_DUMMY_connect (NULL, //cfg
+                                               handlers,
+                                               dc2, // cls
+                                               notify_connect_cb, // nc
+                                               NULL, // nd
+                                               address_change_cb); // na
+  LOG(GNUNET_ERROR_TYPE_INFO, "Connected to underlay dummy 2\n");
   GNUNET_SCHEDULER_add_shutdown (do_shutdown, NULL);
-  LOG(GNUNET_ERROR_TYPE_INFO, "Connected to underlay dummy\n");
-  GNUNET_CORE_UNDERLAY_DUMMY_connect_to_peer (h1,
-                                              SOCK_NAME_BASE "1",
-                                              GNUNET_MQ_PRIO_BEST_EFFORT,
-                                              GNUNET_BANDWIDTH_VALUE_MAX);
-  GNUNET_CORE_UNDERLAY_DUMMY_connect_to_peer (h2,
-                                              SOCK_NAME_BASE "1",
-                                              GNUNET_MQ_PRIO_BEST_EFFORT,
-                                              GNUNET_BANDWIDTH_VALUE_MAX);
   timeout_task = GNUNET_SCHEDULER_add_delayed (GNUNET_TIME_UNIT_SECONDS,
                                                do_timeout,
                                                NULL);
@@ -132,7 +180,11 @@ int main (void)
   GNUNET_SCHEDULER_run (run_test, NULL);
   //GNUNET_SCHEDULER_shutdown ();
 
-  if (GNUNET_YES != address_callback) return -1;
+  if (GNUNET_YES != result_address_callback) return -1;
+  if (GNUNET_YES != result_connect_cb_0) return -1;
+  if (GNUNET_YES != result_connect_cb_1) return -1;
+  if (GNUNET_YES != result_reply_0) return -1;
+  if (GNUNET_YES != result_reply_1) return -1;
   return 0;
 }
 
