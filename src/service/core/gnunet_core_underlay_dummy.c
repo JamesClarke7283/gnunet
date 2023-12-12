@@ -313,15 +313,17 @@ do_accept (void *cls)
     char **addresses = GNUNET_new_array (1, char *);
     addresses[0] = GNUNET_malloc (sizeof (char) * strlen (addr_other.sun_path));
     addresses[0][0] = '\0';
-    //GNUNET_memcpy (addresses[0], addr_other.sun_path, strlen (addr_other.sun_path));
-    addresses[0] = GNUNET_strdup (addr_other.sun_path);
-    //char *address = GNUNET_malloc (sizeof (char) * strlen (addr_other.sun_path));
-    LOG (GNUNET_ERROR_TYPE_INFO, "addr_other_len: %u\n", addr_other_len);
-    LOG (GNUNET_ERROR_TYPE_INFO, "strlen(addr_other.sun_path): %u\n", strlen(addr_other.sun_path));
-    LOG (GNUNET_ERROR_TYPE_INFO, "Sanity check0: %s\n", addr_other.sun_path);
-    LOG (GNUNET_ERROR_TYPE_INFO, "Sanity check1: %s\n", addresses[0]);
-    //addr_other_p = GNUNET_NETWORK_get_addr (sock);
-    //LOG (GNUNET_ERROR_TYPE_INFO, "Sanity check2: %s\n", addr_other_p->sa_data);
+    // TODO get the socket name of the connecting socket or check if it doesn't
+    //      have a proper name
+    ////GNUNET_memcpy (addresses[0], addr_other.sun_path, strlen (addr_other.sun_path));
+    //addresses[0] = GNUNET_strdup (addr_other.sun_path);
+    ////char *address = GNUNET_malloc (sizeof (char) * strlen (addr_other.sun_path));
+    //LOG (GNUNET_ERROR_TYPE_INFO, "addr_other_len: %u\n", addr_other_len);
+    //LOG (GNUNET_ERROR_TYPE_INFO, "strlen(addr_other.sun_path): %u\n", strlen(addr_other.sun_path));
+    //LOG (GNUNET_ERROR_TYPE_INFO, "Sanity check0: %s\n", addr_other.sun_path);
+    //LOG (GNUNET_ERROR_TYPE_INFO, "Sanity check1: %s\n", addresses[0]);
+    ////addr_other_p = GNUNET_NETWORK_get_addr (sock);
+    ////LOG (GNUNET_ERROR_TYPE_INFO, "Sanity check2: %s\n", addr_other_p->sa_data);
     h->mq =
       GNUNET_MQ_queue_for_callbacks (mq_send_impl,
                                      mq_destroy_impl,
