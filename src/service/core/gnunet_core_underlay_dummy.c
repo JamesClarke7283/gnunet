@@ -175,7 +175,10 @@ do_read (void *cls)
   msg = GNUNET_malloc (ret);
   GNUNET_memcpy (msg, buf, ret);
   GNUNET_MQ_handle_message (h->handlers, msg);
-  // TODO re-schedule recv_task
+  h->recv_task = GNUNET_SCHEDULER_add_read_net (GNUNET_TIME_UNIT_FOREVER_REL,
+                                                h->sock,
+                                                do_read,
+                                                h);
 }
 
 
