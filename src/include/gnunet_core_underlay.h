@@ -24,9 +24,9 @@
  * @author Julius Bünger
  *
  * @file
- * API of the services underlying core (transport, libp2p, ...)
+ * API of the services underlying core (transport or libp2p)
  *
- * @defgroup CORE
+ * @defgroup CONG COre Next Generation service
  * Secure Communication with other peers
  *
  * @see [Documentation](https://gnunet.org/core-service) TODO
