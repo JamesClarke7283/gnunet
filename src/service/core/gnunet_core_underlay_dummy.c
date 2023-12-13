@@ -34,6 +34,8 @@
  * @{
  */
 
+// TODO fix log levels
+
 #ifdef __cplusplus
 extern "C" {
 #if 0 /* keep Emacsens' auto-indent happy */
@@ -93,7 +95,9 @@ struct GNUNET_CORE_UNDERLAY_DUMMY_Handle
   void *cls_mq;
 
   /**
-   * Closure for handlers TODO which handlers???
+   * Closure for handlers given by the client
+   * (#notify_connect, #notify_disconnect, #notify_address_change)
+   * TODO what's the doxygen way of linking to other members of this struct?
    */
   void *cls;
 
@@ -231,7 +235,8 @@ mq_send_impl (struct GNUNET_MQ_Handle *mq,
   struct GNUNET_CORE_UNDERLAY_DUMMY_Handle *h = impl_state;
 
   LOG(GNUNET_ERROR_TYPE_INFO, "from mq_send_impl\n");
-  if (NULL != h->msg_next) return; // This is a very sloppy implementation - a
+  if (NULL != h->msg_next) return; // FIXME
+                                   // This is a very sloppy implementation - a
                                    // dummy. This might cause problems later
   h->msg_next = GNUNET_new (struct GNUNET_MessageHeader);
   GNUNET_memcpy (h->msg_next, msg, sizeof (msg));
@@ -527,6 +532,7 @@ GNUNET_CORE_UNDERLAY_DUMMY_disconnect
     GNUNET_NETWORK_socket_close (handle->sock);
   }
   GNUNET_free (handle->sock_name);
+  // TODO handlers
   GNUNET_free (handle);
 }
 
