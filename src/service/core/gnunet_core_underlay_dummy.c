@@ -216,7 +216,7 @@ write_cb (void *cls)
   //                                             sock_listen,
   //                                             &write_cb,
   //                                             NULL);
-  // TODO GNUNET_MQ_impl_send_continue
+  GNUNET_MQ_impl_send_continue (h->mq);
 }
 
 /**
@@ -264,7 +264,25 @@ mq_send_impl (struct GNUNET_MQ_Handle *mq,
 static void
 mq_destroy_impl (struct GNUNET_MQ_Handle *mq, void *impl_state)
 {
-  // TODO
+  struct GNUNET_CORE_UNDERLAY_DUMMY_Handle *h = impl_state;
+
+  if (NULL != h->recv_task)
+  {
+    LOG (GNUNET_ERROR_TYPE_INFO, "Cancelling recv task\n");
+    GNUNET_SCHEDULER_cancel (h->recv_task);
+    h->recv_task = NULL;
+  }
+  if ((NULL != h->sock) &&
+      (GNUNET_YES != GNUNET_NETWORK_socket_shutdown (h->sock, SHUT_RDWR)))
+  {
+    LOG (GNUNET_ERROR_TYPE_ERROR, "Faild to shutdown socket operations\n");
+  }
+  if (NULL != h->sock)
+  {
+    GNUNET_NETWORK_socket_close (h->sock);
+    h->sock = NULL;
+  }
+  // TODO adapt to multiple peers
 }
 
 /**
@@ -276,7 +294,19 @@ mq_destroy_impl (struct GNUNET_MQ_Handle *mq, void *impl_state)
 static void
 mq_cancel_impl (struct GNUNET_MQ_Handle *mq, void *impl_state)
 {
-  // TODO
+  struct GNUNET_CORE_UNDERLAY_DUMMY_Handle *h = impl_state;
+
+  if (NULL != h->msg_next)
+  {
+    GNUNET_free (h->msg_next);
+    h->msg_next = NULL;
+  }
+  if (NULL != h->write_task)
+  {
+    GNUNET_SCHEDULER_cancel (h->write_task);
+    h->write_task = NULL;
+  }
+  // TODO adapt to multiple peers
 }
 
 /**
@@ -522,6 +552,7 @@ GNUNET_CORE_UNDERLAY_DUMMY_disconnect
   {
     GNUNET_NETWORK_socket_close (handle->sock_listen);
   }
+  GNUNET_MQ_destroy (handle->mq);
   if (NULL != handle->recv_task)
   {
     LOG (GNUNET_ERROR_TYPE_INFO, "Cancelling recv task\n");
