@@ -52,8 +52,8 @@ extern "C" {
 struct DummyContext
 {
   struct GNUNET_CORE_UNDERLAY_DUMMY_Handle *h;
-  //struct GNUNET_MQ_Handle *mq;
-} *dc1, *dc2;
+  struct GNUNET_MQ_Handle *mq;
+} *dc0, *dc1;
 
 uint8_t result_address_callback = GNUNET_NO;
 uint8_t result_connect_cb_0 = GNUNET_NO;
@@ -73,14 +73,19 @@ void *notify_connect_cb (
   struct GNUNET_MQ_Envelope *env;
   struct GNUNET_MessageHeader *msg;
 
+  // FIXME consider num_addresses to be 0
   LOG (GNUNET_ERROR_TYPE_INFO,
       "Got notified about successful connection to peer with %u address: `%s'\n",
       num_addresses,
       addresses[num_addresses - 1]);
-  if (GNUNET_NO == result_connect_cb_0) {
+  dc->mq = mq;
+  if (GNUNET_NO == result_connect_cb_0)
+  {
     result_connect_cb_0 = GNUNET_YES;
-  } else if (GNUNET_YES == result_connect_cb_0 &&
-             GNUNET_NO == result_connect_cb_1) {
+  }
+  else if (GNUNET_YES == result_connect_cb_0 &&
+             GNUNET_NO == result_connect_cb_1)
+  {
     result_connect_cb_1 = GNUNET_YES;
   }
   env = GNUNET_MQ_msg (msg, MTYPE); // TODO
@@ -113,10 +118,10 @@ void do_shutdown (void *cls)
 {
   //struct GNUNET_CORE_UNDERLAY_DUMMY_Handle *h = cls;
 
+  GNUNET_CORE_UNDERLAY_DUMMY_disconnect (dc0->h);
   GNUNET_CORE_UNDERLAY_DUMMY_disconnect (dc1->h);
-  GNUNET_CORE_UNDERLAY_DUMMY_disconnect (dc2->h);
+  GNUNET_free (dc0);
   GNUNET_free (dc1);
-  GNUNET_free (dc2);
   LOG(GNUNET_ERROR_TYPE_INFO, "Disconnected from underlay dummy\n");
 }
 
@@ -136,35 +141,46 @@ handle_test (void *cls, const struct GNUNET_MessageHeader *msg)
 
   LOG (GNUNET_ERROR_TYPE_INFO, "received test message\n");
 
-  if (GNUNET_NO == result_reply_0) {
+  // TODO check the content
+
+  if (GNUNET_NO == result_reply_0)
+  {
     result_reply_0 = GNUNET_YES;
-  } else if (GNUNET_YES == result_reply_0 && GNUNET_NO == result_reply_1) {
+  }
+  else if (GNUNET_YES == result_reply_0 && GNUNET_NO == result_reply_1)
+  {
     result_reply_1 = GNUNET_YES;
   }
+  GNUNET_CORE_UNDERLAY_DUMMY_receive_continue (dc->h, dc->mq);
 }
 
 
 static void run_test (void *cls)
 {
-  struct GNUNET_MQ_MessageHandler handlers[] =
+  GNUNET_log_setup ("test-core-underlay-dummy", "DEBUG", NULL);
+  dc0 = GNUNET_new(struct DummyContext);
+  dc1 = GNUNET_new(struct DummyContext);
+  struct GNUNET_MQ_MessageHandler handlers0[] =
   {
-    GNUNET_MQ_hd_fixed_size (test, MTYPE, struct GNUNET_MessageHeader, NULL),
+    GNUNET_MQ_hd_fixed_size (test, MTYPE, struct GNUNET_MessageHeader, dc0),
     GNUNET_MQ_handler_end ()
   };
-  GNUNET_log_setup ("test-core-underlay-dummy", "DEBUG", NULL);
-  dc1 = GNUNET_new(struct DummyContext);
-  dc2 = GNUNET_new(struct DummyContext);
+  struct GNUNET_MQ_MessageHandler handlers1[] =
+  {
+    GNUNET_MQ_hd_fixed_size (test, MTYPE, struct GNUNET_MessageHeader, dc1),
+    GNUNET_MQ_handler_end ()
+  };
   LOG(GNUNET_ERROR_TYPE_INFO, "Connecting to underlay dummy\n");
-  dc1->h = GNUNET_CORE_UNDERLAY_DUMMY_connect (NULL, //cfg
-                                               handlers,
-                                               dc1, // cls
+  dc0->h = GNUNET_CORE_UNDERLAY_DUMMY_connect (NULL, //cfg
+                                               handlers0,
+                                               dc0, // cls
                                                notify_connect_cb, // nc
                                                NULL, // nd
                                                address_change_cb); // na
   LOG(GNUNET_ERROR_TYPE_INFO, "Connected to underlay dummy 1\n");
-  dc2->h = GNUNET_CORE_UNDERLAY_DUMMY_connect (NULL, //cfg
-                                               handlers,
-                                               dc2, // cls
+  dc1->h = GNUNET_CORE_UNDERLAY_DUMMY_connect (NULL, //cfg
+                                               handlers1,
+                                               dc1, // cls
                                                notify_connect_cb, // nc
                                                NULL, // nd
                                                address_change_cb); // na

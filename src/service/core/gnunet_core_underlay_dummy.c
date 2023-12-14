@@ -179,10 +179,8 @@ do_read (void *cls)
   msg = GNUNET_malloc (ret);
   GNUNET_memcpy (msg, buf, ret);
   GNUNET_MQ_handle_message (h->handlers, msg);
-  h->recv_task = GNUNET_SCHEDULER_add_read_net (GNUNET_TIME_UNIT_FOREVER_REL,
-                                                h->sock,
-                                                do_read,
-                                                h);
+  // TODO do proper rate limiting in sync with
+  // GNUNET_CORE_UNDERLAY_DUMMY_receive_continue
 }
 
 
@@ -590,10 +588,14 @@ GNUNET_CORE_UNDERLAY_DUMMY_disconnect
  */
 void
 GNUNET_CORE_UNDERLAY_DUMMY_receive_continue (
-    struct GNUNET_CORE_UNDERLAY_DUMMY_Handle *ch,
+    struct GNUNET_CORE_UNDERLAY_DUMMY_Handle *h,
     struct GNUNET_MQ_Handle *mq)
 {
   // TODO we currently have a window size of 1 - expand it!
+  h->recv_task = GNUNET_SCHEDULER_add_read_net (GNUNET_TIME_UNIT_FOREVER_REL,
+                                                h->sock,
+                                                do_read,
+                                                h);
 }
 
 
