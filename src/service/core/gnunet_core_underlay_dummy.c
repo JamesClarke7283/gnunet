@@ -366,7 +366,7 @@ do_accept (void *cls)
                                         // this by Queues per peer (or so)
                                      h->handlers, // handlers - may be NULL?
                                      NULL, // mq_error_handler_impl
-                                     NULL);// cls
+                                     h->cls); // cls
     h->cls_mq = h->notify_connect (h->cls, 1, (const char **) addresses, h->mq);
   }
   GNUNET_assert (NULL == h->recv_task);
@@ -424,8 +424,9 @@ do_open_socket (void *cls)
   addr_un_len = sizeof (struct sockaddr_un);
   // TODO we might want to change this loop to schedule a new task
   do {
-    // TODO GNUNET_sprintf()?
-    sprintf (addr_un->sun_path, SOCK_NAME_BASE "%u\0", sock_name_ctr++);
+    GNUNET_snprintf (addr_un->sun_path,
+                     addr_un_len - sizeof (sa_family_t),
+                     SOCK_NAME_BASE "%u\0", sock_name_ctr++);
     LOG (GNUNET_ERROR_TYPE_INFO, "Trying to bind to `%s'\n", addr_un->sun_path);
     ret = GNUNET_NETWORK_socket_bind (h->sock_listen,
                                      (struct sockaddr *) addr_un,
@@ -666,7 +667,7 @@ GNUNET_CORE_UNDERLAY_DUMMY_connect_to_peer (
                                       // this by Queues per peer (or so)
                                    h->handlers, // handlers - may be NULL?
                                    NULL, // mq_error_handler_impl
-                                   NULL);
+                                   h->cls); // cls
   if (NULL != h->notify_connect)
   {
     h->notify_connect(h->cls,
