@@ -35,6 +35,8 @@
  */
 
 // TODO fix log levels
+// TODO change structures to allow connections to multiple peers
+// TODO actually implement rate-limiting
 
 #ifdef __cplusplus
 extern "C" {
@@ -205,7 +207,7 @@ write_cb (void *cls)
     LOG (GNUNET_ERROR_TYPE_ERROR, "Failed to send message\n");
     return; // TODO proper handling
   }
-  LOG (GNUNET_ERROR_TYPE_INFO, "Successfully sent message\n");
+  LOG (GNUNET_ERROR_TYPE_DEBUG, "Successfully sent message\n");
   GNUNET_free (h->msg_next);
   h->msg_next = NULL;
   // TODO reschedule for the next round. With the current implementation of the
@@ -232,7 +234,7 @@ mq_send_impl (struct GNUNET_MQ_Handle *mq,
 {
   struct GNUNET_CORE_UNDERLAY_DUMMY_Handle *h = impl_state;
 
-  LOG(GNUNET_ERROR_TYPE_INFO, "from mq_send_impl\n");
+  LOG(GNUNET_ERROR_TYPE_DEBUG, "from mq_send_impl\n");
   if (NULL != h->msg_next) return; // FIXME
                                    // This is a very sloppy implementation - a
                                    // dummy. This might cause problems later
@@ -245,11 +247,11 @@ mq_send_impl (struct GNUNET_MQ_Handle *mq,
                                       h->sock,
                                       &write_cb,
                                       h);
-    LOG(GNUNET_ERROR_TYPE_INFO, "Scheduled sending of message\n");
+    LOG(GNUNET_ERROR_TYPE_DEBUG, "Scheduled sending of message\n");
   }
   else
   {
-    LOG(GNUNET_ERROR_TYPE_INFO, "Not scheduled sending of message - already scheduled a task for that\n");
+    LOG(GNUNET_ERROR_TYPE_DEBUG, "Not scheduled sending of message - already scheduled a task for that\n");
   }
 }
 
@@ -508,6 +510,7 @@ GNUNET_CORE_UNDERLAY_DUMMY_connect (const struct GNUNET_CONFIGURATION_Handle *cf
   //h->handlers = handlers;
   if (NULL != handlers)
   {
+    // FIXME use GNUNET_MQ_copy_handlers()
     for (i = 0; NULL != handlers[i].cb; i++)
       ;
     h->handlers = GNUNET_new_array (i + 1, struct GNUNET_MQ_MessageHandler);
