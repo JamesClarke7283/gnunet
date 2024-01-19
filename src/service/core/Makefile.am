@@ -109,9 +109,8 @@ gnunet_service_core_SOURCES = \
 gnunet_service_core_LDADD = \
   $(top_builddir)/src/service/statistics/libgnunetstatistics.la \
   $(top_builddir)/src/service/transport/libgnunettransportapplication.la \
-  $(top_builddir)/src/service/transport/libgnunettransportcore.la \
   $(top_builddir)/src/lib/util/libgnunetutil.la \
-  $(GN_LIBINTL) $(Z_LIBS)
+  $(UNDERLAY_DUMMY_LIBS) $(GN_LIBINTL) $(Z_LIBS)
 
 
 #TESTING_TESTS = \

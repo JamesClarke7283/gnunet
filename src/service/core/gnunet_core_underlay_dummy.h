@@ -66,6 +66,8 @@ struct GNUNET_CORE_UNDERLAY_DUMMY_Handle;
  * Function called to notify core underlay dummy users that another
  * peer connected to us.
  *
+ * If the underlay knows the peer id, it should include it in the addresses
+ *
  * @param cls closure
  * @param num_addresses number of addresses of the connecting peer
  * @param addresses address URIs of the connecting peer

@@ -26,7 +26,7 @@
  */
 #include "platform.h"
 #include "gnunet-service-core_kx.h"
-#include "gnunet_transport_core_service.h"
+#include "gnunet_core_underlay_dummy.h"
 #include "gnunet-service-core_sessions.h"
 #include "gnunet-service-core.h"
 #include "gnunet_constants.h"
@@ -247,6 +247,7 @@ struct GSC_KeyExchangeInfo
 
   /**
    * At what time did the other peer generate the decryption key?
+   * FIXME the description seems to not fit the name
    */
   struct GNUNET_TIME_Absolute foreign_key_expires;
 
@@ -310,9 +311,9 @@ struct GSC_KeyExchangeInfo
 
 
 /**
- * Transport service.
+ * Underlay service.
  */
-static struct GNUNET_TRANSPORT_CoreHandle *transport;
+static struct GNUNET_CORE_UNDERLAY_DUMMY_Handle *underlay;
 
 /**
  * Our private key.
@@ -831,22 +832,35 @@ deliver_message (void *cls, const struct GNUNET_MessageHeader *m)
 
 
 /**
- * Function called by transport to notify us that
+ * Function called by underlay to notify us that
  * a peer connected to us (on the network level).
  * Starts the key exchange with the given peer.
  *
  * @param cls closure (NULL)
- * @param pid identity of the peer to do a key exchange with
+ * @param num_addresses number of addresses of the connecting peer
+ * @param addresses address URIs of the connecting peer
+ * @param mq message queue towards peer
  * @return key exchange information context
  */
 static void *
-handle_transport_notify_connect (void *cls,
-                                 const struct GNUNET_PeerIdentity *pid,
-                                 struct GNUNET_MQ_Handle *mq)
+handle_underlay_notify_connect (void *cls,
+                                uint32_t num_addresses,
+                                const char *addresses[static num_addresses],
+                                struct GNUNET_MQ_Handle *mq)
 {
+  struct GNUNET_PeerIdentity *pid = NULL; // FIXME
+
   struct GSC_KeyExchangeInfo *kx;
   struct GNUNET_HashCode h1;
   struct GNUNET_HashCode h2;
+
+  if (NULL == pid)
+  {
+    // FIXME consider the case that the underlay doesn't know about peer ids
+    // (libp2p)
+    // TODO exchange the peer id on top of underlay as a first
+    GNUNET_assert (0);
+  }
 
   GNUNET_log (GNUNET_ERROR_TYPE_DEBUG,
               "Initiating key exchange with `%s'\n",
@@ -889,7 +903,7 @@ handle_transport_notify_connect (void *cls,
 
 
 /**
- * Function called by transport telling us that a peer
+ * Function called by underlay telling us that a peer
  * disconnected.
  * Stop key exchange with the given peer.  Clean up key material.
  *
@@ -898,15 +912,14 @@ handle_transport_notify_connect (void *cls,
  * @param handler_cls the `struct GSC_KeyExchangeInfo` of the peer
  */
 static void
-handle_transport_notify_disconnect (void *cls,
-                                    const struct GNUNET_PeerIdentity *peer,
-                                    void *handler_cls)
+handle_underlay_notify_disconnect (void *cls,
+                                   void *handler_cls)
 {
   struct GSC_KeyExchangeInfo *kx = handler_cls;
 
   GNUNET_log (GNUNET_ERROR_TYPE_DEBUG,
               "Peer `%s' disconnected from us.\n",
-              GNUNET_i2s (peer));
+              GNUNET_i2s (kx->peer));
   GSC_SESSIONS_end (kx->peer);
   GNUNET_STATISTICS_update (GSC_stats,
                             gettext_noop ("# key exchanges stopped"),
@@ -927,6 +940,27 @@ handle_transport_notify_disconnect (void *cls,
   GNUNET_CONTAINER_DLL_remove (kx_head, kx_tail, kx);
   GNUNET_MST_destroy (kx->mst);
   GNUNET_free (kx);
+}
+
+
+/**
+ * Function called to notify core of the now available addresses. Core will
+ * update its peer identity accordingly.
+ *
+ * @param cls closure from #GNUNET_CORE_UNDERLAY_DUMMY_connect
+ * @param network_location_hash hash of the address URIs representing our
+ *                              current network location
+ * @param network_generation_id the id of the current network generation (this
+ *                              id changes each time the network location
+ *                              changes)
+ */
+static void
+handle_underlay_notify_address_change (
+    void *cls,
+    struct GNUNET_HashCode network_location_hash,
+    uint64_t network_generation_id)
+{
+  // TODO
 }
 
 
@@ -1016,7 +1050,7 @@ handle_ephemeral_key (void *cls, const struct EphemeralKeyMessage *m)
     GNUNET_log (GNUNET_ERROR_TYPE_WARNING,
                 "Received expired EPHEMERAL_KEY from %s\n",
                 GNUNET_i2s (&m->origin_identity));
-    GNUNET_TRANSPORT_core_receive_continue (transport, kx->peer);
+    GNUNET_CORE_UNDERLAY_DUMMY_receive_continue (underlay, kx->mq);
     return;
   }
   if (0 == memcmp (&m->ephemeral_key,
@@ -1032,6 +1066,8 @@ handle_ephemeral_key (void *cls, const struct EphemeralKeyMessage *m)
                 "Duplicate EPHEMERAL_KEY from %s, do not verify\n",
                 GNUNET_i2s (&m->origin_identity));
     do_verify = GNUNET_NO;
+    //GNUNET_CORE_UNDERLAY_DUMMY_receive_continue (underlay, kx->mq);
+    //return;
   }
   if (0 != memcmp (&m->origin_identity,
                    kx->peer,
@@ -1042,7 +1078,7 @@ handle_ephemeral_key (void *cls, const struct EphemeralKeyMessage *m)
                 GNUNET_i2s (&m->origin_identity),
                 GNUNET_i2s_full (kx->peer));
     GNUNET_break_op (0);
-    GNUNET_TRANSPORT_core_receive_continue (transport, kx->peer);
+    GNUNET_CORE_UNDERLAY_DUMMY_receive_continue (underlay, kx->mq);
     return;
   }
   if (do_verify && ((ntohl (m->purpose.size) !=
@@ -1069,7 +1105,7 @@ handle_ephemeral_key (void *cls, const struct EphemeralKeyMessage *m)
     GNUNET_log (GNUNET_ERROR_TYPE_WARNING,
                 "Received EPHEMERAL_KEY from %s with bad signature\n",
                 GNUNET_i2s (&m->origin_identity));
-    GNUNET_TRANSPORT_core_receive_continue (transport, kx->peer);
+    GNUNET_CORE_UNDERLAY_DUMMY_receive_continue (underlay, kx->mq);
     return;
   }
   now = GNUNET_TIME_absolute_get ();
@@ -1093,7 +1129,7 @@ handle_ephemeral_key (void *cls, const struct EphemeralKeyMessage *m)
                               ,
                               1,
                               GNUNET_NO);
-    GNUNET_TRANSPORT_core_receive_continue (transport, kx->peer);
+    GNUNET_CORE_UNDERLAY_DUMMY_receive_continue (underlay, kx->mq);
     return;
   }
 #if DEBUG_KX
@@ -1197,7 +1233,7 @@ handle_ephemeral_key (void *cls, const struct EphemeralKeyMessage *m)
     GNUNET_break (0);
     break;
   }
-  GNUNET_TRANSPORT_core_receive_continue (transport, kx->peer);
+  GNUNET_CORE_UNDERLAY_DUMMY_receive_continue (underlay, kx->mq);
 }
 
 
@@ -1239,7 +1275,7 @@ handle_ping (void *cls, const struct PingMessage *m)
                                 "# PING messages dropped (out of order)"),
                               1,
                               GNUNET_NO);
-    GNUNET_TRANSPORT_core_receive_continue (transport, kx->peer);
+    GNUNET_CORE_UNDERLAY_DUMMY_receive_continue (underlay, kx->mq);
     return;
   }
   GNUNET_log (GNUNET_ERROR_TYPE_DEBUG,
@@ -1257,7 +1293,7 @@ handle_ping (void *cls, const struct PingMessage *m)
         kx->decrypt_key))
   {
     GNUNET_break_op (0);
-    GNUNET_TRANSPORT_core_receive_continue (transport, kx->peer);
+    GNUNET_TRANSPORT_core_receive_continue (underlay, kx->peer);
     return;
   }
 #else
@@ -1270,7 +1306,7 @@ handle_ping (void *cls, const struct PingMessage *m)
                                - ((void *) &m->target - (void *) m)))
   {
     GNUNET_break_op (0);
-    GNUNET_TRANSPORT_core_receive_continue (transport, kx->peer);
+    GNUNET_CORE_UNDERLAY_DUMMY_receive_continue (underlay, kx->mq);
     return;
   }
 #endif
@@ -1288,7 +1324,7 @@ handle_ping (void *cls, const struct PingMessage *m)
         "Decryption of PING from peer `%s' failed after rekey (harmless)\n",
         GNUNET_i2s (kx->peer));
     GNUNET_break_op (0);
-    GNUNET_TRANSPORT_core_receive_continue (transport, kx->peer);
+    GNUNET_CORE_UNDERLAY_DUMMY_receive_continue (underlay, kx->mq);
     return;
   }
   /* construct PONG */
@@ -1331,7 +1367,7 @@ handle_ping (void *cls, const struct PingMessage *m)
     kx->keep_alive_task = GNUNET_SCHEDULER_add_delayed (MIN_PING_FREQUENCY, &
                                                         send_keep_alive, kx);
   }
-  GNUNET_TRANSPORT_core_receive_continue (transport, kx->peer);
+  GNUNET_CORE_UNDERLAY_DUMMY_receive_continue (underlay, kx->mq);
 }
 
 
@@ -1437,7 +1473,7 @@ handle_pong (void *cls, const struct PongMessage *m)
                                 "# PONG messages dropped (connection down)"),
                               1,
                               GNUNET_NO);
-    GNUNET_TRANSPORT_core_receive_continue (transport, kx->peer);
+    GNUNET_CORE_UNDERLAY_DUMMY_receive_continue (underlay, kx->mq);
     return;
 
   case GNUNET_CORE_KX_STATE_KEY_SENT:
@@ -1446,7 +1482,7 @@ handle_pong (void *cls, const struct PongMessage *m)
                                 "# PONG messages dropped (out of order)"),
                               1,
                               GNUNET_NO);
-    GNUNET_TRANSPORT_core_receive_continue (transport, kx->peer);
+    GNUNET_CORE_UNDERLAY_DUMMY_receive_continue (underlay, kx->mq);
     return;
 
   case GNUNET_CORE_KX_STATE_KEY_RECEIVED:
@@ -1460,7 +1496,7 @@ handle_pong (void *cls, const struct PongMessage *m)
 
   default:
     GNUNET_break (0);
-    GNUNET_TRANSPORT_core_receive_continue (transport, kx->peer);
+    GNUNET_CORE_UNDERLAY_DUMMY_receive_continue (underlay, kx->mq);
     return;
   }
   GNUNET_log (GNUNET_ERROR_TYPE_DEBUG,
@@ -1481,7 +1517,7 @@ handle_pong (void *cls, const struct PongMessage *m)
         kx->decrypt_key))
   {
     GNUNET_break_op (0);
-    GNUNET_TRANSPORT_core_receive_continue (transport, kx->peer);
+    GNUNET_TRANSPORT_core_receive_continue (underlay, kx->peer);
     return;
   }
 #else
@@ -1498,7 +1534,7 @@ handle_pong (void *cls, const struct PongMessage *m)
                                - ((void *) &m->challenge - (void *) m)))
   {
     GNUNET_break_op (0);
-    GNUNET_TRANSPORT_core_receive_continue (transport, kx->peer);
+    GNUNET_CORE_UNDERLAY_DUMMY_receive_continue (underlay, kx->mq);
     return;
   }
 #endif
@@ -1519,7 +1555,7 @@ handle_pong (void *cls, const struct PongMessage *m)
                 "Received malformed PONG received from `%s' with challenge %u\n",
                 GNUNET_i2s (&t.target),
                 (unsigned int) t.challenge);
-    GNUNET_TRANSPORT_core_receive_continue (transport, kx->peer);
+    GNUNET_CORE_UNDERLAY_DUMMY_receive_continue (underlay, kx->mq);
     return;
   }
   GNUNET_log (GNUNET_ERROR_TYPE_DEBUG,
@@ -1535,12 +1571,12 @@ handle_pong (void *cls, const struct PongMessage *m)
   {
   case GNUNET_CORE_KX_STATE_DOWN:
     GNUNET_assert (0);  /* should be impossible */
-    GNUNET_TRANSPORT_core_receive_continue (transport, kx->peer);
+    GNUNET_CORE_UNDERLAY_DUMMY_receive_continue (underlay, kx->mq);
     return;
 
   case GNUNET_CORE_KX_STATE_KEY_SENT:
     GNUNET_assert (0);  /* should be impossible */
-    GNUNET_TRANSPORT_core_receive_continue (transport, kx->peer);
+    GNUNET_CORE_UNDERLAY_DUMMY_receive_continue (underlay, kx->mq);
     return;
 
   case GNUNET_CORE_KX_STATE_KEY_RECEIVED:
@@ -1579,7 +1615,7 @@ handle_pong (void *cls, const struct PongMessage *m)
     GNUNET_break (0);
     break;
   }
-  GNUNET_TRANSPORT_core_receive_continue (transport, kx->peer);
+  GNUNET_CORE_UNDERLAY_DUMMY_receive_continue (underlay, kx->mq);
 }
 
 
@@ -1755,7 +1791,7 @@ handle_encrypted (void *cls, const struct EncryptedMessage *m)
                                 "# DATA message dropped (out of order)"),
                               1,
                               GNUNET_NO);
-    GNUNET_TRANSPORT_core_receive_continue (transport, kx->peer);
+    GNUNET_CORE_UNDERLAY_DUMMY_receive_continue (underlay, kx->mq);
     return;
   }
   if (0 ==
@@ -1780,7 +1816,7 @@ handle_encrypted (void *cls, const struct EncryptedMessage *m)
     kx->status = GNUNET_CORE_KX_STATE_KEY_SENT;
     monitor_notify_all (kx);
     send_key (kx);
-    GNUNET_TRANSPORT_core_receive_continue (transport, kx->peer);
+    GNUNET_CORE_UNDERLAY_DUMMY_receive_continue (underlay, kx->mq);
     return;
   }
 
@@ -1810,7 +1846,7 @@ handle_encrypted (void *cls, const struct EncryptedMessage *m)
         kx->decrypt_key))
   {
     GNUNET_break_op (0);
-    GNUNET_TRANSPORT_core_receive_continue (transport, kx->peer);
+    GNUNET_TRANSPORT_core_receive_continue (underlay, kx->peer);
     return;
   }
 #else
@@ -1841,7 +1877,7 @@ handle_encrypted (void *cls, const struct EncryptedMessage *m)
       GNUNET_log (GNUNET_ERROR_TYPE_WARNING,
                   "Failed checksum validation for a message from `%s'\n",
                   GNUNET_i2s (kx->peer));
-      GNUNET_TRANSPORT_core_receive_continue (transport, kx->peer);
+      GNUNET_CORE_UNDERLAY_DUMMY_receive_continue (underlay, kx->mq);
       return;
     }
     derive_iv (&iv, &kx->decrypt_key, m->iv_seed, &GSC_my_identity);
@@ -1853,7 +1889,7 @@ handle_encrypted (void *cls, const struct EncryptedMessage *m)
                                  size - ENCRYPTED_HEADER_SIZE))
     {
       GNUNET_break_op (0);
-      GNUNET_TRANSPORT_core_receive_continue (transport, kx->peer);
+      GNUNET_CORE_UNDERLAY_DUMMY_receive_continue (underlay, kx->mq);
       return;
     }
   }
@@ -1875,7 +1911,7 @@ handle_encrypted (void *cls, const struct EncryptedMessage *m)
                               gettext_noop ("# bytes dropped (duplicates)"),
                               size,
                               GNUNET_NO);
-    GNUNET_TRANSPORT_core_receive_continue (transport, kx->peer);
+    GNUNET_CORE_UNDERLAY_DUMMY_receive_continue (underlay, kx->mq);
     return;
   }
   if ((kx->last_sequence_number_received > snum) &&
@@ -1889,7 +1925,7 @@ handle_encrypted (void *cls, const struct EncryptedMessage *m)
                                 "# bytes dropped (out of sequence)"),
                               size,
                               GNUNET_NO);
-    GNUNET_TRANSPORT_core_receive_continue (transport, kx->peer);
+    GNUNET_CORE_UNDERLAY_DUMMY_receive_continue (underlay, kx->mq);
     return;
   }
   if (kx->last_sequence_number_received > snum)
@@ -1905,7 +1941,7 @@ handle_encrypted (void *cls, const struct EncryptedMessage *m)
                                 size,
                                 GNUNET_NO);
       /* duplicate, ignore */
-      GNUNET_TRANSPORT_core_receive_continue (transport, kx->peer);
+      GNUNET_CORE_UNDERLAY_DUMMY_receive_continue (underlay, kx->mq);
       return;
     }
     kx->last_packets_bitmap |= rotbit;
@@ -1936,7 +1972,7 @@ handle_encrypted (void *cls, const struct EncryptedMessage *m)
                                 "# bytes dropped (ancient message)"),
                               size,
                               GNUNET_NO);
-    GNUNET_TRANSPORT_core_receive_continue (transport, kx->peer);
+    GNUNET_CORE_UNDERLAY_DUMMY_receive_continue (underlay, kx->mq);
     return;
   }
 
@@ -1953,8 +1989,7 @@ handle_encrypted (void *cls, const struct EncryptedMessage *m)
                               GNUNET_YES,
                               GNUNET_NO))
     GNUNET_break_op (0);
-
-  GNUNET_TRANSPORT_core_receive_continue (transport, kx->peer);
+  GNUNET_CORE_UNDERLAY_DUMMY_receive_continue (underlay, kx->mq);
 }
 
 
@@ -2087,14 +2122,14 @@ GSC_KX_init (struct GNUNET_CRYPTO_EddsaPrivateKey *pk)
 
   nc = GNUNET_notification_context_create (1);
   rekey_task = GNUNET_SCHEDULER_add_delayed (REKEY_FREQUENCY, &do_rekey, NULL);
-  transport =
-    GNUNET_TRANSPORT_core_connect (GSC_cfg,
-                                   &GSC_my_identity,
-                                   handlers,
-                                   NULL,
-                                   &handle_transport_notify_connect,
-                                   &handle_transport_notify_disconnect);
-  if (NULL == transport)
+  underlay =
+    GNUNET_CORE_UNDERLAY_DUMMY_connect (GSC_cfg,
+                                        handlers,
+                                        NULL,
+                                        &handle_underlay_notify_connect,
+                                        &handle_underlay_notify_disconnect,
+                                        &handle_underlay_notify_address_change);
+  if (NULL == underlay)
   {
     GSC_KX_done ();
     return GNUNET_SYSERR;
@@ -2109,10 +2144,10 @@ GSC_KX_init (struct GNUNET_CRYPTO_EddsaPrivateKey *pk)
 void
 GSC_KX_done ()
 {
-  if (NULL != transport)
+  if (NULL != underlay)
   {
-    GNUNET_TRANSPORT_core_disconnect (transport);
-    transport = NULL;
+    GNUNET_CORE_UNDERLAY_DUMMY_disconnect (underlay);
+    underlay = NULL;
   }
   if (NULL != rekey_task)
   {

@@ -267,6 +267,8 @@ struct GNUNET_CORE_Handle;
 /**
  * Method called whenever a given peer connects.
  *
+ * TODO include class
+ *
  * @param cls closure
  * @param peer peer identity this notification is about
  * @return closure associated with @a peer. given to mq callbacks and
@@ -308,6 +310,7 @@ typedef void (*GNUNET_CORE_StartupCallback) (
   void *cls,
   const struct GNUNET_PeerIdentity *my_identity);
 
+// TODO hanlder for peer id change
 
 /**
  * Connect to the core service.  Note that the connection may complete

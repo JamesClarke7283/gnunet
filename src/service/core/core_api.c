@@ -93,6 +93,8 @@ struct GNUNET_CORE_Handle
 
   /**
    * Function to call whenever we're notified about a peer connecting.
+   * TODO change function signature to include information about class of
+   *      connecting peer.
    */
   GNUNET_CORE_ConnectEventHandler connects;
 
@@ -693,6 +695,8 @@ GNUNET_CORE_connect (const struct GNUNET_CONFIGURATION_Handle *cfg,
                      GNUNET_CORE_StartupCallback init,
                      GNUNET_CORE_ConnectEventHandler connects,
                      GNUNET_CORE_DisconnectEventHandler disconnects,
+                     /* TODO handler for peerID change */
+                     /* TODO do we need a handler for address change? */
                      const struct GNUNET_MQ_MessageHandler *handlers)
 {
   struct GNUNET_CORE_Handle *h;

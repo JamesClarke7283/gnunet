@@ -369,7 +369,10 @@ do_accept (void *cls)
                                      h->handlers, // handlers - may be NULL?
                                      NULL, // mq_error_handler_impl
                                      h->cls); // cls
-    h->cls_mq = h->notify_connect (h->cls, 1, (const char **) addresses, h->mq);
+    h->cls_mq = h->notify_connect (h->cls,
+                                   1,
+                                   (const char **) addresses,
+                                   h->mq);
   }
   GNUNET_assert (NULL == h->recv_task);
   h->recv_task = GNUNET_SCHEDULER_add_read_net (GNUNET_TIME_UNIT_FOREVER_REL,
