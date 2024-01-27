@@ -46,6 +46,7 @@ extern "C" {
 #define LOG(kind, ...) GNUNET_log_from (kind, "core", __VA_ARGS__)
 
 #define SOCK_NAME_BASE "/tmp/gnunet-core-underlay-dummy-socket"
+#define SOCK_EXTENSION ".sock"
 
 #define MTYPE 12345
 #define NUMBER_MESSAGES 100
@@ -116,7 +117,7 @@ void address_change_cb (void *cls,
   result_address_callback = GNUNET_YES;
   LOG(GNUNET_ERROR_TYPE_INFO, "Got informed of address change\n");
   GNUNET_CORE_UNDERLAY_DUMMY_connect_to_peer (dc->h,
-                                              SOCK_NAME_BASE "1",
+                                              SOCK_NAME_BASE "1" SOCK_EXTENSION,
                                               GNUNET_MQ_PRIO_BEST_EFFORT,
                                               GNUNET_BANDWIDTH_VALUE_MAX);
 }
