@@ -49,12 +49,25 @@ extern "C" {
 #define SOCK_EXTENSION ".sock"
 
 #define MTYPE 12345
-#define NUMBER_MESSAGES 100
+#define NUMBER_MESSAGES 10
+
+// TODO we could implement checks for early success and tear everything down
+
+struct DummyContext;
+
+struct Connection
+{
+  struct Connection *next;
+  struct Connection *prev;
+  struct GNUNET_MQ_Handle *mq;
+  struct DummyContext *dc;
+};
 
 struct DummyContext
 {
   struct GNUNET_CORE_UNDERLAY_DUMMY_Handle *h;
-  struct GNUNET_MQ_Handle *mq;
+  struct Connection *conn_head;
+  struct Connection *conn_tail;
   uint32_t result_replys;
 } dc0, dc1;
 
@@ -66,6 +79,20 @@ uint32_t result_replys_1 = 0;
 
 static struct GNUNET_SCHEDULER_Task *timeout_task;
 
+/**
+ * @brief Notify about an established connection.
+ *
+ * @param cls the closure given to the 'service' on
+ * GNUNET_CORE_UNDERLAY_DUMMY_connect
+ * @param num_addresses number of addresses connected to the incoming
+ *                      connection
+ * @param addresses string represenation of the @a num_addresses addresses
+ *                  connected to the incoming connection
+ * @param mq
+ *
+ * @return The returned value overwrites the cls set in the handlers for this
+ * mq. If NULL, the cls from the original handlers array is used.
+ */
 void *notify_connect_cb (
   void *cls,
   uint32_t num_addresses,
@@ -75,13 +102,28 @@ void *notify_connect_cb (
   struct DummyContext *dc = (struct DummyContext *) cls;
   struct GNUNET_MQ_Envelope *env;
   struct GNUNET_MessageHeader *msg;
+  struct Connection *connection;
 
-  // FIXME consider num_addresses to be 0
+  if (0 == num_addresses)
+  {
+  LOG (GNUNET_ERROR_TYPE_INFO,
+      "Got notified about successful connection to peer with %u address\n",
+      num_addresses);
+  }
+  else
+  {
   LOG (GNUNET_ERROR_TYPE_INFO,
       "Got notified about successful connection to peer with %u address: `%s'\n",
       num_addresses,
       addresses[num_addresses - 1]);
-  dc->mq = mq;
+  }
+  connection = GNUNET_new (struct Connection);
+  connection->mq = mq;
+  connection->dc = dc;
+  GNUNET_MQ_set_handlers_closure (mq, connection);
+  GNUNET_CONTAINER_DLL_insert (dc->conn_head,
+                               dc->conn_tail,
+                               connection);
   if (GNUNET_NO == result_connect_cb_0)
   {
     result_connect_cb_0 = GNUNET_YES;
@@ -91,6 +133,8 @@ void *notify_connect_cb (
   {
     result_connect_cb_1 = GNUNET_YES;
   }
+  // FIXME get it in sync: number of messages sent (per connection) vs. number
+  // of messages received (per peer)
   for (uint32_t i = 0; i < NUMBER_MESSAGES; i++)
   {
     env = GNUNET_MQ_msg (msg, MTYPE); // TODO usually we wanted to keep the
@@ -101,13 +145,15 @@ void *notify_connect_cb (
     LOG (GNUNET_ERROR_TYPE_DEBUG, "Sent message through message queue\n");
   }
 
-  return dc;
+  return connection;
 }
+
 
 // TODO
 //typedef void (*GNUNET_CORE_UNDERLAY_DUMMY_NotifyDisconnect) (
 //  void *cls,
 //  void *handler_cls);
+
 
 void address_change_cb (void *cls,
                         struct GNUNET_HashCode network_location_hash,
@@ -131,6 +177,7 @@ void do_shutdown (void *cls)
   LOG(GNUNET_ERROR_TYPE_INFO, "Disconnected from underlay dummy\n");
 }
 
+
 void do_timeout (void *cls)
 {
   timeout_task = NULL;
@@ -143,14 +190,17 @@ void do_timeout (void *cls)
 static void
 handle_test (void *cls, const struct GNUNET_MessageHeader *msg)
 {
-  struct DummyContext *dc = (struct DummyContext *) cls;
+  struct Connection *connection = cls;
+
+  GNUNET_assert (NULL != cls);
 
   LOG (GNUNET_ERROR_TYPE_DEBUG, "received test message\n");
 
   // TODO check the content
 
-  dc->result_replys++;
-  GNUNET_CORE_UNDERLAY_DUMMY_receive_continue (dc->h, dc->mq);
+  connection->dc->result_replys++;
+  GNUNET_CORE_UNDERLAY_DUMMY_receive_continue (connection->dc->h,
+                                               connection->mq);
 }
 
 
@@ -159,30 +209,25 @@ static void run_test (void *cls)
   GNUNET_log_setup ("test-core-underlay-dummy", "DEBUG", NULL);
   dc0.result_replys = 0;
   dc1.result_replys = 0;
-  struct GNUNET_MQ_MessageHandler handlers0[] =
+  struct GNUNET_MQ_MessageHandler handlers[] =
   {
-    GNUNET_MQ_hd_fixed_size (test, MTYPE, struct GNUNET_MessageHeader, &dc0),
-    GNUNET_MQ_handler_end ()
-  };
-  struct GNUNET_MQ_MessageHandler handlers1[] =
-  {
-    GNUNET_MQ_hd_fixed_size (test, MTYPE, struct GNUNET_MessageHeader, &dc1),
+    GNUNET_MQ_hd_fixed_size (test, MTYPE, struct GNUNET_MessageHeader, NULL),
     GNUNET_MQ_handler_end ()
   };
   LOG(GNUNET_ERROR_TYPE_INFO, "Connecting to underlay dummy\n");
   dc0.h = GNUNET_CORE_UNDERLAY_DUMMY_connect (NULL, //cfg
-                                               handlers0,
-                                               &dc0, // cls
-                                               notify_connect_cb, // nc
-                                               NULL, // nd
-                                               address_change_cb); // na
+                                              handlers,
+                                              &dc0, // cls
+                                              notify_connect_cb,
+                                              NULL, // nd
+                                              address_change_cb);
   LOG(GNUNET_ERROR_TYPE_INFO, "Connected to underlay dummy 1\n");
   dc1.h = GNUNET_CORE_UNDERLAY_DUMMY_connect (NULL, //cfg
-                                               handlers1,
-                                               &dc1, // cls
-                                               notify_connect_cb, // nc
-                                               NULL, // nd
-                                               address_change_cb); // na
+                                              handlers,
+                                              &dc1, // cls
+                                              notify_connect_cb,
+                                              NULL, // nd
+                                              address_change_cb);
   LOG(GNUNET_ERROR_TYPE_INFO, "Connected to underlay dummy 2\n");
   GNUNET_SCHEDULER_add_shutdown (do_shutdown, NULL);
   timeout_task = GNUNET_SCHEDULER_add_delayed (GNUNET_TIME_UNIT_SECONDS,
