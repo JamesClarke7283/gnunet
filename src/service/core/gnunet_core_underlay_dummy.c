@@ -142,6 +142,11 @@ struct Connection
   struct GNUNET_SCHEDULER_Task *write_task;
 
   /**
+   * Task to notify the client about an open connection
+   */
+  struct GNUNET_SCHEDULER_Task *notify_connect_task;
+
+  /**
    * Currently handled message.
    */
   struct GNUNET_MessageHeader *msg_next;
@@ -269,8 +274,6 @@ do_read (void *cls)
     return;
   }
   LOG (GNUNET_ERROR_TYPE_DEBUG, "Read %d bytes\n", (int) ret);
-  msg = GNUNET_malloc (ret);
-  GNUNET_memcpy (msg, buf, ret);
   if (0 == ret)
   {
     //GNUNET_break_op (0);
@@ -285,6 +288,8 @@ do_read (void *cls)
     return;
   }
   GNUNET_assert (2 <= ret);
+  msg = GNUNET_malloc (ret);
+  GNUNET_memcpy (msg, buf, ret);
   GNUNET_MQ_handle_message (connection->handlers, msg);
   // TODO do proper rate limiting in sync with
 }
@@ -453,6 +458,29 @@ set_handlers_closure (struct GNUNET_MQ_MessageHandler *handlers,
 }
 
 
+static void
+do_notify_connect (void *cls)
+{
+  struct Connection *connection = cls;
+  struct GNUNET_CORE_UNDERLAY_DUMMY_Handle *h = connection->handle;
+  void *cls_mq;
+
+  connection->notify_connect_task = NULL;
+  cls_mq =
+    h->notify_connect(h->cls, // FIXME global cls or per connection? - seems global
+                      1,
+                      (const char **) &connection->peer_addr,
+                      connection->mq);
+  connection->handlers = GNUNET_MQ_copy_handlers (h->handlers);
+  if (NULL != cls_mq)
+  {
+    connection->cls_mq = cls_mq;
+    //GNUNET_MQ_set_handlers_closure (connection->mq, connection->cls_mq);
+    set_handlers_closure (connection->handlers, connection->cls_mq);
+  }
+}
+
+
 /**
  * Accept a connection on the dummy's socket
  *
@@ -520,22 +548,9 @@ do_accept (void *cls)
                                      h->handlers, // handlers - may be NULL?
                                      mq_error_handler_impl,
                                      connection->cls_mq); // FIXME cls for error_handler
-    // FIXME check for existence of callback
-    cls_mq = h->notify_connect (h->cls, // FIXME verify that global cls is fine
-                                1,
-                                (const char **) addresses,
-                                connection->mq);
-    if (NULL != cls_mq)
-    {
-      connection->handlers = GNUNET_MQ_copy_handlers (h->handlers);
-      connection->cls_mq = cls_mq;
-      //GNUNET_MQ_set_handlers_closure (connection->mq, connection->cls_mq);
-      set_handlers_closure (connection->handlers, connection->cls_mq);
-    }
-    else
-    {
-      connection->handlers = h->handlers;
-    }
+    GNUNET_assert (NULL == connection->notify_connect_task);
+    connection->notify_connect_task =
+      GNUNET_SCHEDULER_add_now (do_notify_connect, connection);
   }
   connection->recv_task =
     GNUNET_SCHEDULER_add_read_net (GNUNET_TIME_UNIT_FOREVER_REL,
@@ -839,6 +854,11 @@ GNUNET_CORE_UNDERLAY_DUMMY_disconnect
        NULL != conn_iter;
        conn_iter = conn_next)
   {
+    if (NULL != conn_iter->notify_connect_task)
+    {
+      LOG (GNUNET_ERROR_TYPE_DEBUG, "Cancelling notify connect task\n");
+      GNUNET_SCHEDULER_cancel (conn_iter->notify_connect_task);
+    }
     if (NULL != conn_iter->write_task)
     {
       LOG (GNUNET_ERROR_TYPE_DEBUG, "Cancelling write task\n");
@@ -937,7 +957,6 @@ GNUNET_CORE_UNDERLAY_DUMMY_connect_to_peer (
 {
   struct Connection *connection;
   struct sockaddr_un addr_other;
-  void *cls_mq;
   memset (&addr_other, 0, sizeof (addr_other));
 
   LOG (GNUNET_ERROR_TYPE_DEBUG, "Trying to connect to socket: `%s'\n", peer_address);
@@ -993,25 +1012,9 @@ GNUNET_CORE_UNDERLAY_DUMMY_connect_to_peer (
                                connection);
   if (NULL != h->notify_connect)
   {
-    // FIXME ?? schedule_now()
-    cls_mq =
-      h->notify_connect(h->cls, // FIXME global cls or per connection? - seems global
-                        1,
-                        (const char **) &peer_address, // FIXME put on heap -
-                                                       // don't pass stack
-                                                       // address
-                        connection->mq);
-    if (NULL != cls_mq)
-    {
-      connection->handlers = GNUNET_MQ_copy_handlers (h->handlers);
-      connection->cls_mq = cls_mq;
-      //GNUNET_MQ_set_handlers_closure (connection->mq, connection->cls_mq);
-      set_handlers_closure (connection->handlers, connection->cls_mq);
-    }
-    else
-    {
-      connection->handlers = h->handlers;
-    }
+    GNUNET_assert (NULL == connection->notify_connect_task);
+    connection->notify_connect_task =
+      GNUNET_SCHEDULER_add_now (do_notify_connect, connection);
   }
 
   //  FIXME: proper array
