@@ -69,7 +69,19 @@ struct DummyContext
   struct Connection *conn_head;
   struct Connection *conn_tail;
   uint32_t result_replys;
+  uint32_t batch_sent;
 } dc0, dc1;
+
+
+struct GNUNET_UNDERLAY_DUMMY_Message
+{
+  struct GNUNET_MessageHeader header;
+  // The following will be used for debugging
+  uint64_t id; // id of the message
+  uint64_t batch; // first batch of that peer (for this test 0 or 1)
+  uint64_t peer; // number of sending peer (for this test 0 or 1)
+};
+
 
 uint8_t result_address_callback = GNUNET_NO;
 uint8_t result_connect_cb_0 = GNUNET_NO;
@@ -101,7 +113,7 @@ void *notify_connect_cb (
 {
   struct DummyContext *dc = (struct DummyContext *) cls;
   struct GNUNET_MQ_Envelope *env;
-  struct GNUNET_MessageHeader *msg;
+  struct GNUNET_UNDERLAY_DUMMY_Message *msg;
   struct Connection *connection;
 
   if (0 == num_addresses)
@@ -135,15 +147,23 @@ void *notify_connect_cb (
   }
   // FIXME get it in sync: number of messages sent (per connection) vs. number
   // of messages received (per peer)
-  for (uint32_t i = 0; i < NUMBER_MESSAGES; i++)
+  for (uint64_t i = 0; i < NUMBER_MESSAGES; i++)
   {
     env = GNUNET_MQ_msg (msg, MTYPE); // TODO usually we wanted to keep the
                                       // envelopes to potentially cancel the
                                       // message
     // a real implementation would set message fields here
+    msg->id = GNUNET_htonll (i);
+    msg->batch = GNUNET_htonll (dc->batch_sent);
+    if (&dc0 == dc) msg->peer = GNUNET_htonll (0);
+    else msg->peer = GNUNET_htonll (1);
     GNUNET_MQ_send (mq, env);
-    LOG (GNUNET_ERROR_TYPE_DEBUG, "Sent message through message queue\n");
+    LOG (GNUNET_ERROR_TYPE_DEBUG, "Sent message %u through message queue %u (%u)\n",
+        i,
+        dc->batch_sent,
+        0 ? &dc0 == dc : 1);
   }
+  dc->batch_sent++; // we sent one more batch of test messages
 
   return connection;
 }
@@ -188,13 +208,16 @@ void do_timeout (void *cls)
 
 
 static void
-handle_test (void *cls, const struct GNUNET_MessageHeader *msg)
+handle_test (void *cls, const struct GNUNET_UNDERLAY_DUMMY_Message *msg)
 {
   struct Connection *connection = cls;
 
   GNUNET_assert (NULL != cls);
 
-  LOG (GNUNET_ERROR_TYPE_DEBUG, "received test message\n");
+  LOG (GNUNET_ERROR_TYPE_DEBUG, "received test message %u (%u, %u)\n",
+       GNUNET_ntohll (msg->id),
+       GNUNET_ntohll (msg->batch),
+       GNUNET_ntohll (msg->peer));
 
   // TODO check the content
 
@@ -209,9 +232,11 @@ static void run_test (void *cls)
   GNUNET_log_setup ("test-core-underlay-dummy", "DEBUG", NULL);
   dc0.result_replys = 0;
   dc1.result_replys = 0;
+  dc0.batch_sent = 0;
+  dc1.batch_sent = 0;
   struct GNUNET_MQ_MessageHandler handlers[] =
   {
-    GNUNET_MQ_hd_fixed_size (test, MTYPE, struct GNUNET_MessageHeader, NULL),
+    GNUNET_MQ_hd_fixed_size (test, MTYPE, struct GNUNET_UNDERLAY_DUMMY_Message, NULL),
     GNUNET_MQ_handler_end ()
   };
   LOG(GNUNET_ERROR_TYPE_INFO, "Connecting to underlay dummy\n");
