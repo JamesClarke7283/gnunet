@@ -155,13 +155,12 @@ void *notify_connect_cb (
     // a real implementation would set message fields here
     msg->id = GNUNET_htonll (i);
     msg->batch = GNUNET_htonll (dc->batch_sent);
-    if (&dc0 == dc) msg->peer = GNUNET_htonll (0);
-    else msg->peer = GNUNET_htonll (1);
+    msg->peer = GNUNET_htonll (&dc0 == dc ? 0 : 1);
     GNUNET_MQ_send (mq, env);
     LOG (GNUNET_ERROR_TYPE_DEBUG, "Sent message %u through message queue %u (%u)\n",
         i,
         dc->batch_sent,
-        0 ? &dc0 == dc : 1);
+        &dc0 == dc ? 0 : 1);
   }
   dc->batch_sent++; // we sent one more batch of test messages
 

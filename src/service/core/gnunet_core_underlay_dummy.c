@@ -312,7 +312,7 @@ write_cb (void *cls)
   GNUNET_assert (NULL != connection->msg_next);
   sent = GNUNET_NETWORK_socket_send (connection->sock,
                                      connection->msg_next,
-                                     sizeof(connection->msg_next));
+                                     ntohs (connection->msg_next->size));
   if (GNUNET_SYSERR == sent)
   {
     LOG (GNUNET_ERROR_TYPE_ERROR, "Failed to send message\n");
@@ -350,6 +350,7 @@ mq_send_impl (struct GNUNET_MQ_Handle *mq,
               void *impl_state)
 {
   struct Connection *connection = impl_state;
+  uint16_t msg_size = ntohs (msg->size);
 
   LOG (GNUNET_ERROR_TYPE_DEBUG, "from mq_send_impl\n");
   if (NULL != connection->msg_next)
@@ -362,9 +363,9 @@ mq_send_impl (struct GNUNET_MQ_Handle *mq,
     LOG (GNUNET_ERROR_TYPE_WARNING, "Not scheduled sending of message - buffer is still in use\n");
     return;
   }
-  connection->msg_next = GNUNET_malloc (sizeof (msg));
-  memset (connection->msg_next, 0, sizeof (msg));
-  GNUNET_memcpy (connection->msg_next, msg, sizeof (msg));
+  connection->msg_next = GNUNET_malloc (msg_size);
+  memset (connection->msg_next, 0, msg_size);
+  GNUNET_memcpy (connection->msg_next, msg, msg_size);
   if (NULL == connection->write_task)
   {
     connection->write_task =
