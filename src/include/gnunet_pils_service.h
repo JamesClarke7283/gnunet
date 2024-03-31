@@ -41,30 +41,11 @@ extern "C" {
 #include "gnunet_util_lib.h"
 
 
-// TODO do functions besides the subscriptions need connect/disconnect
-// functionality?
-
 /**
- * @brief A handle for subscriptions for peer id changes
- */
-struct GNUNET_PILS_SubscriptionHandle;
-
-/**
- * @brief Obtain the current GNUNET_PeerIdentity
+ * @brief A handler/callback to be called on the change of the peer id.
  *
- * @return The current PeerIdentity
- *
- * TODO the functionality is duplicate to the subscription. We could
- * simply leave this convenience method out.
- * TODO rather return a pointer?
- */
-struct GNUNET_PeerIdentity
-GNUNET_PILS_obtain_pid (void);
-
-
-
-/**
- * @brief A handler to be called on the change of the peer id.
+ * TODO this might contain a reference (checksum, ...) to the addresses it was
+ * based on in the future
  *
  * @param peer_id The new peer id.
  */
@@ -73,62 +54,81 @@ typedef void (*GNUNET_PILS_PidChangeHandler) (
 
 
 /**
- * @brief Subscribe for changes of the peer id.
- *
- * @param handler The handler to be called on the change to a new peer id.
- *
- * @return A handle to cancle the subscription
+ * @brief A handle for the PILS service.
  */
-struct GNUNET_PILS_SubscriptionHandle *
-GNUNET_PILS_pid_change_subscribe (GNUNET_PILS_PidChangeHandler handler);
-
-/**
- * @brief Cancle a subscription on peer id changes.
- *
- * @param h the handle to the subscription.
- */
-GNUNET_PILS_pid_subscription_cancle (struct GNUNET_PILS_SubscriptionHandle *h);
+struct GNUNET_PILS_Handle;
 
 
 /**
- * @brief Sign data with the peer id.
+ * @brief Connect to the PILS service
  *
- * This should only be used on small amounts of data - hashes if a bigger
- * amount of data is to be signed.
- * TODO build convenience function for larger amounts of data that takes care
- *      about the hashing?
+ * @param cfg configuration to use
+ * @param cls closer for the callbacks/handlers
+ * @param change_handler handler/callback called once the peer id changes
  *
- * @param data Pointer to the data
- * @param size Size of the data to be signed in bytes
- *
- * @return The signature of the provided data
- * TODO rather return a pointer to the hash?
- * TODO what kind of signature to uses - is this the right kind?
- * TODO should ther be the possibility to provide more specifics? (hash
- *      algorithm, parameters, seeds, salts, ...?)
+ * @return Handle to the PILS service
  */
-struct GNUNET_CRYPTO_Signature
-GNUNET_PILS_pid_sign (const char *data, uint32_t size);
+struct GNUNET_PILS_Handle *
+GNUNET_PILS_connect (const struct GNUNET_CONFIGURATION_Handle *cfg,
+                     void *cls,
+                     GNUNET_PILS_PidChangeHandler change_handler);
+
 
 
 /**
- * @brief Feed (an) address(es) to pils so that it will generate a new peer id
- * based on the given address(es).
+ * @brief Disconnect from the PILS service
+ *
+ * @param handle handle to the PILS service (was returned by
+ * #GNUNET_PILS_connect)
+ */
+void
+GNUNET_PILS_disconnect (struct GNUNET_PILS_Handle *handle);
+
+
+// TODO potentially provide function to update the change handler?
+
+
+/**
+ * @brief Sign data with the peer id
+ *
+ * TODO not sure whether this was the intended design from last meeting - this
+ * is anyhow now following the design of #GNUNET_CRYPTO_sign_by_peer_identity
+ *
+ * @param handle handle to the PILS service
+ * @param purpose what to sign (size, purpose and data)
+ * @param sig where to write the signature
+ *
+ * @return #GNUNET_OK on success, #GNUNET_SYSERR on failure
+ */
+enum GNUNET_GenericReturnValue
+GNUNET_PILS_sign_by_peer_identity (const struct GNUNET_PILS_Handle *handle,
+                                   const struct
+                                   GNUNET_CRYPTO_EccSignaturePurpose *purpose,
+                                   struct GNUNET_CRYPTO_EddsaSignature *sig);
+
+
+/**
+ * @brief Feed a set of addresses to pils so that it will generate a new peer
+ * id based on the given set of addresses.
  *
  * THIS IS ONLY TO BE CALLED FROM CORE!
  *
- * The address(es) will be canonicalized/sorted before the new peer id is
- * generated.
+ * The address representation will be canonicalized/sorted by pils before the
+ * new peer id is generated.
  *
+ * TODO potentially return a checksum or such, so that the caller can link the
+ * 'job' to the 'outcome' (freshly generated peer id)
+ *
+ * @param handle the handle to the PILS service
  * @param num_addresses The number of addresses.
  * @param address Array of string representation of addresses.
- * TODO rather give a single array with a specified separator?
  *
  * @return #GNUNET_OK if a new peer id was generated, GNUNET_SYSERR otherwise
  * TODO will we need a more specific return value?
  */
 enum GNUNET_GenericReturnValue
-GNUNET_PILS_feed_address (uint32_t num_addresses,
+GNUNET_PILS_feed_address (const struct GNUNET_PILS_Handle *handle,
+                          uint32_t num_addresses,
                           const char *address[static num_addresses]);
 
 // TODO I don't remember did we also want to generate HELLOs here? I would
