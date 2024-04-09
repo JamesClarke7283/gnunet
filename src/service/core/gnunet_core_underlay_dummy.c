@@ -266,7 +266,7 @@ do_read (void *cls)
   connection->recv_task = NULL;
   GNUNET_assert (NULL != connection->sock);
   ret = GNUNET_NETWORK_socket_recv (connection->sock,
-                                    buf,
+                                    &buf,
                                     sizeof(buf));
   if (0 > ret)
   {
@@ -278,6 +278,8 @@ do_read (void *cls)
   {
     //GNUNET_break_op (0);
     // TODO why would this happen?
+    //  - other peer closed connection gracefully -> TODO handle accordingly
+    //  - we messed up the reading or something
     /* we're not calling the handler - emulate
      * GNUNET_CORE_UNDERLAY_DUMMY_receive_continue */
     connection->recv_task =
@@ -310,12 +312,41 @@ write_cb (void *cls)
   connection->write_task = NULL;
   GNUNET_assert (NULL != connection->sock);
   GNUNET_assert (NULL != connection->msg_next);
+  //{
+  //  // XXX only for debugging purposes
+  //  // this shows everything works as expected
+
+  //  struct GNUNET_UNDERLAY_DUMMY_Message
+  //  {
+  //    struct GNUNET_MessageHeader header;
+  //    // The following will be used for debugging
+  //    uint64_t id; // id of the message
+  //    uint64_t batch; // first batch of that peer (for this test 0 or 1)
+  //    uint64_t peer; // number of sending peer (for this test 0 or 1)
+  //  };
+
+
+
+  //  struct GNUNET_UNDERLAY_DUMMY_Message *msg_dbg = connection->msg_next;
+  //  LOG (GNUNET_ERROR_TYPE_DEBUG, "write_cb - id: %u, batch: %u, peer: %u\n",
+  //       GNUNET_ntohll (msg_dbg->id),
+  //       GNUNET_ntohll (msg_dbg->batch),
+  //       GNUNET_ntohll (msg_dbg->peer));
+  //  //LOG (GNUNET_ERROR_TYPE_DEBUG, "write_cb - size: %u\n",
+  //  //     ntohs (connection->msg_next->size));
+  //  //LOG (GNUNET_ERROR_TYPE_DEBUG, "write_cb - (sanity) size msghdr: %u\n",
+  //  //     sizeof (struct GNUNET_MessageHeader));
+  //  //LOG (GNUNET_ERROR_TYPE_DEBUG, "write_cb - (sanity) size msg field: %u\n",
+  //  //     sizeof (msg_dbg->id));
+  //}
   sent = GNUNET_NETWORK_socket_send (connection->sock,
                                      connection->msg_next,
                                      ntohs (connection->msg_next->size));
   if (GNUNET_SYSERR == sent)
   {
-    LOG (GNUNET_ERROR_TYPE_ERROR, "Failed to send message\n");
+    //LOG (GNUNET_ERROR_TYPE_ERROR, "Failed to send message\n");
+    LOG (GNUNET_ERROR_TYPE_ERROR, "Failed to send message: %s\n", strerror(errno));
+    LOG (GNUNET_ERROR_TYPE_ERROR, "Retrying (due to failure)\n");
     /* retry */
     connection->write_task =
       GNUNET_SCHEDULER_add_write_net (GNUNET_TIME_UNIT_FOREVER_REL,
@@ -353,6 +384,25 @@ mq_send_impl (struct GNUNET_MQ_Handle *mq,
   uint16_t msg_size = ntohs (msg->size);
 
   LOG (GNUNET_ERROR_TYPE_DEBUG, "from mq_send_impl\n");
+  //{
+  //  // XXX only for debugging purposes
+  //  // this shows everything works as expected
+
+  //  struct GNUNET_UNDERLAY_DUMMY_Message
+  //  {
+  //    struct GNUNET_MessageHeader header;
+  //    // The following will be used for debugging
+  //    uint64_t id; // id of the message
+  //    uint64_t batch; // first batch of that peer (for this test 0 or 1)
+  //    uint64_t peer; // number of sending peer (for this test 0 or 1)
+  //  };
+
+  //  struct GNUNET_UNDERLAY_DUMMY_Message *msg_dbg = msg;
+  //  LOG (GNUNET_ERROR_TYPE_DEBUG, "id: %u, batch: %u, peer: %u\n",
+  //       GNUNET_ntohll (msg_dbg->id),
+  //       GNUNET_ntohll (msg_dbg->batch),
+  //       GNUNET_ntohll (msg_dbg->peer));
+  //}
   if (NULL != connection->msg_next)
   {
     // FIXME
@@ -400,6 +450,7 @@ mq_destroy_impl (struct GNUNET_MQ_Handle *mq, void *impl_state)
     GNUNET_SCHEDULER_cancel (connection->recv_task);
     connection->recv_task = NULL;
   }
+  LOG (GNUNET_ERROR_TYPE_DEBUG, "Shutting down socket\n");
   if ((NULL != connection->sock) &&
       (GNUNET_YES != GNUNET_NETWORK_socket_shutdown (connection->sock,
                                                      SHUT_RDWR)))
@@ -570,6 +621,7 @@ do_connect_to_peer (void *cls)
   GNUNET_CONTAINER_DLL_remove (peer_connect_cls->h->peer_connect_cls_head,
                                peer_connect_cls->h->peer_connect_cls_tail,
                                peer_connect_cls);
+  // FIXME do we call our own api? - feels fishy
   GNUNET_CORE_UNDERLAY_DUMMY_connect_to_peer (peer_connect_cls->h,
                                               peer_connect_cls->sock_name,
                                               GNUNET_MQ_PRIO_BEST_EFFORT,
@@ -705,7 +757,9 @@ do_open_socket (void *cls)
     if ((GNUNET_OK != ret) && (98 != errno))
     {
       // Error different from Address already in use - cancel
-      LOG (GNUNET_ERROR_TYPE_ERROR, "Faild binding to socket: %u %s\n", errno, strerror(errno));
+      LOG (GNUNET_ERROR_TYPE_ERROR,
+          "Faild binding to socket: %u %s (closing socket)\n",
+          errno, strerror(errno));
       GNUNET_NETWORK_socket_close (h->sock_listen);
       h->sock_listen = NULL;
       GNUNET_free (addr_un);
@@ -732,7 +786,7 @@ do_open_socket (void *cls)
   if (GNUNET_OK != GNUNET_NETWORK_socket_listen (h->sock_listen, BACKLOG))
   {
     //LOG (GNUNET_ERROR_TYPE_ERROR, "Failed listening to socket: %s", strerror(errno));
-    LOG (GNUNET_ERROR_TYPE_ERROR, "Failed listening to socket\n");
+    LOG (GNUNET_ERROR_TYPE_ERROR, "Failed listening to socket (closing socket)\n");
     GNUNET_break (GNUNET_OK == GNUNET_NETWORK_socket_close (h->sock_listen));
     GNUNET_free (addr_un);
     return;
@@ -849,6 +903,7 @@ GNUNET_CORE_UNDERLAY_DUMMY_disconnect
   }
   if (NULL != handle->sock_listen)
   {
+    LOG (GNUNET_ERROR_TYPE_DEBUG, "closing socket\n");
     GNUNET_NETWORK_socket_close (handle->sock_listen);
   }
   for (struct Connection *conn_iter = handle->connections_head;
@@ -873,6 +928,7 @@ GNUNET_CORE_UNDERLAY_DUMMY_disconnect
     }
     if (NULL != conn_iter->sock)
     {
+      LOG (GNUNET_ERROR_TYPE_DEBUG, "closing socket\n");
       GNUNET_NETWORK_socket_close (conn_iter->sock);
     }
     GNUNET_free (conn_iter->peer_addr);
@@ -921,8 +977,7 @@ GNUNET_CORE_UNDERLAY_DUMMY_receive_continue (
   {
     if (mq == conn_iter->mq)
     {
-      GNUNET_assert (NULL == conn_iter->recv_task); // FIXME this is triggered
-                                                    // but shouldn't be
+      GNUNET_assert (NULL == conn_iter->recv_task);
       conn_iter->recv_task =
         GNUNET_SCHEDULER_add_read_net (GNUNET_TIME_UNIT_FOREVER_REL,
                                        conn_iter->sock,
@@ -986,7 +1041,9 @@ GNUNET_CORE_UNDERLAY_DUMMY_connect_to_peer (
                                                   (struct sockaddr *) &addr_other,
                                                   sizeof(addr_other)))
   {
-    LOG (GNUNET_ERROR_TYPE_ERROR, "failed to connect to the socket: %u %s\n", errno, strerror(errno));
+    LOG (GNUNET_ERROR_TYPE_ERROR,
+        "failed to connect to the socket: %u %s (closing socket)\n",
+        errno, strerror(errno));
     GNUNET_NETWORK_socket_close (connection->sock);
     GNUNET_free (connection);
     //LOG (GNUNET_ERROR_TYPE_INFO, "Sanity check: %s\n", addr_other.sun_path);

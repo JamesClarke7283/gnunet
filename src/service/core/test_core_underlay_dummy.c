@@ -119,13 +119,15 @@ void *notify_connect_cb (
   if (0 == num_addresses)
   {
   LOG (GNUNET_ERROR_TYPE_INFO,
-      "Got notified about successful connection to peer with %u address\n",
+      "(%u) Got notified about successful connection to peer with %u address\n",
+      dc == &dc0 ? 0 : 1,
       num_addresses);
   }
   else
   {
   LOG (GNUNET_ERROR_TYPE_INFO,
-      "Got notified about successful connection to peer with %u address: `%s'\n",
+      "(%u) Got notified about successful connection to peer with %u address: `%s'\n",
+      dc == &dc0 ? 0 : 1,
       num_addresses,
       addresses[num_addresses - 1]);
   }
@@ -245,14 +247,14 @@ static void run_test (void *cls)
                                               notify_connect_cb,
                                               NULL, // nd
                                               address_change_cb);
-  LOG(GNUNET_ERROR_TYPE_INFO, "Connected to underlay dummy 1\n");
+  LOG(GNUNET_ERROR_TYPE_INFO, "(0) Connected to underlay dummy\n");
   dc1.h = GNUNET_CORE_UNDERLAY_DUMMY_connect (NULL, //cfg
                                               handlers,
                                               &dc1, // cls
                                               notify_connect_cb,
                                               NULL, // nd
                                               address_change_cb);
-  LOG(GNUNET_ERROR_TYPE_INFO, "Connected to underlay dummy 2\n");
+  LOG(GNUNET_ERROR_TYPE_INFO, "(1) Connected to underlay dummy 2\n");
   GNUNET_SCHEDULER_add_shutdown (do_shutdown, NULL);
   timeout_task = GNUNET_SCHEDULER_add_delayed (GNUNET_TIME_UNIT_SECONDS,
                                                do_timeout,
