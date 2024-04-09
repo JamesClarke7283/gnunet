@@ -50,6 +50,9 @@ extern "C" {
 
 #define MTYPE 12345
 #define NUMBER_MESSAGES 10
+/* Number of open queues per peer - currently only 1 or 2 make sense */
+#define NUMBER_CONNECTIONS 2
+#define NUMBER_SENDING_PEERS 2
 
 // TODO we could implement checks for early success and tear everything down
 
@@ -61,6 +64,7 @@ struct Connection
   struct Connection *prev;
   struct GNUNET_MQ_Handle *mq;
   struct DummyContext *dc;
+  uint32_t result_replys; /* highest index */
 };
 
 struct DummyContext
@@ -68,8 +72,10 @@ struct DummyContext
   struct GNUNET_CORE_UNDERLAY_DUMMY_Handle *h;
   struct Connection *conn_head;
   struct Connection *conn_tail;
-  uint32_t result_replys;
-  uint32_t batch_sent;
+  // XXX:
+  //struct Connection open_connections[]; // duplicate structure just for
+  //                                      // convenience
+  uint32_t num_open_connections;
 } dc0, dc1;
 
 
@@ -131,13 +137,7 @@ void *notify_connect_cb (
       num_addresses,
       addresses[num_addresses - 1]);
   }
-  connection = GNUNET_new (struct Connection);
-  connection->mq = mq;
-  connection->dc = dc;
-  GNUNET_MQ_set_handlers_closure (mq, connection);
-  GNUNET_CONTAINER_DLL_insert (dc->conn_head,
-                               dc->conn_tail,
-                               connection);
+  /* Note test result */
   if (GNUNET_NO == result_connect_cb_0)
   {
     result_connect_cb_0 = GNUNET_YES;
@@ -147,8 +147,35 @@ void *notify_connect_cb (
   {
     result_connect_cb_1 = GNUNET_YES;
   }
+  if (NUMBER_CONNECTIONS <= dc->num_open_connections)
+  {
+    /* Don't accept further connections */
+    // TODO how to handle an unwanted connection?
+    // TODO close mq
+    LOG (GNUNET_ERROR_TYPE_DEBUG,
+        "(%u) Aleready have maximum connections open - not going to open another one.\n",
+        dc == &dc0 ? 0 : 1);
+    return NULL;
+  }
+  connection = GNUNET_new (struct Connection);
+  connection->mq = mq;
+  connection->dc = dc;
+  connection->result_replys = 0;
+  GNUNET_MQ_set_handlers_closure (mq, connection);
+  GNUNET_CONTAINER_DLL_insert (dc->conn_head,
+                               dc->conn_tail,
+                               connection);
+  dc->num_open_connections++;
   // FIXME get it in sync: number of messages sent (per connection) vs. number
   // of messages received (per peer)
+  if (NUMBER_SENDING_PEERS == 1 &&
+      &dc1 == dc)
+  {
+    LOG (GNUNET_ERROR_TYPE_DEBUG,
+        "(%u) Not going to send messages - only one peer is supposed to\n",
+        dc == &dc0 ? 0 : 1);
+    return connection;
+  }
   for (uint64_t i = 0; i < NUMBER_MESSAGES; i++)
   {
     env = GNUNET_MQ_msg (msg, MTYPE); // TODO usually we wanted to keep the
@@ -156,15 +183,20 @@ void *notify_connect_cb (
                                       // message
     // a real implementation would set message fields here
     msg->id = GNUNET_htonll (i);
-    msg->batch = GNUNET_htonll (dc->batch_sent);
+    msg->batch = GNUNET_htonll (dc->num_open_connections - 1);
     msg->peer = GNUNET_htonll (&dc0 == dc ? 0 : 1);
-    GNUNET_MQ_send (mq, env);
-    LOG (GNUNET_ERROR_TYPE_DEBUG, "Sent message %u through message queue %u (%u)\n",
+    LOG (GNUNET_ERROR_TYPE_DEBUG,
+        "(%u) Going to send message %u through message queue %u\n",
+        &dc0 == dc ? 0 : 1,
         i,
-        dc->batch_sent,
-        &dc0 == dc ? 0 : 1);
+        dc->num_open_connections - 1);
+    GNUNET_MQ_send (mq, env);
+    LOG (GNUNET_ERROR_TYPE_DEBUG,
+        "(%u) Sent message %u through message queue %u\n",
+        &dc0 == dc ? 0 : 1,
+        i,
+        dc->num_open_connections - 1);
   }
-  dc->batch_sent++; // we sent one more batch of test messages
 
   return connection;
 }
@@ -181,20 +213,62 @@ void address_change_cb (void *cls,
                         uint64_t network_generation_id)
 {
   struct DummyContext *dc = cls;
+
   result_address_callback = GNUNET_YES;
-  LOG(GNUNET_ERROR_TYPE_INFO, "Got informed of address change\n");
-  GNUNET_CORE_UNDERLAY_DUMMY_connect_to_peer (dc->h,
-                                              SOCK_NAME_BASE "1" SOCK_EXTENSION,
-                                              GNUNET_MQ_PRIO_BEST_EFFORT,
-                                              GNUNET_BANDWIDTH_VALUE_MAX);
+  LOG (GNUNET_ERROR_TYPE_INFO,
+      "(%u) Got informed of address change\n",
+      dc == &dc0 ? 0 : 1);
+  if (&dc0 == dc)
+  {
+    /* We cannot know which peer has which socket - try both */
+    GNUNET_CORE_UNDERLAY_DUMMY_connect_to_peer (dc->h,
+                                                SOCK_NAME_BASE "0" SOCK_EXTENSION,
+                                                GNUNET_MQ_PRIO_BEST_EFFORT,
+                                                GNUNET_BANDWIDTH_VALUE_MAX);
+    GNUNET_CORE_UNDERLAY_DUMMY_connect_to_peer (dc->h,
+                                                SOCK_NAME_BASE "1" SOCK_EXTENSION,
+                                                GNUNET_MQ_PRIO_BEST_EFFORT,
+                                                GNUNET_BANDWIDTH_VALUE_MAX);
+  }
+  else if (NUMBER_SENDING_PEERS == 2 &&
+           &dc1 == dc)
+  {
+    /* We cannot know which peer has which socket - try both */
+    GNUNET_CORE_UNDERLAY_DUMMY_connect_to_peer (dc->h,
+                                                SOCK_NAME_BASE "0" SOCK_EXTENSION,
+                                                GNUNET_MQ_PRIO_BEST_EFFORT,
+                                                GNUNET_BANDWIDTH_VALUE_MAX);
+    GNUNET_CORE_UNDERLAY_DUMMY_connect_to_peer (dc->h,
+                                                SOCK_NAME_BASE "1" SOCK_EXTENSION,
+                                                GNUNET_MQ_PRIO_BEST_EFFORT,
+                                                GNUNET_BANDWIDTH_VALUE_MAX);
+  }
 }
 
 void do_shutdown (void *cls)
 {
   GNUNET_CORE_UNDERLAY_DUMMY_disconnect (dc0.h);
   GNUNET_CORE_UNDERLAY_DUMMY_disconnect (dc1.h);
-  result_replys_0 = dc0.result_replys;
-  result_replys_1 = dc1.result_replys;
+  for (struct Connection *conn_iter = dc0.conn_head;
+       NULL != conn_iter;
+       conn_iter = conn_iter->next)
+  {
+    result_replys_0 = result_replys_0 + conn_iter->result_replys;
+    LOG (GNUNET_ERROR_TYPE_DEBUG, "added %u replies for this connection\n",
+         conn_iter->result_replys);
+  }
+  LOG (GNUNET_ERROR_TYPE_DEBUG, "counted %u replies for peer 0\n",
+       result_replys_0);
+  for (struct Connection *conn_iter = dc1.conn_head;
+       NULL != conn_iter;
+       conn_iter = conn_iter->next)
+  {
+    result_replys_1 = result_replys_1 + conn_iter->result_replys;
+    LOG (GNUNET_ERROR_TYPE_DEBUG, "added %u replies for this connection\n",
+         conn_iter->result_replys);
+  }
+  LOG (GNUNET_ERROR_TYPE_DEBUG, "counted %u replies for peer 1\n",
+       result_replys_1);
   LOG(GNUNET_ERROR_TYPE_INFO, "Disconnected from underlay dummy\n");
 }
 
@@ -219,10 +293,21 @@ handle_test (void *cls, const struct GNUNET_UNDERLAY_DUMMY_Message *msg)
        GNUNET_ntohll (msg->id),
        GNUNET_ntohll (msg->batch),
        GNUNET_ntohll (msg->peer));
+  if (connection->dc->conn_head == connection)
+  {
+    LOG (GNUNET_ERROR_TYPE_DEBUG, "on connection 0\n");
+  }
+  else
+  {
+    LOG (GNUNET_ERROR_TYPE_DEBUG, "on connection 1\n");
+  }
 
   // TODO check the content
 
-  connection->dc->result_replys++;
+  connection->result_replys++;
+  LOG (GNUNET_ERROR_TYPE_DEBUG, "(%u messages on this channel now)\n",
+       connection->result_replys);
+  LOG (GNUNET_ERROR_TYPE_DEBUG, "(peer %u)\n", &dc0 == connection->dc ? 0 : 1);
   GNUNET_CORE_UNDERLAY_DUMMY_receive_continue (connection->dc->h,
                                                connection->mq);
 }
@@ -231,10 +316,8 @@ handle_test (void *cls, const struct GNUNET_UNDERLAY_DUMMY_Message *msg)
 static void run_test (void *cls)
 {
   GNUNET_log_setup ("test-core-underlay-dummy", "DEBUG", NULL);
-  dc0.result_replys = 0;
-  dc1.result_replys = 0;
-  dc0.batch_sent = 0;
-  dc1.batch_sent = 0;
+  dc0.num_open_connections = 0;
+  dc1.num_open_connections = 0;
   struct GNUNET_MQ_MessageHandler handlers[] =
   {
     GNUNET_MQ_hd_fixed_size (test, MTYPE, struct GNUNET_UNDERLAY_DUMMY_Message, NULL),
@@ -268,20 +351,25 @@ int main (void)
   if (GNUNET_YES != result_address_callback) return -1;
   if (GNUNET_YES != result_connect_cb_0) return -1;
   if (GNUNET_YES != result_connect_cb_1) return -1;
-  if (NUMBER_MESSAGES != result_replys_0)
+  if (NUMBER_MESSAGES * NUMBER_SENDING_PEERS != result_replys_0)
   {
     LOG(GNUNET_ERROR_TYPE_ERROR,
         "Peer 0 received %u of %u messages\n",
         result_replys_0,
-        NUMBER_MESSAGES);
+        NUMBER_MESSAGES * NUMBER_SENDING_PEERS);
+    // XXX:
+    LOG(GNUNET_ERROR_TYPE_ERROR,
+        "Peer 1 received %u of %u messages\n",
+        result_replys_1,
+        NUMBER_MESSAGES * NUMBER_SENDING_PEERS);
     return -1;
   }
-  if (NUMBER_MESSAGES != result_replys_1)
+  if (NUMBER_MESSAGES * NUMBER_SENDING_PEERS != result_replys_1)
   {
     LOG(GNUNET_ERROR_TYPE_ERROR,
         "Peer 1 received %u of %u messages\n",
         result_replys_1,
-        NUMBER_MESSAGES);
+        NUMBER_MESSAGES * NUMBER_SENDING_PEERS);
     return -1;
   }
   return 0;
