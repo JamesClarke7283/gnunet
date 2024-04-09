@@ -658,6 +658,13 @@ discovered_socket_cb (void *cls,
   struct GNUNET_CORE_UNDERLAY_DUMMY_Handle *h = cls;
   struct PeerConnectCls *peer_connect_cls;
 
+  if (0 == memcmp (filename,
+                   h->sock_name,
+                   strlen (filename)))
+  {
+    LOG (GNUNET_ERROR_TYPE_DEBUG, "Discovered own socket - skip\n");
+    return GNUNET_OK;
+  }
   LOG (
       GNUNET_ERROR_TYPE_INFO,
       "Discovered another peer with address `%s' trying to connect\n",
@@ -1023,7 +1030,35 @@ GNUNET_CORE_UNDERLAY_DUMMY_connect_to_peer (
     LOG (GNUNET_ERROR_TYPE_DEBUG, "Not going to connect to own address\n");
     return;
   }
-  // TODO check whether we are already connected to that address!
+  /**
+   * Check whether we are already connected to this peer
+   *
+   * This is limited as we don't always have the socket name of the other peer
+   */
+  for (struct Connection *conn_iter = h->connections_head;
+       NULL != conn_iter;
+       conn_iter = conn_iter->next)
+  {
+    if (0 == strcmp (peer_address, conn_iter->peer_addr))
+    {
+      // FIXME better handling
+      // FIXME this may trigger 'doubly' on empty string
+      LOG (GNUNET_ERROR_TYPE_DEBUG, "Already connected to this peer - don't try to open another connection\n");
+      return;
+    }
+  }
+  for (struct PeerConnectCls *pcc_iter = h->peer_connect_cls_head;
+       NULL != pcc_iter;
+       pcc_iter = pcc_iter->next)
+  {
+    if (0 == strcmp (peer_address,
+                     pcc_iter->sock_name))
+    {
+      LOG (GNUNET_ERROR_TYPE_DEBUG, "Already discovered this peer and waiting to connect\n");
+      return;
+    }
+  }
+
   connection = GNUNET_new (struct Connection);
   connection->sock = GNUNET_NETWORK_socket_create (AF_UNIX, SOCK_STREAM, 0);
   connection->handle = h;
