@@ -248,6 +248,65 @@ struct GNUNET_CORE_UNDERLAY_DUMMY_Handle
 };
 
 
+/*****************************************************************************
+ * Connection-related functions                                              *
+ ****************************************************************************/
+
+/**
+ * @brief Destroy a connection
+ *
+ * cancel all tasks, remove its memory,
+ * close sockets, remove it from the DLL, ...
+ *
+ * @param connection The #Connection to destroy
+ */
+static void
+connection_destroy (struct Connection *connection)
+{
+  LOG (GNUNET_ERROR_TYPE_DEBUG, "connection_destroy\n");
+  if (NULL != connection->notify_connect_task)
+  {
+    LOG (GNUNET_ERROR_TYPE_DEBUG, "Cancelling notify connect task\n");
+    GNUNET_SCHEDULER_cancel (connection->notify_connect_task);
+  }
+  if (NULL != connection->write_task)
+  {
+    LOG (GNUNET_ERROR_TYPE_DEBUG, "Cancelling write task\n");
+    GNUNET_SCHEDULER_cancel (connection->write_task);
+  }
+  if (NULL != connection->recv_task)
+  {
+    LOG (GNUNET_ERROR_TYPE_DEBUG, "Cancelling recv task\n");
+    GNUNET_SCHEDULER_cancel (connection->recv_task);
+  }
+  if (NULL != connection->sock)
+  {
+    LOG (GNUNET_ERROR_TYPE_DEBUG, "closing socket\n");
+    GNUNET_NETWORK_socket_close (connection->sock);
+    // FIXME rather use GNUNET_NETWORK_socket_shutdown()?
+    // like this:
+    // LOG (GNUNET_ERROR_TYPE_DEBUG, "Shutting down socket\n");
+    // if ((NULL != connection->sock) &&
+    //     (GNUNET_YES != GNUNET_NETWORK_socket_shutdown (connection->sock,
+    //                                                    SHUT_RDWR)))
+    // {
+    //   LOG (GNUNET_ERROR_TYPE_ERROR, "Faild to shutdown socket operations\n");
+    // }
+  }
+  GNUNET_free (connection->peer_addr);
+  GNUNET_free (connection->msg_next);
+  // TODO what else?
+  GNUNET_CONTAINER_DLL_remove (connection->handle->connections_head,
+                               connection->handle->connections_tail,
+                               connection);
+  GNUNET_free (connection);
+  LOG (GNUNET_ERROR_TYPE_DEBUG, "connection_destroy - end\n");
+}
+
+/*****************************************************************************
+ * Connection-related functions (end)                                        *
+ ****************************************************************************/
+
 /**
  * @brief Callback scheduled to run when there is something to read from the
  * socket. Reads the data from the socket and passes it to the message queue.
@@ -444,24 +503,7 @@ mq_destroy_impl (struct GNUNET_MQ_Handle *mq, void *impl_state)
   struct Connection *connection = impl_state;
 
   LOG (GNUNET_ERROR_TYPE_DEBUG, "mq_destroy_impl\n");
-  if (NULL != connection->recv_task)
-  {
-    LOG (GNUNET_ERROR_TYPE_DEBUG, "Cancelling recv task\n");
-    GNUNET_SCHEDULER_cancel (connection->recv_task);
-    connection->recv_task = NULL;
-  }
-  LOG (GNUNET_ERROR_TYPE_DEBUG, "Shutting down socket\n");
-  if ((NULL != connection->sock) &&
-      (GNUNET_YES != GNUNET_NETWORK_socket_shutdown (connection->sock,
-                                                     SHUT_RDWR)))
-  {
-    LOG (GNUNET_ERROR_TYPE_ERROR, "Faild to shutdown socket operations\n");
-  }
-  connection->sock = NULL;
-  // TODO clean up whole connection and remove from DLL, right?
-  // TODO connection needs a pointer to the handle then
-  //GNUNET_CONTAINER_DLL_remove ();
-  //GNUNET_free (connection);
+  connection_destroy (connection);
 }
 
 
@@ -917,34 +959,12 @@ GNUNET_CORE_UNDERLAY_DUMMY_disconnect
        NULL != conn_iter;
        conn_iter = conn_next)
   {
-    if (NULL != conn_iter->notify_connect_task)
-    {
-      LOG (GNUNET_ERROR_TYPE_DEBUG, "Cancelling notify connect task\n");
-      GNUNET_SCHEDULER_cancel (conn_iter->notify_connect_task);
-    }
-    if (NULL != conn_iter->write_task)
-    {
-      LOG (GNUNET_ERROR_TYPE_DEBUG, "Cancelling write task\n");
-      GNUNET_SCHEDULER_cancel (conn_iter->write_task);
-    }
-    GNUNET_MQ_destroy (conn_iter->mq);
-    if (NULL != conn_iter->recv_task)
-    {
-      LOG (GNUNET_ERROR_TYPE_DEBUG, "Cancelling recv task\n");
-      GNUNET_SCHEDULER_cancel (conn_iter->recv_task);
-    }
-    if (NULL != conn_iter->sock)
-    {
-      LOG (GNUNET_ERROR_TYPE_DEBUG, "closing socket\n");
-      GNUNET_NETWORK_socket_close (conn_iter->sock);
-    }
-    GNUNET_free (conn_iter->peer_addr);
-    // TODO what else?
+    // TODO consider moving MQ_destroy() into connection_destroy(), but keep in
+    // mind that connection_destroy() is also called from within
+    // mq_destroy_impl()
     conn_next = conn_iter->next;
-    GNUNET_CONTAINER_DLL_remove (handle->connections_head,
-                                 handle->connections_tail,
-                                 conn_iter);
-    GNUNET_free (conn_iter);
+    LOG (GNUNET_ERROR_TYPE_DEBUG, "Destroying a connection\n");
+    GNUNET_MQ_destroy (conn_iter->mq); // This triggers mq_destroy_impl()
   }
   // TODO handlers
   GNUNET_free (handle);
