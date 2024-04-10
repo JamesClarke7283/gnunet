@@ -16,7 +16,8 @@ if USE_COVERAGE
 endif
 
 plugin_LTLIBRARIES = \
-  libgnunet_test_core_plugin_cmd_just_run.la
+  libgnunet_test_core_plugin_cmd_just_run.la \
+  libgnunet_test_core_plugin_cmd_run_emu.la
 
 TESTING_LIBS = \
   libgnunetcoretesting.la
@@ -34,6 +35,23 @@ libgnunetcore_la_LIBADD = \
 libgnunetcore_la_LDFLAGS = \
   $(GN_LIB_LDFLAGS)  \
   -version-info 0:1:0
+
+libgnunet_test_core_plugin_cmd_run_emu_la_SOURCES = \
+ test_core_plugin_cmd_run_emu.c
+libgnunet_test_core_plugin_cmd_run_emu_la_LIBADD = \
+  libgnunetcoretesting.la \
+  $(top_builddir)/src/service/transport/libgnunettransportapplication.la \
+  $(top_builddir)/src/service/transport/libgnunettransportcore.la \
+  $(top_builddir)/src/lib/hello/libgnunethello.la \
+  $(top_builddir)/src/service/peerstore/libgnunetpeerstore.la \
+  $(top_builddir)/src/service/transport/libgnunettransporttesting2.la \
+  $(top_builddir)/src/service/testing/libgnunettesting.la \
+  $(top_builddir)/src/service/statistics/libgnunetstatistics.la \
+  $(top_builddir)/src/service/arm/libgnunetarm.la \
+  $(top_builddir)/src/lib/util/libgnunetutil.la \
+  $(LTLIBINTL)
+libgnunet_test_core_plugin_cmd_run_emu_la_LDFLAGS = \
+  $(GN_PLUGIN_LDFLAGS)
 
 libgnunet_test_core_plugin_cmd_just_run_la_SOURCES = \
  test_core_plugin_cmd_just_run.c
