@@ -566,6 +566,7 @@ do_notify_connect (void *cls)
                       (const char **) &connection->peer_addr,
                       connection->mq);
   connection->handlers = GNUNET_MQ_copy_handlers (h->handlers);
+  set_handlers_closure (connection->handlers, h->cls);
   if (NULL != cls_mq)
   {
     connection->cls_mq = cls_mq;
