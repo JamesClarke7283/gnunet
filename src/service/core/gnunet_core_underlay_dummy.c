@@ -948,6 +948,8 @@ GNUNET_CORE_UNDERLAY_DUMMY_disconnect
   }
   if (NULL != handle->listen_task)
   {
+    // FIXME this seems not to be called (according to logs) is the listen task
+    // even running?
     LOG (GNUNET_ERROR_TYPE_DEBUG, "Cancelling listen task\n");
     GNUNET_SCHEDULER_cancel (handle->listen_task);
   }
