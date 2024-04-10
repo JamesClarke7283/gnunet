@@ -155,6 +155,9 @@ void *notify_connect_cb (
     LOG (GNUNET_ERROR_TYPE_DEBUG,
         "(%u) Aleready have maximum connections open - not going to open another one.\n",
         dc == &dc0 ? 0 : 1);
+    // TODO it might be really bad to call _destroy() during the
+    // notify_connect_cb() - schedule?
+    GNUNET_MQ_destroy (mq);
     return NULL;
   }
   connection = GNUNET_new (struct Connection);
