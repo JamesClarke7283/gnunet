@@ -47,10 +47,14 @@ extern "C" {
  * TODO this might contain a reference (checksum, ...) to the addresses it was
  * based on in the future
  *
+ * @param cls The closure given to #GNUNET_PILS_connect
  * @param peer_id The new peer id.
+ * @param hash The hash of addresses the peer id is based on. This hash is also returned by #GNUNET_PILS_feed_address.
  */
-typedef void (*GNUNET_PILS_PidChangeHandler) (
-  const struct GNUNET_PeerIdentity *peer_id);
+typedef void (*GNUNET_PILS_PidChangeCallback) (
+  struct void *cls,
+  const struct GNUNET_PeerIdentity *peer_id,
+  const struct GNUNET_HashCode *hash);
 
 
 /**
@@ -71,7 +75,7 @@ struct GNUNET_PILS_Handle;
 struct GNUNET_PILS_Handle *
 GNUNET_PILS_connect (const struct GNUNET_CONFIGURATION_Handle *cfg,
                      void *cls,
-                     GNUNET_PILS_PidChangeHandler change_handler);
+                     GNUNET_PILS_PidChangeCallback change_handler);
 
 
 
@@ -118,15 +122,15 @@ GNUNET_PILS_sign_by_peer_identity (const struct GNUNET_PILS_Handle *handle,
  *
  * TODO potentially return a checksum or such, so that the caller can link the
  * 'job' to the 'outcome' (freshly generated peer id)
+ * TODO pay attention to high frequency calling - kill previous requests
  *
  * @param handle the handle to the PILS service
  * @param num_addresses The number of addresses.
  * @param address Array of string representation of addresses.
- *
- * @return #GNUNET_OK if a new peer id was generated, GNUNET_SYSERR otherwise
- * TODO will we need a more specific return value?
+ * @return hash over the given addresses - used to identify the corresponding
+ *         peer id
  */
-enum GNUNET_GenericReturnValue
+struct GNUNET_HashCode *
 GNUNET_PILS_feed_address (const struct GNUNET_PILS_Handle *handle,
                           uint32_t num_addresses,
                           const char *address[static num_addresses]);
