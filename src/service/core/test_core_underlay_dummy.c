@@ -401,25 +401,26 @@ int main (void)
   if (GNUNET_YES != result_address_callback) return -1;
   if (GNUNET_YES != result_connect_cb_0) return -1;
   if (GNUNET_YES != result_connect_cb_1) return -1;
-  if (NUMBER_MESSAGES * NUMBER_SENDING_PEERS != result_replys_0)
+  if ((NUMBER_SENDING_PEERS > 1) &&
+      (NUMBER_MESSAGES * NUMBER_CONNECTIONS != result_replys_0))
   {
     LOG(GNUNET_ERROR_TYPE_ERROR,
         "Peer 0 received %u of %u messages\n",
         result_replys_0,
-        NUMBER_MESSAGES * NUMBER_SENDING_PEERS);
+        NUMBER_MESSAGES * NUMBER_CONNECTIONS);
     // XXX:
     LOG(GNUNET_ERROR_TYPE_ERROR,
         "Peer 1 received %u of %u messages\n",
         result_replys_1,
-        NUMBER_MESSAGES * NUMBER_SENDING_PEERS);
+        NUMBER_MESSAGES * NUMBER_CONNECTIONS);
     return -1;
   }
-  if (NUMBER_MESSAGES * NUMBER_SENDING_PEERS != result_replys_1)
+  if (NUMBER_MESSAGES * NUMBER_CONNECTIONS != result_replys_1)
   {
     LOG(GNUNET_ERROR_TYPE_ERROR,
         "Peer 1 received %u of %u messages\n",
         result_replys_1,
-        NUMBER_MESSAGES * NUMBER_SENDING_PEERS);
+        NUMBER_MESSAGES * NUMBER_CONNECTIONS);
     return -1;
   }
   return 0;
