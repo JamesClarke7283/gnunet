@@ -67,6 +67,15 @@ struct Connection
   uint32_t result_replys; /* highest index */
 };
 
+struct DestroyMQTask
+{
+  struct DestroyMQTask *next;
+  struct DestroyMQTask *prev;
+  struct GNUNET_SCHEDULER_Task *destroy_mq_task;
+  struct DummyContext *dc;
+  struct GNUNET_MQ_Handle *mq;
+};
+
 struct DummyContext
 {
   struct GNUNET_CORE_UNDERLAY_DUMMY_Handle *h;
@@ -76,6 +85,8 @@ struct DummyContext
   //struct Connection open_connections[]; // duplicate structure just for
   //                                      // convenience
   uint32_t num_open_connections;
+  struct DestroyMQTask *destroy_mq_task_head;
+  struct DestroyMQTask *destroy_mq_task_tail;
 } dc0, dc1;
 
 
@@ -96,6 +107,20 @@ uint32_t result_replys_0 = 0;
 uint32_t result_replys_1 = 0;
 
 static struct GNUNET_SCHEDULER_Task *timeout_task;
+
+
+static void
+do_destroy_mq (void *cls)
+{
+  struct DestroyMQTask *destroy_mq_task = cls;
+
+  GNUNET_MQ_destroy (destroy_mq_task->mq);
+  GNUNET_CONTAINER_DLL_remove (destroy_mq_task->dc->destroy_mq_task_head,
+                               destroy_mq_task->dc->destroy_mq_task_tail,
+                               destroy_mq_task);
+  GNUNET_free (destroy_mq_task);
+}
+
 
 /**
  * @brief Notify about an established connection.
@@ -150,14 +175,19 @@ void *notify_connect_cb (
   if (NUMBER_CONNECTIONS <= dc->num_open_connections)
   {
     /* Don't accept further connections */
+    struct DestroyMQTask *destroy_mq_task;
     // TODO how to handle an unwanted connection?
-    // TODO close mq
     LOG (GNUNET_ERROR_TYPE_DEBUG,
         "(%u) Aleready have maximum connections open - not going to open another one.\n",
         dc == &dc0 ? 0 : 1);
-    // TODO it might be really bad to call _destroy() during the
-    // notify_connect_cb() - schedule?
-    GNUNET_MQ_destroy (mq);
+    destroy_mq_task = GNUNET_new (struct DestroyMQTask);
+    destroy_mq_task->destroy_mq_task =
+      GNUNET_SCHEDULER_add_now (do_destroy_mq, destroy_mq_task);
+    destroy_mq_task->dc = dc;
+    destroy_mq_task->mq = mq;
+    GNUNET_CONTAINER_DLL_insert (dc->destroy_mq_task_head,
+                                 dc->destroy_mq_task_tail,
+                                 destroy_mq_task);
     return NULL;
   }
   connection = GNUNET_new (struct Connection);
@@ -250,8 +280,25 @@ void address_change_cb (void *cls,
 
 void do_shutdown (void *cls)
 {
+  struct DestroyMQTask *dmt_iter_next;
   GNUNET_CORE_UNDERLAY_DUMMY_disconnect (dc0.h);
   GNUNET_CORE_UNDERLAY_DUMMY_disconnect (dc1.h);
+  for (struct DestroyMQTask *dmt_iter = dc0.destroy_mq_task_head;
+       NULL != dmt_iter;
+       dmt_iter = dmt_iter_next)
+  {
+    dmt_iter_next = dmt_iter->next;
+    GNUNET_SCHEDULER_cancel (dmt_iter->destroy_mq_task);
+    do_destroy_mq (dmt_iter);
+  }
+  for (struct DestroyMQTask *dmt_iter = dc1.destroy_mq_task_head;
+       NULL != dmt_iter;
+       dmt_iter = dmt_iter_next)
+  {
+    dmt_iter_next = dmt_iter->next;
+    GNUNET_SCHEDULER_cancel (dmt_iter->destroy_mq_task);
+    do_destroy_mq (dmt_iter);
+  }
   for (struct Connection *conn_iter = dc0.conn_head;
        NULL != conn_iter;
        conn_iter = conn_iter->next)
