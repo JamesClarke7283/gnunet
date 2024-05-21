@@ -172,24 +172,22 @@ void *notify_connect_cb (
   {
     result_connect_cb_1 = GNUNET_YES;
   }
-  if (NUMBER_CONNECTIONS <= dc->num_open_connections)
-  {
-    /* Don't accept further connections */
-    struct DestroyMQTask *destroy_mq_task;
-    // TODO how to handle an unwanted connection?
-    LOG (GNUNET_ERROR_TYPE_DEBUG,
-        "(%u) Aleready have maximum connections open - not going to open another one.\n",
-        dc == &dc0 ? 0 : 1);
-    destroy_mq_task = GNUNET_new (struct DestroyMQTask);
-    destroy_mq_task->destroy_mq_task =
-      GNUNET_SCHEDULER_add_now (do_destroy_mq, destroy_mq_task);
-    destroy_mq_task->dc = dc;
-    destroy_mq_task->mq = mq;
-    GNUNET_CONTAINER_DLL_insert (dc->destroy_mq_task_head,
-                                 dc->destroy_mq_task_tail,
-                                 destroy_mq_task);
-    return NULL;
-  }
+  /* If we knew whether this connection is the one that's used to send/recv, we
+   * could close it right now: */
+  //if ()
+  //{
+  //  /* Don't accept further connections */
+  //  struct DestroyMQTask *destroy_mq_task;
+  //  destroy_mq_task = GNUNET_new (struct DestroyMQTask);
+  //  destroy_mq_task->destroy_mq_task =
+  //    GNUNET_SCHEDULER_add_now (do_destroy_mq, destroy_mq_task);
+  //  destroy_mq_task->dc = dc;
+  //  destroy_mq_task->mq = mq;
+  //  GNUNET_CONTAINER_DLL_insert (dc->destroy_mq_task_head,
+  //                               dc->destroy_mq_task_tail,
+  //                               destroy_mq_task);
+  //  return NULL;
+  //}
   connection = GNUNET_new (struct Connection);
   connection->mq = mq;
   connection->dc = dc;
