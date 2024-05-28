@@ -307,11 +307,12 @@ connection_destroy (struct Connection *connection)
  * Connection-related functions (end)                                        *
  ****************************************************************************/
 
+
 /**
  * @brief Callback scheduled to run when there is something to read from the
  * socket. Reads the data from the socket and passes it to the message queue.
  *
- * @param cls Closure: The hanlde to the underlay dummy
+ * @param cls Closure: Information for this socket
  */
 static void
 do_read (void *cls)
@@ -412,7 +413,8 @@ write_cb (void *cls)
                                       connection->sock,
                                       &write_cb,
                                       connection);
-    return; // TODO proper handling
+    return; // TODO proper handling - don't try to resend on certain errors
+            // (e.g. EPIPE)
   }
   LOG (GNUNET_ERROR_TYPE_DEBUG, "Successfully sent message\n");
   GNUNET_free (connection->msg_next);
@@ -425,6 +427,7 @@ write_cb (void *cls)
   //                                             NULL);
   GNUNET_MQ_impl_send_continue (connection->mq);
 }
+
 
 /**
  * @brief Callback called from the MQ to send a message over a socket.
@@ -534,6 +537,14 @@ mq_cancel_impl (struct GNUNET_MQ_Handle *mq, void *impl_state)
 }
 
 
+/**
+ * @brief Handle mq errors
+ *
+ * This is currently a stub that only logs.
+ *
+ * @param cls closure is unused
+ * @param error the kind of error
+ */
 static void
 mq_error_handler_impl (void *cls, enum GNUNET_MQ_Error error)
 {
@@ -541,6 +552,15 @@ mq_error_handler_impl (void *cls, enum GNUNET_MQ_Error error)
 }
 
 
+/**
+ * @brief Set the closures for mq handlers
+ *
+ * This is a utility function that sets the closures of the given mq handlers
+ * to a given closure
+ *
+ * @param handlers the list of handlers
+ * @param handlers_cls the new closure for the handlers
+ */
 static void
 set_handlers_closure (struct GNUNET_MQ_MessageHandler *handlers,
                       void *handlers_cls)
@@ -552,6 +572,14 @@ set_handlers_closure (struct GNUNET_MQ_MessageHandler *handlers,
 }
 
 
+/**
+ * @brief Notify the api caller about a new connection.
+ *
+ * This connection could either be initiated by us or the connecting peer.
+ * The function is supposed to be called through the scheduler.
+ *
+ * @param cls
+ */
 static void
 do_notify_connect (void *cls)
 {
@@ -655,6 +683,14 @@ do_accept (void *cls)
 }
 
 
+/**
+ * @brief Connect to another peer
+ *
+ * This function is scheduled and pays attention that it's not called
+ * unnecessarily.
+ *
+ * @param cls
+ */
 static void
 do_connect_to_peer (void *cls)
 {
@@ -694,6 +730,21 @@ do_notify_address_change (void *cls)
 }
 
 
+/**
+ * @brief Handle the discovery of a certain socket.
+ *
+ * This is called from within the discovery of file names with the correct
+ * pattern.
+ * It checks whether we are already connected to this socket, are waiting for a
+ * reply, it's our own socket.
+ * Issue a connection if the conditions are given.
+ *
+ * @param cls handle to the dummy service
+ * @param filename the discovered filename
+ *
+ * @return #GNUNET_OK indicating that the iteration through filnames is
+ * supposed to continue
+ */
 static enum GNUNET_GenericReturnValue
 discovered_socket_cb (void *cls,
                       const char *filename)
@@ -752,6 +803,13 @@ discovered_socket_cb (void *cls,
 }
 
 
+/**
+ * @brief Discover sockets of other peers
+ *
+ * Sockets with a certain file name pattern are treated as candidates.
+ *
+ * @param cls
+ */
 static void
 do_discover_peers (void *cls)
 {
@@ -771,6 +829,9 @@ do_discover_peers (void *cls)
 
 /**
  * Opens UNIX domain socket.
+ *
+ * It start trying with a default name and successively increases a number
+ * within it, when it encounters already used sockets.
  *
  * @param cls Closure: The handle of the dummy underlay.
  */

@@ -56,17 +56,40 @@ extern "C" {
 
 // TODO we could implement checks for early success and tear everything down
 
+/**
+ * @brief This struct represents a 'peer' and most notably links to the service
+ * handle
+ */
 struct DummyContext;
 
+
+/**
+ * @brief This struct keeps relevant information to a connection
+ */
 struct Connection
 {
+  /** DLL */
   struct Connection *next;
   struct Connection *prev;
+
+  /* The message queue */
   struct GNUNET_MQ_Handle *mq;
+
+  /* Context to the 'peer' to which the connection belongs */
   struct DummyContext *dc;
-  uint32_t result_replys; /* highest index */
+
+ /* counter of replys/highest index */
+  uint32_t result_replys;
 };
 
+
+/**
+ * @brief Context for the scheduled destruction of an MQ.
+ *
+ * This is needed in case an undesired channel opens and we want to tear it
+ * down immediately - this cannot be done from within the hanlder/callback that
+ * provides us with the new connection.
+ */
 struct DestroyMQTask
 {
   struct DestroyMQTask *next;
@@ -76,20 +99,25 @@ struct DestroyMQTask
   struct GNUNET_MQ_Handle *mq;
 };
 
+
+/**
+ * @brief This struct represents a 'peer' and most notably links to the service
+ * handle
+ */
 struct DummyContext
 {
   struct GNUNET_CORE_UNDERLAY_DUMMY_Handle *h;
   struct Connection *conn_head;
   struct Connection *conn_tail;
-  // XXX:
-  //struct Connection open_connections[]; // duplicate structure just for
-  //                                      // convenience
   uint32_t num_open_connections;
   struct DestroyMQTask *destroy_mq_task_head;
   struct DestroyMQTask *destroy_mq_task_tail;
 } dc0, dc1;
 
 
+/**
+ * @brief A dummy message to be sent from one peer to another.
+ */
 struct GNUNET_UNDERLAY_DUMMY_Message
 {
   struct GNUNET_MessageHeader header;
@@ -100,15 +128,35 @@ struct GNUNET_UNDERLAY_DUMMY_Message
 };
 
 
+/* Flag indicating whether #address_change_cb was called */
 uint8_t result_address_callback = GNUNET_NO;
+
+/* Flag indicating whether #notify_connect_cb was called once */
 uint8_t result_connect_cb_0 = GNUNET_NO;
+
+/* Flag indicating whether #notify_connect_cb was called a second time */
 uint8_t result_connect_cb_1 = GNUNET_NO;
+
+/* Number of replys that peer0 received */
 uint32_t result_replys_0 = 0;
+
+/* Number of replys that peer1 received */
 uint32_t result_replys_1 = 0;
 
+/**
+ * @brief Task of the schutdown task that is triggert afer a timeout
+ */
 static struct GNUNET_SCHEDULER_Task *timeout_task;
 
 
+/**
+ * @brief Scheduled function to destroy an mq.
+ *
+ * This is needed in case the test is informed about an undesired connection
+ * that it likes to terminate right away.
+ *
+ * @param cls The #DestroyMQTask
+ */
 static void
 do_destroy_mq (void *cls)
 {
@@ -126,12 +174,12 @@ do_destroy_mq (void *cls)
  * @brief Notify about an established connection.
  *
  * @param cls the closure given to the 'service' on
- * GNUNET_CORE_UNDERLAY_DUMMY_connect
+ *            #GNUNET_CORE_UNDERLAY_DUMMY_connect
  * @param num_addresses number of addresses connected to the incoming
  *                      connection
  * @param addresses string represenation of the @a num_addresses addresses
  *                  connected to the incoming connection
- * @param mq
+ * @param mq The mq to the newly established connection
  *
  * @return The returned value overwrites the cls set in the handlers for this
  * mq. If NULL, the cls from the original handlers array is used.
@@ -239,6 +287,15 @@ void *notify_connect_cb (
 //  void *handler_cls);
 
 
+/**
+ * @brief Callback called when our address changes
+ *
+ * TODO document or link to network localtion hash and network generation id
+ *
+ * @param cls Closure: The #DummyContext
+ * @param network_location_hash The network location hash for the new address
+ * @param network_generation_id The network generation id for the new address
+ */
 void address_change_cb (void *cls,
                         struct GNUNET_HashCode network_location_hash,
                         uint64_t network_generation_id)
@@ -276,6 +333,14 @@ void address_change_cb (void *cls,
   }
 }
 
+
+/**
+ * @brief Shutdown task
+ *
+ * Scheduled and then called to shut the test down
+ *
+ * @param cls closure - unused
+ */
 void do_shutdown (void *cls)
 {
   struct DestroyMQTask *dmt_iter_next;
@@ -321,6 +386,11 @@ void do_shutdown (void *cls)
 }
 
 
+/**
+ * @brief Scheduled task to trigger shutdown
+ *
+ * @param cls Closure - unused
+ */
 void do_timeout (void *cls)
 {
   timeout_task = NULL;
@@ -330,6 +400,13 @@ void do_timeout (void *cls)
 }
 
 
+/**
+ * @brief Handle a test message
+ *
+ * @param cls Closure - the #Connection struct containing all relevant info to
+ *            the connection
+ * @param msg the #GNUNET_UNDERLAY_DUMMY_Message
+ */
 static void
 handle_test (void *cls, const struct GNUNET_UNDERLAY_DUMMY_Message *msg)
 {
@@ -351,6 +428,8 @@ handle_test (void *cls, const struct GNUNET_UNDERLAY_DUMMY_Message *msg)
   }
 
   // TODO check the content
+  //      - whether id is in order (and for the right batch?)
+  //      - whether the peer is the other peer
 
   connection->result_replys++;
   LOG (GNUNET_ERROR_TYPE_DEBUG, "(%u messages on this channel now)\n",
@@ -361,6 +440,14 @@ handle_test (void *cls, const struct GNUNET_UNDERLAY_DUMMY_Message *msg)
 }
 
 
+/**
+ * @brief Run the test
+ *
+ * This mainly connects to the services - everything else is then triggered by
+ * callbacks
+ *
+ * @param cls Closure - unused
+ */
 static void run_test (void *cls)
 {
   GNUNET_log_setup ("test-core-underlay-dummy", "DEBUG", NULL);
@@ -392,6 +479,15 @@ static void run_test (void *cls)
                                                NULL);
 }
 
+
+/**
+ * @brief Main function of the test
+ *
+ * Runs the test via starting the scheduler and checks the results after
+ * scheduler shuts down.
+ *
+ * @return Indicate success or failure
+ */
 int main (void)
 {
   GNUNET_SCHEDULER_run (run_test, NULL);
