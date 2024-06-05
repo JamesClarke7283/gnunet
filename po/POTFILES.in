@@ -287,6 +287,7 @@ src/service/core/gnunet-service-core_kx.c
 src/service/core/gnunet-service-core_sessions.c
 src/service/core/gnunet-service-core_typemap.c
 src/service/core/gnunet_core_underlay_dummy.c
+src/service/core/testing_core_cmd_connecting_peers.c
 src/service/datacache/datacache.c
 src/service/datastore/datastore_api.c
 src/service/datastore/gnunet-service-datastore.c
