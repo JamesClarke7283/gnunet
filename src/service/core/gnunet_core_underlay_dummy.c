@@ -638,6 +638,12 @@ do_accept (void *cls)
     LOG (GNUNET_ERROR_TYPE_ERROR, "Error accepting incoming connection\n");
     return;
   }
+  if (GNUNET_OK != GNUNET_NETWORK_socket_set_blocking (sock, GNUNET_NO))
+  {
+    LOG (GNUNET_ERROR_TYPE_ERROR,
+        "Failed setting socket of incoming connection to non-blocking\n");
+    return;
+  }
   connection = GNUNET_new (struct Connection);
   connection->sock = sock;
   connection->peer_addr = GNUNET_strdup (addr_other.sun_path);
@@ -1149,6 +1155,13 @@ GNUNET_CORE_UNDERLAY_DUMMY_connect_to_peer (
   if (NULL == connection->sock)
   {
     LOG (GNUNET_ERROR_TYPE_ERROR, "Socket does not open\n");
+    GNUNET_free (connection);
+    return;
+  }
+  if (GNUNET_OK !=
+      GNUNET_NETWORK_socket_set_blocking (connection->sock, GNUNET_NO))
+  {
+    LOG (GNUNET_ERROR_TYPE_ERROR, "Failed setting socket to non-blocking\n");
     GNUNET_free (connection);
     return;
   }
