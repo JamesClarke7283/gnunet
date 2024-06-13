@@ -152,6 +152,41 @@ GNUNET_CORE_cmd_connect (
 }
 
 
+static void
+exec_disconnect_run (void *cls,
+                     struct GNUNET_TESTING_Interpreter *is)
+{
+  struct UnderlayDummyState *uds = cls;
+
+  GNUNET_assert (NULL != uds->h);
+  GNUNET_CORE_UNDERLAY_DUMMY_disconnect (uds->h);
+}
+
+
+static void
+exec_disconnect_cleanup (void *cls)
+{
+  struct UnderlayDummyState *uds = cls;
+  GNUNET_free (uds);
+}
+
+
+const struct GNUNET_TESTING_Command
+GNUNET_CORE_cmd_disconnect (
+  const char *label,
+  enum GNUNET_OS_ProcessStatusType expected_type,
+  unsigned long int expected_exit_code,
+  struct UnderlayDummyState *uds)
+{
+  return GNUNET_TESTING_command_new (
+      uds, // state
+      label,
+      &exec_disconnect_run,
+      &exec_disconnect_cleanup,
+      &traits);
+}
+
+
 int
 main (int argc,
       char *const *argv)
