@@ -406,6 +406,12 @@ write_cb (void *cls)
   {
     //LOG (GNUNET_ERROR_TYPE_ERROR, "Failed to send message\n");
     LOG (GNUNET_ERROR_TYPE_ERROR, "Failed to send message: %s\n", strerror(errno));
+    if (EPIPE == errno)
+    {
+      /* Tear down the connection */
+      GNUNET_MQ_destroy (connection->mq);
+      return;
+    }
     LOG (GNUNET_ERROR_TYPE_ERROR, "Retrying (due to failure)\n");
     /* retry */
     connection->write_task =
