@@ -25,32 +25,141 @@
 #include "gnunet_util_lib.h"
 #include "gnunet_testing_lib.h"
 
+#include "gnunet_core_underlay_dummy.h"
+
+
+#define MTYPE 12345
+
+
+struct UnderlayDummyState
+{
+  struct GNUNET_CORE_UNDERLAY_DUMMY_Handle *h;
+};
+
+
+struct GNUNET_UNDERLAY_DUMMY_Message
+{
+  struct GNUNET_MessageHeader header;
+  // The following will be used for debugging
+  uint64_t id; // id of the message
+  uint64_t batch; // first batch of that peer (for this test 0 or 1)
+  //uint64_t peer; // number of sending peer (for this test 0 or 1)
+};
+
+
+/**
+ * This function prepares an array with traits.
+ */
+static enum GNUNET_GenericReturnValue
+traits (void *cls,
+        const void **ret,
+        const char *trait,
+        unsigned int index)
+{
+  struct UnderlayDummyState *uds = cls;
+  struct GNUNET_TESTING_Trait traits[] = {
+    //GNUNET_CORE_make_trait_connect (&bss->h),
+    GNUNET_TESTING_trait_end ()
+  };
+
+  return GNUNET_TESTING_get_trait (traits,
+                                   ret,
+                                   trait,
+                                   index);
+}
+
+
+static void
+handle_test (void *cls, const struct GNUNET_UNDERLAY_DUMMY_Message *msg)
+{
+  struct Connection *connection = cls;
+}
+
+
+void *notify_connect_cb (
+  void *cls,
+  uint32_t num_addresses,
+  const char *addresses[static num_addresses],
+  struct GNUNET_MQ_Handle *mq)
+{
+  struct DummyContext *dc = (struct DummyContext *) cls;
+  struct GNUNET_MQ_Envelope *env;
+  struct GNUNET_UNDERLAY_DUMMY_Message *msg;
+  struct Connection *connection;
+}
+
+
+void address_change_cb (void *cls,
+                        struct GNUNET_HashCode network_location_hash,
+                        uint64_t network_generation_id)
+{
+  struct DummyContext *dc = cls;
+}
+
+
+static void
+exec_connect_run (void *cls,
+                  struct GNUNET_TESTING_Interpreter *is)
+{
+  struct UnderlayDummyState *uds = cls;
+
+  struct GNUNET_MQ_MessageHandler handlers[] =
+  {
+    GNUNET_MQ_hd_fixed_size (test, MTYPE, struct GNUNET_UNDERLAY_DUMMY_Message, NULL),
+    GNUNET_MQ_handler_end ()
+  };
+
+  uds->h = GNUNET_CORE_UNDERLAY_DUMMY_connect (NULL, // cfg
+                                               handlers,
+                                               uds, // cls
+                                               notify_connect_cb,
+                                               NULL, // nd
+                                               address_change_cb);
+
+}
+
+
+static void
+exec_connect_cleanup (void *cls)
+{
+  struct UnderlayDummyState *uds = cls;
+
+  if (NULL != uds->h)
+  {
+    GNUNET_CORE_UNDERLAY_DUMMY_disconnect (uds->h);
+  }
+
+  GNUNET_free (uds);
+}
+
+
+const struct GNUNET_TESTING_Command
+GNUNET_CORE_cmd_connect (
+  const char *label,
+  enum GNUNET_OS_ProcessStatusType expected_type,
+  unsigned long int expected_exit_code)
+{
+  struct UnderlayDummyState *uds;
+
+  uds = GNUNET_new (struct UnderlayDummyState);
+
+  return GNUNET_TESTING_command_new (
+      uds, // state
+      label,
+      &exec_connect_run,
+      &exec_connect_cleanup,
+      &traits);
+}
+
 
 int
 main (int argc,
       char *const *argv)
 {
   struct GNUNET_TESTING_Command commands[] = {
-    GNUNET_TESTING_cmd_make_unblocking (
-        // TODO evaluate the use of GNUNET_TESTING_cmd_batch()
-      GNUNET_TESTING_cmd_exec_va ("dummy_underlay0",
-                                  GNUNET_OS_PROCESS_EXITED,
-                                  0,
-                                  "./test_core_underlay_dummy_single_0.sh",
-                                  NULL)),
-    GNUNET_TESTING_cmd_make_unblocking (
-      GNUNET_TESTING_cmd_exec_va ("dummy_underlay1",
-                                  GNUNET_OS_PROCESS_EXITED,
-                                  0,
-                                  "./test_core_underlay_dummy_single_1.sh",
-                                  NULL)),
-    GNUNET_TESTING_cmd_finish ("wait-dummy_underlay0",
-                               "dummy_underlay0",
-                               GNUNET_TIME_relative_multiply (
-                                 GNUNET_TIME_UNIT_SECONDS, 5)),
-    GNUNET_TESTING_cmd_finish ("wait-dummy_underlay1",
-                               "dummy_underlay1",
-                               GNUNET_TIME_UNIT_ZERO),
+    GNUNET_CORE_cmd_connect ("connect0",
+                             GNUNET_OS_PROCESS_EXITED,
+                             0),
     GNUNET_TESTING_cmd_end ()
   };
 
@@ -58,7 +167,9 @@ main (int argc,
                     "DEBUG",
                     NULL);
   return GNUNET_TESTING_main (commands,
-                              GNUNET_TIME_UNIT_MINUTES);
+                              GNUNET_TIME_relative_multiply (
+                                GNUNET_TIME_UNIT_SECONDS,
+                                5));
 }
 
 
