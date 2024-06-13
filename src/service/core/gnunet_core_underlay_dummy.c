@@ -833,7 +833,7 @@ do_discover_peers (void *cls)
                           h);
 
   h->peer_discovery_task = GNUNET_SCHEDULER_add_delayed (
-      GNUNET_TIME_relative_multiply (GNUNET_TIME_UNIT_SECONDS, 10),
+      GNUNET_TIME_relative_multiply (GNUNET_TIME_UNIT_MILLISECONDS, 100),
       do_discover_peers,
       h);
 }
