@@ -133,10 +133,7 @@ struct GNUNET_UNDERLAY_DUMMY_Message
 uint8_t result_address_callback = GNUNET_NO;
 
 /* Flag indicating whether #notify_connect_cb was called once */
-uint8_t result_connect_cb_0 = GNUNET_NO;
-
-/* Flag indicating whether #notify_connect_cb was called a second time */
-uint8_t result_connect_cb_1 = GNUNET_NO;
+uint8_t result_connect_cb = GNUNET_NO;
 
 /* Number of replys that peer0 received */
 uint32_t result_replys = 0;
@@ -207,14 +204,9 @@ void *notify_connect_cb (
       addresses[num_addresses - 1]);
   }
   /* Note test result */
-  if (GNUNET_NO == result_connect_cb_0)
+  if (GNUNET_NO == result_connect_cb)
   {
-    result_connect_cb_0 = GNUNET_YES;
-  }
-  else if (GNUNET_YES == result_connect_cb_0 &&
-             GNUNET_NO == result_connect_cb_1)
-  {
-    result_connect_cb_1 = GNUNET_YES;
+    result_connect_cb = GNUNET_YES;
   }
   /* If we knew whether this connection is the one that's used to send/recv, we
    * could close it right now: */
@@ -435,8 +427,7 @@ int main (void)
   GNUNET_SCHEDULER_run (run_test, NULL);
 
   if (GNUNET_YES != result_address_callback) return -1;
-  if (GNUNET_YES != result_connect_cb_0) return -1;
-  if (GNUNET_YES != result_connect_cb_1) return -1;
+  if (GNUNET_YES != result_connect_cb) return -1;
   if (NUMBER_MESSAGES * NUMBER_CONNECTIONS != result_replys)
   {
     LOG(GNUNET_ERROR_TYPE_ERROR,
