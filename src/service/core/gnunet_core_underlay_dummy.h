@@ -47,6 +47,7 @@ extern "C" {
 #include <sys/socket.h>
 #include <stdint.h>
 #include "gnunet_util_lib.h"
+#include "gnunet_testing_lib.h"
 
 // FIXME use gnunet_core_underlay.h for most types!
 
@@ -191,6 +192,18 @@ GNUNET_CORE_UNDERLAY_DUMMY_connect_to_peer (
     const char *peer_address,
     enum GNUNET_MQ_PriorityPreferences pp,
     struct GNUNET_BANDWIDTH_Value32NBO bw);
+
+
+/**
+ * Call #op on all simple traits.
+ *
+ * XXX: Took src/lib/testing/testing_api_topoloty.h as example
+ */
+#define GNUNET_CORE_SIMPLE_DUMMY_UNDERLAY_TRAITS(op, prefix)                 \
+        op (prefix, connect, const struct GNUNET_CORE_UNDERLAY_DUMMY_Handle)
+
+GNUNET_CORE_SIMPLE_DUMMY_UNDERLAY_TRAITS (
+    GNUNET_TESTING_MAKE_DECL_SIMPLE_TRAIT, GNUNET_CORE)
 
 
 #if 0 /* keep Emacsens' auto-indent happy */

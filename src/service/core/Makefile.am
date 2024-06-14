@@ -60,7 +60,8 @@ libgnunet_test_core_plugin_cmd_run_emu_la_LDFLAGS = \
 libgnunetcoreunderlaydummy_la_SOURCES = \
   gnunet_core_underlay_dummy.h gnunet_core_underlay_dummy.c
 libgnunetcoreunderlaydummy_la_LIBADD = \
-  $(top_builddir)/src/lib/util/libgnunetutil.la
+  $(top_builddir)/src/lib/util/libgnunetutil.la \
+  $(top_builddir)/src/lib/testing/libgnunettesting.la
 libgnunetcoreunderlaydummy_la_LDFLAGS = \
   $(GN_LIB_LDFLAGS)
 

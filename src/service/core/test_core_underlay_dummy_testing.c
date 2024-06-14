@@ -51,14 +51,14 @@ struct GNUNET_UNDERLAY_DUMMY_Message
  * This function prepares an array with traits.
  */
 static enum GNUNET_GenericReturnValue
-traits (void *cls,
+connect_traits (void *cls,
         const void **ret,
         const char *trait,
         unsigned int index)
 {
   struct UnderlayDummyState *uds = cls;
   struct GNUNET_TESTING_Trait traits[] = {
-    //GNUNET_CORE_make_trait_connect (&bss->h),
+    GNUNET_CORE_make_trait_connect (uds->h),
     GNUNET_TESTING_trait_end ()
   };
 
@@ -148,7 +148,7 @@ GNUNET_CORE_cmd_connect (
       label,
       &exec_connect_run,
       &exec_connect_cleanup,
-      &traits);
+      &connect_traits);
 }
 
 
@@ -183,7 +183,7 @@ GNUNET_CORE_cmd_disconnect (
       label,
       &exec_disconnect_run,
       &exec_disconnect_cleanup,
-      &traits);
+      NULL);
 }
 
 
@@ -207,6 +207,10 @@ main (int argc,
                                 5));
 }
 
+// testing_core_cmd_connecting_peers.c takes as inspiration
+// FIXME: likely not ideally placed here, move to its own file
+GNUNET_CORE_SIMPLE_DUMMY_UNDERLAY_TRAITS (
+    GNUNET_TESTING_MAKE_IMPL_SIMPLE_TRAIT, GNUNET_CORE)
 
 /* end of test_testing_api.c */
 
