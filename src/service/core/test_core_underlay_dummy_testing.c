@@ -37,6 +37,12 @@ struct UnderlayDummyState
 };
 
 
+struct UnderlayDummyDisconnectState
+{
+  char *label;
+};
+
+
 struct GNUNET_UNDERLAY_DUMMY_Message
 {
   struct GNUNET_MessageHeader header;
@@ -52,9 +58,9 @@ struct GNUNET_UNDERLAY_DUMMY_Message
  */
 static enum GNUNET_GenericReturnValue
 connect_traits (void *cls,
-        const void **ret,
-        const char *trait,
-        unsigned int index)
+                const void **ret,
+                const char *trait,
+                unsigned int index)
 {
   struct UnderlayDummyState *uds = cls;
   struct GNUNET_TESTING_Trait traits[] = {
@@ -124,10 +130,12 @@ exec_connect_cleanup (void *cls)
 {
   struct UnderlayDummyState *uds = cls;
 
-  if (NULL != uds->h)
-  {
-    GNUNET_CORE_UNDERLAY_DUMMY_disconnect (uds->h);
-  }
+  // FIXME: mark handle as already dissconnected in exec_disconnect_run
+  //        then reuse conditional disconnect here
+  //if (NULL != uds->h)
+  //{
+  //  GNUNET_CORE_UNDERLAY_DUMMY_disconnect (uds->h);
+  //}
 
   GNUNET_free (uds);
 }
@@ -156,10 +164,18 @@ static void
 exec_disconnect_run (void *cls,
                      struct GNUNET_TESTING_Interpreter *is)
 {
-  struct UnderlayDummyState *uds = cls;
+  struct UnderlayDummyDisconnectState *udds = cls;
+  struct GNUNET_CORE_UNDERLAY_DUMMY_Handle *h;
 
-  GNUNET_assert (NULL != uds->h);
-  GNUNET_CORE_UNDERLAY_DUMMY_disconnect (uds->h);
+  if (GNUNET_OK != GNUNET_CORE_get_trait_connect (
+        GNUNET_TESTING_interpreter_lookup_command (is,
+                                                   (const char *) udds->label),
+        (const struct GNUNET_CORE_UNDERLAY_DUMMY_Handle**) &h)) {
+    /* TODO fail */
+  };
+
+  GNUNET_assert (NULL != h);
+  GNUNET_CORE_UNDERLAY_DUMMY_disconnect (h);
 }
 
 
@@ -176,10 +192,15 @@ GNUNET_CORE_cmd_disconnect (
   const char *label,
   enum GNUNET_OS_ProcessStatusType expected_type,
   unsigned long int expected_exit_code,
-  struct UnderlayDummyState *uds)
+  char *target_label)
 {
+  struct UnderlayDummyDisconnectState *udds;
+
+  udds = GNUNET_new (struct UnderlayDummyDisconnectState);
+  udds->label = GNUNET_strdup (target_label);
+
   return GNUNET_TESTING_command_new (
-      uds, // state
+      udds, // state
       label,
       &exec_disconnect_run,
       &exec_disconnect_cleanup,
@@ -195,6 +216,17 @@ main (int argc,
     GNUNET_CORE_cmd_connect ("connect0",
                              GNUNET_OS_PROCESS_EXITED,
                              0),
+    GNUNET_CORE_cmd_connect ("connect1",
+                             GNUNET_OS_PROCESS_EXITED,
+                             0),
+    GNUNET_CORE_cmd_disconnect ("disconnect0",
+                                GNUNET_OS_PROCESS_EXITED,
+                                0,
+                                "connect0"),
+    GNUNET_CORE_cmd_disconnect ("disconnect1",
+                                GNUNET_OS_PROCESS_EXITED,
+                                0,
+                                "connect1"),
     GNUNET_TESTING_cmd_end ()
   };
 
