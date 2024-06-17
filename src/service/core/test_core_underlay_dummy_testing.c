@@ -124,10 +124,8 @@ exec_connect_cleanup (void *cls)
 {
   struct UnderlayDummyState *uds = cls;
 
-  if (NULL != uds->h)
-  {
-    GNUNET_CORE_UNDERLAY_DUMMY_disconnect (uds->h);
-  }
+  GNUNET_assert (NULL != uds->h);
+  GNUNET_CORE_UNDERLAY_DUMMY_disconnect (uds->h);
 }
 
 
@@ -147,41 +145,6 @@ GNUNET_CORE_cmd_connect (
 }
 
 
-static void
-exec_disconnect_run (void *cls,
-                     struct GNUNET_TESTING_Interpreter *is)
-{
-  struct UnderlayDummyState *uds = cls;
-
-  GNUNET_assert (NULL != uds->h);
-  GNUNET_CORE_UNDERLAY_DUMMY_disconnect (uds->h);
-  uds->h = NULL;
-}
-
-
-static void
-exec_disconnect_cleanup (void *cls)
-{
-  struct UnderlayDummyState *uds = cls;
-}
-
-
-const struct GNUNET_TESTING_Command
-GNUNET_CORE_cmd_disconnect (
-  const char *label,
-  enum GNUNET_OS_ProcessStatusType expected_type,
-  unsigned long int expected_exit_code,
-  struct UnderlayDummyState *uds)
-{
-  return GNUNET_TESTING_command_new (
-      uds, // state
-      label,
-      &exec_disconnect_run,
-      &exec_disconnect_cleanup,
-      NULL);
-}
-
-
 int
 main (int argc,
       char *const *argv)
@@ -195,14 +158,6 @@ main (int argc,
                              GNUNET_OS_PROCESS_EXITED,
                              0,
                              &uds1),
-    GNUNET_CORE_cmd_disconnect ("disconnect0",
-                                GNUNET_OS_PROCESS_EXITED,
-                                0,
-                                &uds0),
-    GNUNET_CORE_cmd_disconnect ("disconnect1",
-                                GNUNET_OS_PROCESS_EXITED,
-                                0,
-                                &uds1),
     GNUNET_TESTING_cmd_end ()
   };
 
