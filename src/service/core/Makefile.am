@@ -118,8 +118,7 @@ gnunet_service_core_LDADD = \
 # test_core_api_send_to_self
 
 DUMMY_TESTS = \
-  test_core_underlay_dummy \
-  test_core_underlay_dummy_testing
+  test_core_underlay_dummy
 
 check_PROGRAMS = \
  test_core_api_start_only \
@@ -130,9 +129,13 @@ check_PROGRAMS = \
 #check_SCRIPTS= \
 #  test_core_start_testcase.sh
 
+check_SCRIPTS= \
+  test_core_underlay_dummy_testing.sh
+
 if ENABLE_TEST_RUN
 AM_TESTS_ENVIRONMENT=export GNUNET_PREFIX=$${GNUNET_PREFIX:-@libdir@};export PATH=$${GNUNET_PREFIX:-@prefix@}/bin:$$PATH;unset XDG_DATA_HOME;unset XDG_CONFIG_HOME;
-TESTS = $(check_PROGRAMS) \
+TESTS = \
+ $(check_PROGRAMS) \
  $(check_SCRIPTS)
 endif
 
@@ -156,15 +159,18 @@ test_core_underlay_dummy_LDADD = \
  libgnunetcoreunderlaydummy.la \
  $(top_builddir)/src/lib/util/libgnunetutil.la
 
-test_core_underlay_dummy_testing_SOURCES = \
- test_core_underlay_dummy_testing.c
-test_core_underlay_dummy_testing_LDADD = \
- libgnunetcoreunderlaydummy.la \
- $(top_builddir)/src/lib/util/libgnunetutil.la \
- $(top_builddir)/src/lib/testing/libgnunettesting.la
+libgnunet_test_core_plugin_underlay_dummy_la_SOURCES = \
+  test_core_plugin_underlay_dummy.c
+libgnunet_test_core_plugin_underlay_dummy_la_LIBADD = \
+  libgnunetcoreunderlaydummy.la \
+  $(top_builddir)/src/lib/util/libgnunetutil.la \
+  $(top_builddir)/src/lib/testing/libgnunettesting.la
+
 
 EXTRA_DIST = \
+  $(check_SCRIPTS) \
   test_core_start_testcase.sh \
+  test_core_underlay_dummy.sh \
   test_core_defaults.conf \
   test_core_api_data.conf \
   test_core_api_peer1.conf \
@@ -175,4 +181,8 @@ EXTRA_DIST = \
   test_core_quota_asymmetric_send_limit_peer1.conf \
   test_core_quota_asymmetric_send_limit_peer2.conf \
   test_core_quota_peer1.conf \
-  test_core_quota_peer2.conf
+  test_core_quota_peer2.conf \
+  test_core_underlay_dummy_netjail_topo.conf
+
+plugin_LTLIBRARIES = \
+  libgnunet_test_core_plugin_underlay_dummy.la
