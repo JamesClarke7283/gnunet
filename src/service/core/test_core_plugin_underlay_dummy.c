@@ -32,6 +32,12 @@
 
 #define MTYPE 12345
 
+/**
+ * @brief Generic logging shortcut
+ */
+#define LOG(kind, ...) \
+  GNUNET_log_from_nocheck (kind, "core-plugin-underlay-dummy", __VA_ARGS__)
+
 
 struct UnderlayDummyState
 {
@@ -87,6 +93,8 @@ void *notify_connect_cb (
 {
   struct UnderlayDummyState *uds = cls;
 
+  LOG (GNUNET_ERROR_TYPE_DEBUG, "A new connection was established\n");
+
   uds->mq = mq;
 
   // GNUNET_TESTING_AsyncContext *ac
@@ -99,6 +107,8 @@ void address_change_cb (void *cls,
                         uint64_t network_generation_id)
 {
   struct UnderlayDummyState *uds = cls;
+
+  LOG (GNUNET_ERROR_TYPE_DEBUG, "Our set of addresses changed\n");
 }
 
 
@@ -108,6 +118,7 @@ exec_connect_run (void *cls,
 {
   struct UnderlayDummyState *uds = cls;
 
+  LOG (GNUNET_ERROR_TYPE_DEBUG, "Going to connect to underlay dummy\n");
   struct GNUNET_MQ_MessageHandler handlers[] =
   {
     GNUNET_MQ_hd_fixed_size (test, MTYPE, struct GNUNET_UNDERLAY_DUMMY_Message, NULL),
@@ -159,6 +170,7 @@ exec_send_run (void *cls,
   struct GNUNET_UNDERLAY_DUMMY_Message *msg;
 
   GNUNET_assert (NULL != uds->mq);
+  LOG (GNUNET_ERROR_TYPE_DEBUG, "Going to send message\n");
   env = GNUNET_MQ_msg (msg, MTYPE); // TODO usually we wanted to keep the
                                     // envelopes to potentially cancel the
                                     // message
@@ -183,6 +195,7 @@ GNUNET_CORE_cmd_send (
   unsigned long int expected_exit_code,
   struct UnderlayDummyState *uds)
 {
+  LOG (GNUNET_ERROR_TYPE_DEBUG, "(Setting up _cmd_send)\n");
   return GNUNET_TESTING_command_new (
       uds, // state
       label,
