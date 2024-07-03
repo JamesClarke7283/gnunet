@@ -39,10 +39,18 @@
   GNUNET_log_from_nocheck (kind, "core-plugin-underlay-dummy", __VA_ARGS__)
 
 
+enum UDS_State_Connected
+{
+  UDS_State_Connected_TRUE,
+  UDS_State_Connected_FALSE,
+};
+
 struct UnderlayDummyState
 {
   struct GNUNET_CORE_UNDERLAY_DUMMY_Handle *h;
   struct GNUNET_MQ_Handle *mq;
+  struct GNUNET_TESTING_AsyncContext ac;
+  enum UDS_State_Connected connected;
 } uds;
 
 
@@ -97,8 +105,12 @@ void *notify_connect_cb (
 
   uds->mq = mq;
 
-  // GNUNET_TESTING_AsyncContext *ac
-  //GNUNET_TESTING_async_finish ();
+  if (UDS_State_Connected_FALSE == uds->connected)
+  {
+    GNUNET_TESTING_async_finish (&uds->ac);
+    uds->connected = UDS_State_Connected_TRUE;
+  }
+  LOG (GNUNET_ERROR_TYPE_DEBUG, "(post connect_cb _async_finish)\n");
 }
 
 
@@ -152,12 +164,14 @@ GNUNET_CORE_cmd_connect (
   unsigned long int expected_exit_code,
   struct UnderlayDummyState *uds)
 {
-  return GNUNET_TESTING_command_new (
+  uds->connected = UDS_State_Connected_FALSE;
+  return GNUNET_TESTING_command_new_ac (
       uds, // state
       label,
       &exec_connect_run,
       &exec_connect_cleanup,
-      &connect_traits);
+      &connect_traits,
+      &uds->ac);
 }
 
 
