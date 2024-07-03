@@ -228,13 +228,13 @@ GNUNET_TESTING_MAKE_PLUGIN (
                                GNUNET_OS_PROCESS_EXITED,
                                0,
                                &uds)),
-    //GNUNET_TESTING_cmd_make_unblocking (
-    //  GNUNET_TESTING_cmd_barrier_reached ("barrier-connected-r",
-    //                                      "barrier-connected")),
-    //GNUNET_TESTING_cmd_finish ("barrier-connected-finish",
-    //                           "barrier-connected",
-    //                           GNUNET_TIME_UNIT_MINUTES),
-    //GNUNET_CORE_cmd_send ("send", GNUNET_OS_PROCESS_EXITED, 0, &uds),
+    /* Wait until underlay dummy is connected to another peer: */
+    GNUNET_TESTING_cmd_finish ("connect-finished",
+                               "connect",
+                               GNUNET_TIME_UNIT_SECONDS),
+    /* Wait until all 'peers' are connected: */
+    GNUNET_TESTING_cmd_barrier_reached ("barrier-connected-reached",
+                                        "barrier-connected"),
     GNUNET_TESTING_cmd_end ()
   )
 
