@@ -222,7 +222,6 @@ GNUNET_CORE_cmd_send (
 GNUNET_TESTING_MAKE_PLUGIN (
   libgnunet_test_core,
   underlay_dummy,
-    //GNUNET_TESTING_cmd_barrier_create ("barrier-connected", 5),
     GNUNET_TESTING_cmd_make_unblocking (
       GNUNET_CORE_cmd_connect ("connect",
                                GNUNET_OS_PROCESS_EXITED,
@@ -233,8 +232,8 @@ GNUNET_TESTING_MAKE_PLUGIN (
                                "connect",
                                GNUNET_TIME_UNIT_SECONDS),
     /* Wait until all 'peers' are connected: */
-    GNUNET_TESTING_cmd_barrier_reached ("barrier-connected-reached",
-                                        "barrier-connected"),
+    GNUNET_TESTING_cmd_barrier_reached ("connected-reached",
+                                        "connected"),
     GNUNET_CORE_cmd_send ("send", GNUNET_OS_PROCESS_EXITED, 0, &uds),
     GNUNET_TESTING_cmd_end ()
   )

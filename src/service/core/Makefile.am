@@ -17,7 +17,8 @@ endif
 
 plugin_LTLIBRARIES = \
   #libgnunet_test_core_plugin_cmd_just_run.la \
-  libgnunet_test_core_plugin_cmd_run_emu.la
+  libgnunet_test_core_plugin_cmd_run_emu.la \
+  libgnunet_test_core_plugin_underlay_dummy.la
 
 TESTING_LIBS = \
   libgnunetcoretesting.la
@@ -118,9 +119,7 @@ gnunet_service_core_LDADD = \
 # test_core_api_send_to_self
 
 DUMMY_TESTS = \
-  test_core_underlay_dummy \
-  test_core_underlay_dummy_single \
-  test_core_underlay_dummy_testing
+  test_core_underlay_dummy
 
 check_PROGRAMS = \
  test_core_api_start_only \
@@ -134,13 +133,14 @@ check_PROGRAMS = \
 check_SCRIPTS= \
   test_core_underlay_dummy_testing.sh
 
+check_DEPENDENCIES= \
+  test_core_underlay_dummy_testing_launcher
+
 if ENABLE_TEST_RUN
 AM_TESTS_ENVIRONMENT=export GNUNET_PREFIX=$${GNUNET_PREFIX:-@libdir@};export PATH=$${GNUNET_PREFIX:-@prefix@}/bin:$$PATH;unset XDG_DATA_HOME;unset XDG_CONFIG_HOME;
 TESTS = \
  $(check_PROGRAMS) \
  $(check_SCRIPTS)
-XFAIL_TESTS = \
-  test_core_underlay_dummy_single
 endif
 
 test_core_api_send_to_self_SOURCES = \
@@ -170,17 +170,15 @@ libgnunet_test_core_plugin_underlay_dummy_la_LIBADD = \
   $(top_builddir)/src/lib/util/libgnunetutil.la \
   $(top_builddir)/src/lib/testing/libgnunettesting.la
 
-test_core_underlay_dummy_single_SOURCES = \
- test_core_underlay_dummy_single.c
-test_core_underlay_dummy_single_LDADD = \
- libgnunetcoreunderlaydummy.la \
- $(top_builddir)/src/lib/util/libgnunetutil.la
+test_core_underlay_dummy_testing_launcher_SOURCES = \
+  test_core_underlay_dummy_testing_launcher.c
+test_core_underlay_dummy_testing_launcher_LDADD = \
+  $(top_builddir)/src/lib/util/libgnunetutil.la \
+  $(top_builddir)/src/lib/testing/libgnunettesting.la
+test_core_underlay_dummy_testing_launcher_LDFLAGS = \
+  $(GN_LIBINTL) \
+  $(GN_LIB_LDFLAGS)
 
-test_core_underlay_dummy_testing_SOURCES = \
- test_core_underlay_dummy_testing.c
-test_core_underlay_dummy_testing_LDADD = \
- $(top_builddir)/src/lib/util/libgnunetutil.la \
- $(top_builddir)/src/lib/testing/libgnunettesting.la
 
 EXTRA_DIST = \
   $(check_SCRIPTS) \
@@ -197,9 +195,4 @@ EXTRA_DIST = \
   test_core_quota_asymmetric_send_limit_peer2.conf \
   test_core_quota_peer1.conf \
   test_core_quota_peer2.conf \
-  test_core_underlay_dummy_netjail_topo.conf \
-  test_core_underlay_dummy_single_0.sh \
-  test_core_underlay_dummy_single_1.sh
-
-plugin_LTLIBRARIES = \
-  libgnunet_test_core_plugin_underlay_dummy.la
+  test_core_underlay_dummy_netjail_topo.conf
