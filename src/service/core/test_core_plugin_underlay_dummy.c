@@ -223,15 +223,6 @@ GNUNET_TESTING_MAKE_PLUGIN (
   libgnunet_test_core,
   underlay_dummy,
     //GNUNET_TESTING_cmd_barrier_create ("barrier-connected", 5),
-    GNUNET_TESTING_cmd_load_topology_from_file (
-      "load-topology",
-      "test_core_underlay_dummy_netjail_topo.conf"),
-    GNUNET_TESTING_cmd_netjail_start_helpers ("netjail-start-helpers",
-                                              "load-topology",
-                                              GNUNET_TIME_UNIT_MINUTES),
-    GNUNET_TESTING_cmd_netjail_setup ("netjail",
-                                      GNUNET_TESTING_NETJAIL_START_SCRIPT,
-                                      "load-topology"),
     GNUNET_TESTING_cmd_make_unblocking (
       GNUNET_CORE_cmd_connect ("connect",
                                GNUNET_OS_PROCESS_EXITED,
