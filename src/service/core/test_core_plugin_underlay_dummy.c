@@ -235,6 +235,7 @@ GNUNET_TESTING_MAKE_PLUGIN (
     /* Wait until all 'peers' are connected: */
     GNUNET_TESTING_cmd_barrier_reached ("barrier-connected-reached",
                                         "barrier-connected"),
+    GNUNET_CORE_cmd_send ("send", GNUNET_OS_PROCESS_EXITED, 0, &uds),
     GNUNET_TESTING_cmd_end ()
   )
 
