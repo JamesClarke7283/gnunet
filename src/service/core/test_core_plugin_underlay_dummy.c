@@ -51,6 +51,7 @@ struct UnderlayDummyState
   struct GNUNET_MQ_Handle *mq;
   struct GNUNET_TESTING_AsyncContext ac;
   enum UDS_State_Connected connected;
+  const char *node_id;
 } uds;
 
 
@@ -130,7 +131,9 @@ exec_connect_run (void *cls,
 {
   struct UnderlayDummyState *uds = cls;
 
-  LOG (GNUNET_ERROR_TYPE_DEBUG, "Going to connect to underlay dummy\n");
+  LOG (GNUNET_ERROR_TYPE_DEBUG,
+      "(%s) Going to connect to underlay dummy\n",
+      uds->node_id);
   struct GNUNET_MQ_MessageHandler handlers[] =
   {
     GNUNET_MQ_hd_fixed_size (test, MTYPE, struct GNUNET_UNDERLAY_DUMMY_Message, NULL),
@@ -162,9 +165,11 @@ GNUNET_CORE_cmd_connect (
   const char *label,
   enum GNUNET_OS_ProcessStatusType expected_type,
   unsigned long int expected_exit_code,
-  struct UnderlayDummyState *uds)
+  struct UnderlayDummyState *uds,
+  const char* node_id)
 {
   uds->connected = UDS_State_Connected_FALSE;
+  uds->node_id = GNUNET_strdup (node_id);
   return GNUNET_TESTING_command_new_ac (
       uds, // state
       label,
@@ -226,11 +231,13 @@ GNUNET_TESTING_MAKE_PLUGIN (
       GNUNET_CORE_cmd_connect ("connect",
                                GNUNET_OS_PROCESS_EXITED,
                                0,
-                               &uds)),
+                               &uds,
+                               my_node_id)),
     /* Wait until underlay dummy is connected to another peer: */
     GNUNET_TESTING_cmd_finish ("connect-finished",
                                "connect",
-                               GNUNET_TIME_UNIT_SECONDS),
+                               GNUNET_TIME_relative_multiply (
+                                 GNUNET_TIME_UNIT_SECONDS, 2)),
     /* Wait until all 'peers' are connected: */
     GNUNET_TESTING_cmd_barrier_reached ("connected-reached",
                                         "connected"),
