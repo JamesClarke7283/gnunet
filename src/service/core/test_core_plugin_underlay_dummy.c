@@ -49,6 +49,8 @@ struct UnderlayDummyState
 {
   struct GNUNET_CORE_UNDERLAY_DUMMY_Handle *h;
   struct GNUNET_MQ_Handle *mq;
+  struct GNUNET_TESTING_AsyncContext connect_ac;
+  struct GNUNET_TESTING_AsyncContext send_ac;
   struct GNUNET_TESTING_AsyncContext ac;
   enum UDS_State_Connected connected;
   const char *node_id;
@@ -91,6 +93,8 @@ static void
 handle_test (void *cls, const struct GNUNET_UNDERLAY_DUMMY_Message *msg)
 {
   struct UnderlayDummyState *uds = cls;
+  LOG (GNUNET_ERROR_TYPE_DEBUG, "Received message\n");
+  GNUNET_TESTING_async_finish (&uds->send_ac);
 }
 
 
@@ -108,7 +112,7 @@ void *notify_connect_cb (
 
   if (UDS_State_Connected_FALSE == uds->connected)
   {
-    GNUNET_TESTING_async_finish (&uds->ac);
+    GNUNET_TESTING_async_finish (&uds->connect_ac);
     uds->connected = UDS_State_Connected_TRUE;
   }
   LOG (GNUNET_ERROR_TYPE_DEBUG, "(post connect_cb _async_finish)\n");
@@ -176,7 +180,7 @@ GNUNET_CORE_cmd_connect (
       &exec_connect_run,
       &exec_connect_cleanup,
       &connect_traits,
-      &uds->ac);
+      &uds->connect_ac);
 }
 
 
@@ -196,6 +200,7 @@ exec_send_run (void *cls,
   msg->id = GNUNET_htonll (0); // i
   msg->batch = GNUNET_htonll (0); // dc->num_open_connections - 1
   GNUNET_MQ_send (uds->mq, env);
+  LOG (GNUNET_ERROR_TYPE_DEBUG, "Sent message\n");
 }
 
 
@@ -215,12 +220,13 @@ GNUNET_CORE_cmd_send (
   struct UnderlayDummyState *uds)
 {
   LOG (GNUNET_ERROR_TYPE_DEBUG, "(Setting up _cmd_send)\n");
-  return GNUNET_TESTING_command_new (
+  return GNUNET_TESTING_command_new_ac (
       uds, // state
       label,
       &exec_send_run,
       &exec_send_cleanup,
-      &connect_traits);
+      &connect_traits,
+      &uds->send_ac);
 }
 
 
@@ -241,7 +247,14 @@ GNUNET_TESTING_MAKE_PLUGIN (
     /* Wait until all 'peers' are connected: */
     GNUNET_TESTING_cmd_barrier_reached ("connected-reached",
                                         "connected"),
-    GNUNET_CORE_cmd_send ("send", GNUNET_OS_PROCESS_EXITED, 0, &uds),
+    // The following is currently far from 'the testing way'
+    // receive and send should be different commands
+    GNUNET_TESTING_cmd_make_unblocking (
+      GNUNET_CORE_cmd_send ("send", GNUNET_OS_PROCESS_EXITED, 0, &uds)),
+    GNUNET_TESTING_cmd_finish ("send-finished",
+                               "send",
+                               GNUNET_TIME_relative_multiply (
+                                 GNUNET_TIME_UNIT_SECONDS, 3)),
     GNUNET_TESTING_cmd_end ()
   )
 
