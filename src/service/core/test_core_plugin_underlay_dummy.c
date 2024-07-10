@@ -22,6 +22,9 @@
  * @file src/service/core/test_core_plugin_underlay_dummy.c
  * @brief a plugin to provide the API for running test cases.
  * @author ch3
+ * TODO:
+ *  - try to avoid generic pointer and globally known struct UnderlayDummyState
+ *  - cleaner separate the waiting for connection to finish out of _cmd_connect()
  */
 #include "platform.h"
 #include "gnunet_util_lib.h"
@@ -39,24 +42,6 @@
   GNUNET_log_from_nocheck (kind, "core-plugin-underlay-dummy", __VA_ARGS__)
 
 
-enum UDS_State_Connected
-{
-  UDS_State_Connected_TRUE,
-  UDS_State_Connected_FALSE,
-};
-
-struct UnderlayDummyState
-{
-  struct GNUNET_CORE_UNDERLAY_DUMMY_Handle *h;
-  struct GNUNET_MQ_Handle *mq;
-  struct GNUNET_TESTING_AsyncContext connect_ac;
-  struct GNUNET_TESTING_AsyncContext send_ac;
-  struct GNUNET_TESTING_AsyncContext ac;
-  enum UDS_State_Connected connected;
-  const char *node_id;
-} uds;
-
-
 struct GNUNET_UNDERLAY_DUMMY_Message
 {
   struct GNUNET_MessageHeader header;
@@ -64,6 +49,39 @@ struct GNUNET_UNDERLAY_DUMMY_Message
   uint64_t id; // id of the message
   uint64_t batch; // first batch of that peer (for this test 0 or 1)
   //uint64_t peer; // number of sending peer (for this test 0 or 1)
+};
+
+
+typedef void
+(*handle_msg)(
+  void *cls,
+  const struct GNUNET_UNDERLAY_DUMMY_Message *msg);
+
+
+enum UDS_State_Connected
+{
+  UDS_State_Connected_TRUE,
+  UDS_State_Connected_FALSE,
+};
+
+
+struct UnderlayDummyState
+{
+  struct GNUNET_CORE_UNDERLAY_DUMMY_Handle *h;
+  struct GNUNET_MQ_Handle *mq;
+  struct GNUNET_TESTING_AsyncContext ac;
+  enum UDS_State_Connected connected;
+  const char *node_id;
+  // FIXME: set cls per handler
+  void *handlers_cls;
+  uint32_t handlers_len;
+  handle_msg *handlers;
+};
+
+
+struct UnderlayDummyRecvState
+{
+  struct GNUNET_TESTING_AsyncContext ac;
 };
 
 
@@ -78,7 +96,7 @@ connect_traits (void *cls,
 {
   struct UnderlayDummyState *uds = cls;
   struct GNUNET_TESTING_Trait traits[] = {
-    GNUNET_CORE_make_trait_connect (uds->h),
+    GNUNET_CORE_make_trait_connect (uds),
     GNUNET_TESTING_trait_end ()
   };
 
@@ -93,8 +111,13 @@ static void
 handle_test (void *cls, const struct GNUNET_UNDERLAY_DUMMY_Message *msg)
 {
   struct UnderlayDummyState *uds = cls;
-  LOG (GNUNET_ERROR_TYPE_DEBUG, "Received message\n");
-  GNUNET_TESTING_async_finish (&uds->send_ac);
+  LOG (GNUNET_ERROR_TYPE_DEBUG, "Received message - going to call handlers\n");
+  // TODO call registered handlers
+  for (uint32_t i = 0; i < uds->handlers_len; i++)
+  {
+    // FIXME: set cls per handler
+    uds->handlers[i] (uds->handlers_cls, msg);
+  }
 }
 
 
@@ -112,10 +135,11 @@ void *notify_connect_cb (
 
   if (UDS_State_Connected_FALSE == uds->connected)
   {
-    GNUNET_TESTING_async_finish (&uds->connect_ac);
+    GNUNET_TESTING_async_finish (&uds->ac);
     uds->connected = UDS_State_Connected_TRUE;
+    LOG (GNUNET_ERROR_TYPE_DEBUG, "(post connect_cb _async_finish)\n");
   }
-  LOG (GNUNET_ERROR_TYPE_DEBUG, "(post connect_cb _async_finish)\n");
+  LOG (GNUNET_ERROR_TYPE_DEBUG, "(post connect_cb)\n");
 }
 
 
@@ -169,18 +193,84 @@ GNUNET_CORE_cmd_connect (
   const char *label,
   enum GNUNET_OS_ProcessStatusType expected_type,
   unsigned long int expected_exit_code,
-  struct UnderlayDummyState *uds,
   const char* node_id)
 {
+  struct UnderlayDummyState *uds;
+
+  uds = GNUNET_new (struct UnderlayDummyState);
   uds->connected = UDS_State_Connected_FALSE;
   uds->node_id = GNUNET_strdup (node_id);
+  uds->handlers = GNUNET_new_array (0, handle_msg);
+  uds->handlers_len = 0;
   return GNUNET_TESTING_command_new_ac (
       uds, // state
       label,
       &exec_connect_run,
       &exec_connect_cleanup,
       &connect_traits,
-      &uds->connect_ac);
+      &uds->ac);
+}
+
+
+void
+handle_msg_test (void *cls,
+                 const struct GNUNET_UNDERLAY_DUMMY_Message *msg)
+{
+  struct UnderlayDummyRecvState *udrs = cls;
+
+  GNUNET_TESTING_async_finish (&udrs->ac);
+}
+
+
+static void
+exec_recv_run (void *cls,
+               struct GNUNET_TESTING_Interpreter *is)
+{
+  struct UnderlayDummyRecvState *udrs = cls;
+  struct UnderlayDummyState *uds;
+  struct GNUNET_MQ_Envelope *env;
+  struct GNUNET_UNDERLAY_DUMMY_Message *msg;
+
+  if (GNUNET_OK != GNUNET_CORE_get_trait_connect (
+        GNUNET_TESTING_interpreter_lookup_command (is, "connect"),
+        (const void**) &uds)) {
+    GNUNET_assert (0);
+  };
+  // FIXME: set cls per hanlder
+  GNUNET_array_append (uds->handlers,
+                       uds->handlers_len,
+                       &handle_msg_test);
+  uds->handlers_cls = udrs;
+}
+
+
+static void
+exec_recv_cleanup (void *cls)
+{
+  struct UnderlayDummyState *uds = cls;
+
+  // TODO
+}
+
+
+const struct GNUNET_TESTING_Command
+GNUNET_CORE_cmd_recv (
+  const char *label,
+  enum GNUNET_OS_ProcessStatusType expected_type,
+  unsigned long int expected_exit_code)
+{
+  struct UnderlayDummyRecvState *udrs;
+
+  udrs = GNUNET_new (struct UnderlayDummyRecvState);
+  //udrs->received = UDRS_State_Received_FALSE;
+  LOG (GNUNET_ERROR_TYPE_DEBUG, "(Setting up _cmd_recv)\n");
+  return GNUNET_TESTING_command_new_ac (
+      udrs, // state
+      label,
+      &exec_recv_run,
+      &exec_recv_cleanup,
+      NULL,
+      &udrs->ac);
 }
 
 
@@ -188,9 +278,16 @@ static void
 exec_send_run (void *cls,
                struct GNUNET_TESTING_Interpreter *is)
 {
-  struct UnderlayDummyState *uds = cls;
+  (void) cls;
+  struct UnderlayDummyState *uds;
   struct GNUNET_MQ_Envelope *env;
   struct GNUNET_UNDERLAY_DUMMY_Message *msg;
+
+  if (GNUNET_OK != GNUNET_CORE_get_trait_connect (
+        GNUNET_TESTING_interpreter_lookup_command (is, "connect"),
+        (const void**) &uds)) {
+    GNUNET_assert (0);
+  };
 
   GNUNET_assert (NULL != uds->mq);
   LOG (GNUNET_ERROR_TYPE_DEBUG, "Going to send message\n");
@@ -216,17 +313,15 @@ const struct GNUNET_TESTING_Command
 GNUNET_CORE_cmd_send (
   const char *label,
   enum GNUNET_OS_ProcessStatusType expected_type,
-  unsigned long int expected_exit_code,
-  struct UnderlayDummyState *uds)
+  unsigned long int expected_exit_code)
 {
   LOG (GNUNET_ERROR_TYPE_DEBUG, "(Setting up _cmd_send)\n");
-  return GNUNET_TESTING_command_new_ac (
-      uds, // state
+  return GNUNET_TESTING_command_new (
+      NULL, // state
       label,
       &exec_send_run,
       &exec_send_cleanup,
-      &connect_traits,
-      &uds->send_ac);
+      NULL);
 }
 
 
@@ -237,8 +332,11 @@ GNUNET_TESTING_MAKE_PLUGIN (
       GNUNET_CORE_cmd_connect ("connect",
                                GNUNET_OS_PROCESS_EXITED,
                                0,
-                               &uds,
                                my_node_id)),
+    GNUNET_TESTING_cmd_make_unblocking (
+      GNUNET_CORE_cmd_recv ("recv",
+                            GNUNET_OS_PROCESS_EXITED,
+                            0)),
     /* Wait until underlay dummy is connected to another peer: */
     GNUNET_TESTING_cmd_finish ("connect-finished",
                                "connect",
@@ -249,10 +347,9 @@ GNUNET_TESTING_MAKE_PLUGIN (
                                         "connected"),
     // The following is currently far from 'the testing way'
     // receive and send should be different commands
-    GNUNET_TESTING_cmd_make_unblocking (
-      GNUNET_CORE_cmd_send ("send", GNUNET_OS_PROCESS_EXITED, 0, &uds)),
-    GNUNET_TESTING_cmd_finish ("send-finished",
-                               "send",
+    GNUNET_CORE_cmd_send ("send", GNUNET_OS_PROCESS_EXITED, 0),
+    GNUNET_TESTING_cmd_finish ("recv-finished",
+                               "recv",
                                GNUNET_TIME_relative_multiply (
                                  GNUNET_TIME_UNIT_SECONDS, 3)),
     GNUNET_TESTING_cmd_end ()

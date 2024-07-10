@@ -200,7 +200,7 @@ GNUNET_CORE_UNDERLAY_DUMMY_connect_to_peer (
  * XXX: Took src/lib/testing/testing_api_topoloty.h as example
  */
 #define GNUNET_CORE_SIMPLE_DUMMY_UNDERLAY_TRAITS(op, prefix)                 \
-        op (prefix, connect, const struct GNUNET_CORE_UNDERLAY_DUMMY_Handle)
+        op (prefix, connect, const void)
 
 GNUNET_CORE_SIMPLE_DUMMY_UNDERLAY_TRAITS (
     GNUNET_TESTING_MAKE_DECL_SIMPLE_TRAIT, GNUNET_CORE)
