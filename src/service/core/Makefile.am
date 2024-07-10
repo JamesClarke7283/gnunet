@@ -103,6 +103,12 @@ libgnunettestingcore_la_LDFLAGS = \
 libexec_PROGRAMS = \
  gnunet-service-core
 
+# FIXME: This is not the way to go - it should only be built
+# as a dependency of the testing test
+bin_PROGRAMS = \
+ test_core_underlay_dummy_testing_launcher
+
+
 gnunet_service_core_SOURCES = \
  gnunet-service-core.c gnunet-service-core.h \
  gnunet-service-core_kx.c gnunet-service-core_kx.h \
@@ -133,6 +139,7 @@ check_PROGRAMS = \
 check_SCRIPTS= \
   test_core_underlay_dummy_testing.sh
 
+# FIXME: This seems not to work
 check_DEPENDENCIES= \
   test_core_underlay_dummy_testing_launcher
 
@@ -169,6 +176,9 @@ libgnunet_test_core_plugin_underlay_dummy_la_LIBADD = \
   libgnunetcoreunderlaydummy.la \
   $(top_builddir)/src/lib/util/libgnunetutil.la \
   $(top_builddir)/src/lib/testing/libgnunettesting.la
+# FIXME: This seems not to work
+#libgnunet_test_core_plugin_underlay_dummy_la_DEPENDENCIES = \
+#  test_core_underlay_dummy_testing_launcher
 
 test_core_underlay_dummy_testing_launcher_SOURCES = \
   test_core_underlay_dummy_testing_launcher.c
