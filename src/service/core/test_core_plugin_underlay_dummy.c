@@ -34,6 +34,7 @@
 
 
 #define NUM_MESSAGES 10
+#define NUM_CHANNELS 2
 
 #define MTYPE 12345
 
@@ -60,19 +61,15 @@ typedef void
   const struct GNUNET_UNDERLAY_DUMMY_Message *msg);
 
 
-enum UDS_State_Connected
-{
-  UDS_State_Connected_TRUE,
-  UDS_State_Connected_FALSE,
-};
-
-
 struct UnderlayDummyState
 {
   struct GNUNET_CORE_UNDERLAY_DUMMY_Handle *h;
-  struct GNUNET_MQ_Handle *mq;
+  // array of mq handles
+  struct GNUNET_MQ_Handle **mqs;
+  uint32_t mqs_len;
+  // The number of channels supposed to reach
+  uint32_t num_channels;
   struct GNUNET_TESTING_AsyncContext ac;
-  enum UDS_State_Connected connected;
   const char *node_id;
   // FIXME: set cls per handler
   void *handlers_cls;
@@ -86,6 +83,13 @@ struct UnderlayDummyRecvState
   uint64_t num_messages_target;
   uint64_t num_messages_received;
   struct GNUNET_TESTING_AsyncContext ac;
+};
+
+
+struct UnderlayDummySendState
+{
+  uint64_t num_messages;
+  uint64_t num_channels;
 };
 
 
@@ -115,7 +119,10 @@ static void
 handle_test (void *cls, const struct GNUNET_UNDERLAY_DUMMY_Message *msg)
 {
   struct UnderlayDummyState *uds = cls;
-  LOG (GNUNET_ERROR_TYPE_DEBUG, "Received message - going to call handlers\n");
+  LOG (GNUNET_ERROR_TYPE_DEBUG,
+      "Received message (%u, %u) - going to call handlers\n",
+      msg->id,
+      msg->batch);
   // TODO call registered handlers
   for (uint32_t i = 0; i < uds->handlers_len; i++)
   {
@@ -135,15 +142,19 @@ void *notify_connect_cb (
 
   LOG (GNUNET_ERROR_TYPE_DEBUG, "A new connection was established\n");
 
-  uds->mq = mq;
+  GNUNET_array_append (uds->mqs,
+                       uds->mqs_len,
+                       mq);
 
-  if (UDS_State_Connected_FALSE == uds->connected)
+  if (uds->num_channels == uds->mqs_len)
   {
     GNUNET_TESTING_async_finish (&uds->ac);
-    uds->connected = UDS_State_Connected_TRUE;
     LOG (GNUNET_ERROR_TYPE_DEBUG, "(post connect_cb _async_finish)\n");
   }
-  LOG (GNUNET_ERROR_TYPE_DEBUG, "(post connect_cb)\n");
+  LOG (GNUNET_ERROR_TYPE_DEBUG,
+      "(post connect_cb - %u of %u)\n",
+      uds->mqs_len,
+      uds->num_channels);
 }
 
 
@@ -197,15 +208,17 @@ GNUNET_CORE_cmd_connect (
   const char *label,
   enum GNUNET_OS_ProcessStatusType expected_type,
   unsigned long int expected_exit_code,
-  const char* node_id)
+  const char* node_id,
+  uint32_t num_channels)
 {
   struct UnderlayDummyState *uds;
 
   uds = GNUNET_new (struct UnderlayDummyState);
-  uds->connected = UDS_State_Connected_FALSE;
   uds->node_id = GNUNET_strdup (node_id);
   uds->handlers = GNUNET_new_array (0, handle_msg);
   uds->handlers_len = 0;
+  uds->num_channels = num_channels;
+  uds->mqs = GNUNET_new_array (0, struct GNUNET_MQ_Handle *);
   return GNUNET_TESTING_command_new_ac (
       uds, // state
       label,
@@ -293,7 +306,7 @@ static void
 exec_send_run (void *cls,
                struct GNUNET_TESTING_Interpreter *is)
 {
-  uint64_t num_messages = * (uint64_t *) cls;
+  struct UnderlayDummySendState *udss = cls;
   struct UnderlayDummyState *uds;
   struct GNUNET_MQ_Envelope *env;
   struct GNUNET_UNDERLAY_DUMMY_Message *msg;
@@ -304,17 +317,25 @@ exec_send_run (void *cls,
     GNUNET_assert (0);
   };
 
-  GNUNET_assert (NULL != uds->mq);
-  LOG (GNUNET_ERROR_TYPE_DEBUG, "Going to send %u messages\n", num_messages);
-  for (uint64_t i; i < num_messages; i++)
+  GNUNET_assert (NULL != uds->mqs);
+  GNUNET_assert (udss->num_channels == uds->mqs_len);
+  LOG (GNUNET_ERROR_TYPE_DEBUG,
+      "Going to send %u messages on %u channels\n",
+      udss->num_messages,
+      udss->num_channels);
+  for (uint32_t i = 0; i < udss->num_channels; i++)
   {
-    env = GNUNET_MQ_msg (msg, MTYPE); // TODO usually we wanted to keep the
-                                      // envelopes to potentially cancel the
-                                      // message
-    msg->id = GNUNET_htonll (i);
-    msg->batch = GNUNET_htonll (0); // dc->num_open_connections - 1
-    GNUNET_MQ_send (uds->mq, env);
-    LOG (GNUNET_ERROR_TYPE_DEBUG, "Sent message %u\n", i);
+    for (uint64_t ii = 0; ii < udss->num_messages; ii++)
+    {
+      LOG (GNUNET_ERROR_TYPE_DEBUG, "Going to send message %u (channel %u)\n", ii, i);
+      env = GNUNET_MQ_msg (msg, MTYPE); // TODO usually we wanted to keep the
+                                        // envelopes to potentially cancel the
+                                        // message
+      msg->id = GNUNET_htonll (ii);
+      msg->batch = GNUNET_htonll (0); // dc->num_open_connections - 1
+      GNUNET_MQ_send (uds->mqs[i], env);
+      LOG (GNUNET_ERROR_TYPE_DEBUG, "Sent message %u (channel %u)\n", ii, i);
+    }
   }
   LOG (GNUNET_ERROR_TYPE_DEBUG, "Sent messages\n");
 }
@@ -333,15 +354,17 @@ GNUNET_CORE_cmd_send (
   const char *label,
   enum GNUNET_OS_ProcessStatusType expected_type,
   unsigned long int expected_exit_code,
-  uint64_t num_messages)
+  uint64_t num_messages,
+  uint32_t num_channels)
 {
-  uint64_t *udss_num_messages;
+  struct UnderlayDummySendState *udss;
 
-  udss_num_messages = GNUNET_new (uint64_t);
-  *udss_num_messages = num_messages;
+  udss = GNUNET_new (struct UnderlayDummySendState);
+  udss->num_messages = num_messages;
+  udss->num_channels = num_channels;
   LOG (GNUNET_ERROR_TYPE_DEBUG, "(Setting up _cmd_send)\n");
   return GNUNET_TESTING_command_new (
-      udss_num_messages, // state
+      udss, // state
       label,
       &exec_send_run,
       &exec_send_cleanup,
@@ -356,7 +379,8 @@ GNUNET_TESTING_MAKE_PLUGIN (
       GNUNET_CORE_cmd_connect ("connect",
                                GNUNET_OS_PROCESS_EXITED,
                                0,
-                               my_node_id)),
+                               my_node_id,
+                               NUM_CHANNELS)),
     GNUNET_TESTING_cmd_make_unblocking (
       GNUNET_CORE_cmd_recv ("recv",
                             GNUNET_OS_PROCESS_EXITED,
@@ -372,11 +396,15 @@ GNUNET_TESTING_MAKE_PLUGIN (
                                         "connected"),
     // The following is currently far from 'the testing way'
     // receive and send should be different commands
-    GNUNET_CORE_cmd_send ("send", GNUNET_OS_PROCESS_EXITED, 0, NUM_MESSAGES),
+    GNUNET_CORE_cmd_send ("send",
+                          GNUNET_OS_PROCESS_EXITED,
+                          0,
+                          NUM_MESSAGES,
+                          NUM_CHANNELS),
     GNUNET_TESTING_cmd_finish ("recv-finished",
                                "recv",
                                GNUNET_TIME_relative_multiply (
-                                 GNUNET_TIME_UNIT_SECONDS, 3)),
+                                 GNUNET_TIME_UNIT_SECONDS, 5)),
     GNUNET_TESTING_cmd_end ()
   )
 
