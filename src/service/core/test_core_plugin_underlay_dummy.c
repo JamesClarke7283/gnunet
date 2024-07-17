@@ -61,20 +61,29 @@ typedef void
   const struct GNUNET_UNDERLAY_DUMMY_Message *msg);
 
 
+struct UnderlayDummyState;
+
+
+struct Channel
+{
+  struct UnderlayDummyState *uds;
+  struct GNUNET_MQ_Handle *mq;
+};
+
+
 struct UnderlayDummyState
 {
   struct GNUNET_CORE_UNDERLAY_DUMMY_Handle *h;
-  // array of mq handles
-  struct GNUNET_MQ_Handle **mqs;
-  uint32_t mqs_len;
   // The number of channels supposed to reach
-  uint32_t num_channels;
+  uint32_t num_channels_target;
   struct GNUNET_TESTING_AsyncContext ac;
   const char *node_id;
   // FIXME: set cls per handler
   void *handlers_cls;
   uint32_t handlers_len;
   handle_msg *handlers;
+  struct Channel **channels;
+  uint32_t channels_len;
 };
 
 
@@ -118,17 +127,21 @@ connect_traits (void *cls,
 static void
 handle_test (void *cls, const struct GNUNET_UNDERLAY_DUMMY_Message *msg)
 {
-  struct UnderlayDummyState *uds = cls;
+  struct Channel *channel = cls;
+
   LOG (GNUNET_ERROR_TYPE_DEBUG,
       "Received message (%u, %u) - going to call handlers\n",
       msg->id,
       msg->batch);
   // TODO call registered handlers
-  for (uint32_t i = 0; i < uds->handlers_len; i++)
+  for (uint32_t i = 0; i < channel->uds->handlers_len; i++)
   {
     // FIXME: set cls per handler
-    uds->handlers[i] (uds->handlers_cls, msg);
+    channel->uds->handlers[i] (channel->uds->handlers_cls, msg);
   }
+
+  GNUNET_CORE_UNDERLAY_DUMMY_receive_continue (channel->uds->h,
+                                               channel->mq);
 }
 
 
@@ -139,22 +152,27 @@ void *notify_connect_cb (
   struct GNUNET_MQ_Handle *mq)
 {
   struct UnderlayDummyState *uds = cls;
+  struct Channel *channel;
 
   LOG (GNUNET_ERROR_TYPE_DEBUG, "A new connection was established\n");
 
-  GNUNET_array_append (uds->mqs,
-                       uds->mqs_len,
-                       mq);
+  channel = GNUNET_new (struct Channel);
+  channel->uds = uds;
+  channel->mq = mq;
+  GNUNET_array_append (uds->channels,
+                       uds->channels_len,
+                       channel);
 
-  if (uds->num_channels == uds->mqs_len)
+  if (uds->num_channels_target == uds->channels_len)
   {
     GNUNET_TESTING_async_finish (&uds->ac);
     LOG (GNUNET_ERROR_TYPE_DEBUG, "(post connect_cb _async_finish)\n");
   }
   LOG (GNUNET_ERROR_TYPE_DEBUG,
       "(post connect_cb - %u of %u)\n",
-      uds->mqs_len,
-      uds->num_channels);
+      uds->channels_len,
+      uds->num_channels_target);
+  return channel;
 }
 
 
@@ -217,8 +235,8 @@ GNUNET_CORE_cmd_connect (
   uds->node_id = GNUNET_strdup (node_id);
   uds->handlers = GNUNET_new_array (0, handle_msg);
   uds->handlers_len = 0;
-  uds->num_channels = num_channels;
-  uds->mqs = GNUNET_new_array (0, struct GNUNET_MQ_Handle *);
+  uds->num_channels_target = num_channels;
+  uds->channels = GNUNET_new_array (0, struct Channel *);
   return GNUNET_TESTING_command_new_ac (
       uds, // state
       label,
@@ -235,6 +253,9 @@ handle_msg_test (void *cls,
 {
   struct UnderlayDummyRecvState *udrs = cls;
 
+  LOG (GNUNET_ERROR_TYPE_DEBUG, "received test message %u (%u)\n",
+       GNUNET_ntohll (msg->id),
+       GNUNET_ntohll (msg->batch));
   udrs->num_messages_received++;
   LOG (GNUNET_ERROR_TYPE_DEBUG,
       "Received %u messages (of %u)\n",
@@ -254,10 +275,9 @@ exec_recv_run (void *cls,
 {
   struct UnderlayDummyRecvState *udrs = cls;
   struct UnderlayDummyState *uds;
-  struct GNUNET_MQ_Envelope *env;
-  struct GNUNET_UNDERLAY_DUMMY_Message *msg;
 
   if (GNUNET_OK != GNUNET_CORE_get_trait_connect (
+        // TODO make the "connect" an input to the command
         GNUNET_TESTING_interpreter_lookup_command (is, "connect"),
         (const void**) &uds)) {
     GNUNET_assert (0);
@@ -317,8 +337,8 @@ exec_send_run (void *cls,
     GNUNET_assert (0);
   };
 
-  GNUNET_assert (NULL != uds->mqs);
-  GNUNET_assert (udss->num_channels == uds->mqs_len);
+  GNUNET_assert (NULL != uds->channels);
+  GNUNET_assert (udss->num_channels == uds->channels_len);
   LOG (GNUNET_ERROR_TYPE_DEBUG,
       "Going to send %u messages on %u channels\n",
       udss->num_messages,
@@ -332,8 +352,8 @@ exec_send_run (void *cls,
                                         // envelopes to potentially cancel the
                                         // message
       msg->id = GNUNET_htonll (ii);
-      msg->batch = GNUNET_htonll (0); // dc->num_open_connections - 1
-      GNUNET_MQ_send (uds->mqs[i], env);
+      msg->batch = GNUNET_htonll (i);
+      GNUNET_MQ_send (uds->channels[i]->mq, env);
       LOG (GNUNET_ERROR_TYPE_DEBUG, "Sent message %u (channel %u)\n", ii, i);
     }
   }
