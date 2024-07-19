@@ -894,6 +894,16 @@ do_open_socket (void *cls)
   h->sock_name = GNUNET_strdup (addr_un->sun_path);
   GNUNET_free (addr_un);
 
+  LOG (GNUNET_ERROR_TYPE_DEBUG, "Mark socket as accepting connections\n");
+  if (GNUNET_OK != GNUNET_NETWORK_socket_listen (h->sock_listen, BACKLOG))
+  {
+    //LOG (GNUNET_ERROR_TYPE_ERROR, "Failed listening to socket: %s", strerror(errno));
+    LOG (GNUNET_ERROR_TYPE_ERROR, "Failed listening to socket (closing socket)\n");
+    GNUNET_break (GNUNET_OK == GNUNET_NETWORK_socket_close (h->sock_listen));
+    GNUNET_free (addr_un);
+    return;
+  }
+
   if (NULL != h->notify_address_change)
   {
     // FIXME compute the network_location_hash and network_generation_id
@@ -905,17 +915,7 @@ do_open_socket (void *cls)
 
   do_discover_peers (h);
 
-  LOG (GNUNET_ERROR_TYPE_DEBUG, "Mark socket as accepting connections\n");
-  if (GNUNET_OK != GNUNET_NETWORK_socket_listen (h->sock_listen, BACKLOG))
-  {
-    //LOG (GNUNET_ERROR_TYPE_ERROR, "Failed listening to socket: %s", strerror(errno));
-    LOG (GNUNET_ERROR_TYPE_ERROR, "Failed listening to socket (closing socket)\n");
-    GNUNET_break (GNUNET_OK == GNUNET_NETWORK_socket_close (h->sock_listen));
-    GNUNET_free (addr_un);
-    return;
-  }
   LOG (GNUNET_ERROR_TYPE_INFO, "Going to listen for connections\n");
-
   h->listen_task = GNUNET_SCHEDULER_add_read_net (GNUNET_TIME_UNIT_FOREVER_REL,
                                                   h->sock_listen,
                                                   do_accept,
