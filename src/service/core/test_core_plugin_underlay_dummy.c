@@ -55,9 +55,13 @@ struct GNUNET_UNDERLAY_DUMMY_Message
 };
 
 
+struct Channel;
+
+
 typedef void
 (*handle_msg)(
   void *cls,
+  struct Channel *channel,
   const struct GNUNET_UNDERLAY_DUMMY_Message *msg);
 
 
@@ -87,10 +91,22 @@ struct UnderlayDummyState
 };
 
 
+struct UnderlayDummyRecvState;
+
+
+struct ChannelCount
+{
+  struct Channel *channel;
+  struct UnderlayDummyRecvState *udrs;
+  uint64_t num_messages_received;
+};
+
+
 struct UnderlayDummyRecvState
 {
+  struct ChannelCount *channel_count;
+  uint32_t num_channels;
   uint64_t num_messages_target;
-  uint64_t num_messages_received;
   struct GNUNET_TESTING_AsyncContext ac;
 };
 
@@ -137,7 +153,7 @@ handle_test (void *cls, const struct GNUNET_UNDERLAY_DUMMY_Message *msg)
   for (uint32_t i = 0; i < channel->uds->handlers_len; i++)
   {
     // FIXME: set cls per handler
-    channel->uds->handlers[i] (channel->uds->handlers_cls, msg);
+    channel->uds->handlers[i] (channel->uds->handlers_cls, channel, msg);
   }
 
   GNUNET_CORE_UNDERLAY_DUMMY_receive_continue (channel->uds->h,
@@ -249,23 +265,60 @@ GNUNET_CORE_cmd_connect (
 
 void
 handle_msg_test (void *cls,
+                 struct Channel *channel,
                  const struct GNUNET_UNDERLAY_DUMMY_Message *msg)
 {
+  //struct ChannelCount *channel_count = cls;
   struct UnderlayDummyRecvState *udrs = cls;
+  struct ChannelCount *channel_count;
+  uint32_t channel_i;
+  uint64_t num_messages_received;
+  uint64_t num_messages_target;
+  enum GNUNET_GenericReturnValue ret;
 
   LOG (GNUNET_ERROR_TYPE_DEBUG, "received test message %u (%u)\n",
        GNUNET_ntohll (msg->id),
        GNUNET_ntohll (msg->batch));
-  udrs->num_messages_received++;
+  for (uint32_t i = 0; i<udrs->num_channels; i++)
+  {
+    channel_count = &udrs->channel_count[i];
+    if (NULL == channel_count->channel)
+    {
+      channel_count->channel = channel;
+      channel_count->udrs = udrs;
+      channel_i = i;
+      break;
+    }
+    else if (channel == channel_count->channel)
+    {
+      channel_i = i;
+      break;
+    }
+    // else: continue until suitable channel count structure is found
+  }
+  // TODO check if no channel was found (check whether i >= num_channels)
+  channel_count->num_messages_received++;
+
+  num_messages_received = channel_count->num_messages_received;
+  num_messages_target = channel_count->udrs->num_messages_target;
   LOG (GNUNET_ERROR_TYPE_DEBUG,
-      "Received %u messages (of %u)\n",
-      udrs->num_messages_received,
-      udrs->num_messages_target);
-  if (udrs->num_messages_target > udrs->num_messages_received) return;
-  if (udrs->num_messages_target == udrs->num_messages_received)
-    GNUNET_TESTING_async_finish (&udrs->ac);
-  if (udrs->num_messages_target < udrs->num_messages_received)
+      "Received %u messages (of %u on channel %u)\n",
+      num_messages_received,
+      num_messages_target,
+      channel_i);
+  if (num_messages_target > num_messages_received) return;
+  if (num_messages_target < num_messages_received)
     GNUNET_assert (0);
+  //if (num_messages_target == num_messages_received)
+  //  GNUNET_TESTING_async_finish (&udrs->ac);
+  ret = GNUNET_YES;
+  for (uint32_t i = 0; i < udrs->num_channels; i++)
+  {
+    channel_count = &udrs->channel_count[i];
+    if (channel_count->num_messages_received != udrs->num_messages_target)
+      ret = GNUNET_NO;
+  }
+  if (GNUNET_YES == ret) GNUNET_TESTING_async_finish (&udrs->ac);
 }
 
 
@@ -304,13 +357,15 @@ GNUNET_CORE_cmd_recv (
   const char *label,
   enum GNUNET_OS_ProcessStatusType expected_type,
   unsigned long int expected_exit_code,
-  uint64_t num_messages)
+  uint64_t num_messages,
+  uint32_t num_channels)
 {
   struct UnderlayDummyRecvState *udrs;
 
   udrs = GNUNET_new (struct UnderlayDummyRecvState);
+  udrs->channel_count = GNUNET_new_array (num_channels, struct ChannelCount);
+  udrs->num_channels = num_channels;
   udrs->num_messages_target = num_messages;
-  udrs->num_messages_received = 0;
   LOG (GNUNET_ERROR_TYPE_DEBUG, "(Setting up _cmd_recv)\n");
   return GNUNET_TESTING_command_new_ac (
       udrs, // state
@@ -405,7 +460,8 @@ GNUNET_TESTING_MAKE_PLUGIN (
       GNUNET_CORE_cmd_recv ("recv",
                             GNUNET_OS_PROCESS_EXITED,
                             0,
-                            NUM_MESSAGES)),
+                            NUM_MESSAGES,
+                            NUM_CHANNELS)),
     /* Wait until underlay dummy is connected to another peer: */
     GNUNET_TESTING_cmd_finish ("connect-finished",
                                "connect",
