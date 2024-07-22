@@ -91,6 +91,15 @@ struct PeerConnectCls
 };
 
 
+struct QueuedMessage
+{
+  struct QueuedMessage *next;
+  struct QueuedMessage *prev;
+
+  struct GNUNET_MessageHeader *msg;
+};
+
+
 /**
  * @brief Used to keep track of context of peer
  */
@@ -147,9 +156,10 @@ struct Connection
   struct GNUNET_SCHEDULER_Task *notify_connect_task;
 
   /**
-   * Currently handled message.
+   * Queued messages in a DLL
    */
-  struct GNUNET_MessageHeader *msg_next;
+  struct QueuedMessage *queued_messages_head;
+  struct QueuedMessage *queued_messages_tail;
 
   /**
    * @brief Handle to the service
@@ -294,7 +304,18 @@ connection_destroy (struct Connection *connection)
     // }
   }
   GNUNET_free (connection->peer_addr);
-  GNUNET_free (connection->msg_next);
+  for (struct QueuedMessage *msg_iter = connection->queued_messages_head;
+       NULL != connection->queued_messages_head;
+       )
+  {
+    struct QueuedMessage *msg_tmp = msg_iter;
+    msg_iter = msg_tmp->next;
+    GNUNET_free (msg_tmp->msg);
+    GNUNET_CONTAINER_DLL_remove (connection->queued_messages_head,
+                                 connection->queued_messages_tail,
+                                 msg_tmp);
+    GNUNET_free (msg_tmp);
+  }
   // TODO what else?
   GNUNET_CONTAINER_DLL_remove (connection->handle->connections_head,
                                connection->handle->connections_tail,
@@ -371,7 +392,6 @@ write_cb (void *cls)
 
   connection->write_task = NULL;
   GNUNET_assert (NULL != connection->sock);
-  GNUNET_assert (NULL != connection->msg_next);
   //{
   //  // XXX only for debugging purposes
   //  // this shows everything works as expected
@@ -399,9 +419,11 @@ write_cb (void *cls)
   //  //LOG (GNUNET_ERROR_TYPE_DEBUG, "write_cb - (sanity) size msg field: %u\n",
   //  //     sizeof (msg_dbg->id));
   //}
-  sent = GNUNET_NETWORK_socket_send (connection->sock,
-                                     connection->msg_next,
-                                     ntohs (connection->msg_next->size));
+  GNUNET_assert (NULL != connection->queued_messages_head);
+  sent = GNUNET_NETWORK_socket_send (
+      connection->sock,
+      connection->queued_messages_head->msg,
+      ntohs (connection->queued_messages_head->msg->size));
   if (GNUNET_SYSERR == sent)
   {
     //LOG (GNUNET_ERROR_TYPE_ERROR, "Failed to send message\n");
@@ -423,8 +445,14 @@ write_cb (void *cls)
             // (e.g. EPIPE)
   }
   LOG (GNUNET_ERROR_TYPE_DEBUG, "Successfully sent message\n");
-  GNUNET_free (connection->msg_next);
-  connection->msg_next = NULL;
+  {
+    struct QueuedMessage *tmp_msg = connection->queued_messages_head;
+    GNUNET_free (tmp_msg->msg);
+    GNUNET_CONTAINER_DLL_remove (connection->queued_messages_head,
+                                 connection->queued_messages_tail,
+                                 tmp_msg);
+    GNUNET_free (tmp_msg);
+  }
   // TODO reschedule for the next round. With the current implementation of the
   // single message buffer, this doesn't make sense
   //h->write_task = GNUNET_SCHEDULER_add_write_net (GNUNET_TIME_UNIT_FOREVER_REL,
@@ -450,6 +478,7 @@ mq_send_impl (struct GNUNET_MQ_Handle *mq,
 {
   struct Connection *connection = impl_state;
   uint16_t msg_size = ntohs (msg->size);
+  struct QueuedMessage *q_msg;
 
   LOG (GNUNET_ERROR_TYPE_DEBUG, "from mq_send_impl\n");
   //{
@@ -471,19 +500,15 @@ mq_send_impl (struct GNUNET_MQ_Handle *mq,
   //       GNUNET_ntohll (msg_dbg->batch),
   //       GNUNET_ntohll (msg_dbg->peer));
   //}
-  if (NULL != connection->msg_next)
   {
-    // FIXME
-    // This is a very sloppy implementation - a
-    // dummy. This might cause problems later
-    // (currently we're just silently (almost) discarding the message to be
-    // sent)
-    LOG (GNUNET_ERROR_TYPE_WARNING, "Not scheduled sending of message - buffer is still in use\n");
-    return;
   }
-  connection->msg_next = GNUNET_malloc (msg_size);
-  memset (connection->msg_next, 0, msg_size);
-  GNUNET_memcpy (connection->msg_next, msg, msg_size);
+  q_msg = GNUNET_new (struct QueuedMessage);
+  q_msg->msg = GNUNET_malloc (msg_size);
+  memset (q_msg->msg, 0, msg_size);
+  GNUNET_memcpy (q_msg->msg, msg, msg_size);
+  GNUNET_CONTAINER_DLL_insert_tail (connection->queued_messages_head,
+                                    connection->queued_messages_tail,
+                                    q_msg);
   if (NULL == connection->write_task)
   {
     connection->write_task =
@@ -527,18 +552,23 @@ mq_cancel_impl (struct GNUNET_MQ_Handle *mq, void *impl_state)
 {
   struct Connection *connection = impl_state;
 
-  if (NULL != connection->msg_next)
+  for (struct QueuedMessage *msg_iter = connection->queued_messages_head;
+       NULL != connection->queued_messages_head;
+       )
   {
-    GNUNET_free (connection->msg_next);
-    connection->msg_next = NULL;
+    struct QueuedMessage *msg_tmp = msg_iter;
+    msg_iter = msg_tmp->next;
+    GNUNET_free (msg_tmp->msg);
+    GNUNET_CONTAINER_DLL_remove (connection->queued_messages_head,
+                                 connection->queued_messages_tail,
+                                 msg_tmp);
+    GNUNET_free (msg_tmp);
   }
   if (NULL != connection->write_task)
   {
     GNUNET_SCHEDULER_cancel (connection->write_task);
     connection->write_task = NULL;
   }
-  GNUNET_free (connection->msg_next);
-  connection->msg_next = NULL;
   // TODO anything left to clean?
 }
 
