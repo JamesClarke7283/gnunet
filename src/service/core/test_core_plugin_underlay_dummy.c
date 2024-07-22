@@ -147,8 +147,8 @@ handle_test (void *cls, const struct GNUNET_UNDERLAY_DUMMY_Message *msg)
 
   LOG (GNUNET_ERROR_TYPE_DEBUG,
       "Received message (%u, %u) - going to call handlers\n",
-      msg->id,
-      msg->batch);
+      GNUNET_ntohll (msg->id),
+      GNUNET_ntohll (msg->batch));
   // TODO call registered handlers
   for (uint32_t i = 0; i < channel->uds->handlers_len; i++)
   {
