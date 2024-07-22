@@ -274,6 +274,11 @@ static void
 connection_destroy (struct Connection *connection)
 {
   LOG (GNUNET_ERROR_TYPE_DEBUG, "connection_destroy\n");
+  if (NULL != connection->handle->notify_disconnect)
+  {
+    connection->handle->notify_disconnect (
+        connection->handle->cls, connection->cls_mq);
+  }
   if (NULL != connection->notify_connect_task)
   {
     LOG (GNUNET_ERROR_TYPE_DEBUG, "Cancelling notify connect task\n");
@@ -352,24 +357,16 @@ do_read (void *cls)
   if (0 > ret)
   {
     LOG (GNUNET_ERROR_TYPE_ERROR, "Error reading from socket\n");
+    GNUNET_MQ_destroy (connection->mq); // This triggers mq_destroy_impl()
+    return;
+  }
+  if (0 == ret)
+  {
+    LOG (GNUNET_ERROR_TYPE_INFO, "Other peer closed connection\n");
+    GNUNET_MQ_destroy (connection->mq); // This triggers mq_destroy_impl()
     return;
   }
   LOG (GNUNET_ERROR_TYPE_DEBUG, "Read %d bytes\n", (int) ret);
-  if (0 == ret)
-  {
-    //GNUNET_break_op (0);
-    // TODO why would this happen?
-    //  - other peer closed connection gracefully -> TODO handle accordingly
-    //  - we messed up the reading or something
-    /* we're not calling the handler - emulate
-     * GNUNET_CORE_UNDERLAY_DUMMY_receive_continue */
-    connection->recv_task =
-      GNUNET_SCHEDULER_add_read_net (GNUNET_TIME_UNIT_FOREVER_REL,
-                                     connection->sock,
-                                     do_read,
-                                     connection);
-    return;
-  }
   GNUNET_assert (2 <= ret);
   msg = GNUNET_malloc (ret);
   GNUNET_memcpy (msg, buf, ret);
@@ -431,7 +428,7 @@ write_cb (void *cls)
     if (EPIPE == errno)
     {
       /* Tear down the connection */
-      GNUNET_MQ_destroy (connection->mq);
+      GNUNET_MQ_destroy (connection->mq); // This triggers mq_destroy_impl()
       return;
     }
     LOG (GNUNET_ERROR_TYPE_ERROR, "Retrying (due to failure)\n");

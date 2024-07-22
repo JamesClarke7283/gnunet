@@ -192,6 +192,42 @@ void *notify_connect_cb (
 }
 
 
+void
+notify_disconnect_cb (
+  void *cls,
+  void *handler_cls)
+{
+  struct UnderlayDummyState *uds = cls;
+  struct Channel *channel = handler_cls;
+  uint32_t i_target = 0;
+
+  LOG (GNUNET_ERROR_TYPE_DEBUG, "from notify_disconnect_cb()\n");
+  /**
+   * Remove the closed channel:
+   *  1. find the (index of the) closed channel
+   *  2. copy all following channel one to the front
+   */
+  for (uint32_t i = 0; i < uds->channels_len; i++)
+  {
+    if (channel == uds->channels[i])
+    {
+      //uds->channels[i] = NULL; // XXX
+      i_target = i;
+      break;
+    }
+  }
+  //for (uint32_t i = i_target; i < (uds->channels_len - 1); i++)
+  //{
+  //  GNUNET_memcpy ();
+  //}
+  GNUNET_memcpy (&uds->channels[i_target],
+                 &uds->channels[i_target+1],
+                 (uds->channels_len - i_target - 1) * sizeof (struct Channel *));
+  GNUNET_array_grow (uds->channels, uds->channels_len, uds->channels_len-1);
+  GNUNET_free (channel);
+}
+
+
 void address_change_cb (void *cls,
                         struct GNUNET_HashCode network_location_hash,
                         uint64_t network_generation_id)
@@ -221,7 +257,7 @@ exec_connect_run (void *cls,
                                                handlers,
                                                uds, // cls
                                                notify_connect_cb,
-                                               NULL, // nd
+                                               notify_disconnect_cb,
                                                address_change_cb);
 
 }
@@ -393,12 +429,18 @@ exec_send_run (void *cls,
   };
 
   GNUNET_assert (NULL != uds->channels);
-  GNUNET_assert (udss->num_channels == uds->channels_len);
+  //LOG (GNUNET_ERROR_TYPE_DEBUG, "udss->num_channels: %u\n", udss->num_channels);
+  //LOG (GNUNET_ERROR_TYPE_DEBUG, "uds->channels_len: %u\n", uds->channels_len);
+  //GNUNET_assert (udss->num_channels == uds->channels_len);
+
   LOG (GNUNET_ERROR_TYPE_DEBUG,
       "Going to send %u messages on %u channels\n",
       udss->num_messages,
       udss->num_channels);
-  for (uint32_t i = 0; i < udss->num_channels; i++)
+  /* For now send on all available channels as we don't know at this stage
+   * which is an usable channel - this should be fine as the unusable channel
+   * will (probably) be discoverd and cleand up in the process. */
+  for (uint32_t i = 0; i < uds->channels_len; i++)
   {
     for (uint64_t ii = 0; ii < udss->num_messages; ii++)
     {
