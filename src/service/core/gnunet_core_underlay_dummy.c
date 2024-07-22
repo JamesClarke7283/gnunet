@@ -655,7 +655,10 @@ do_accept (void *cls)
   socklen_t addr_other_len = sizeof(addr_other);
   memset (&addr_other, 0, sizeof (addr_other));
 
-  h->listen_task = NULL;
+  h->listen_task = GNUNET_SCHEDULER_add_read_net (GNUNET_TIME_UNIT_FOREVER_REL,
+                                                  h->sock_listen,
+                                                  do_accept,
+                                                  h);
 
   LOG (GNUNET_ERROR_TYPE_DEBUG, "Handling incoming connection\n");
 
