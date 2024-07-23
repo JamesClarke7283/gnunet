@@ -162,6 +162,12 @@ struct Connection
   struct QueuedMessage *queued_messages_tail;
 
   /**
+   * Queued received messages in a DLL
+   */
+  struct QueuedMessage *queued_recv_messages_head;
+  struct QueuedMessage *queued_recv_messages_tail;
+
+  /**
    * @brief Handle to the service
    */
   struct GNUNET_CORE_UNDERLAY_DUMMY_Handle *handle;
@@ -345,7 +351,10 @@ do_read (void *cls)
 
   ssize_t ret;
   char buf[65536] GNUNET_ALIGN;
+  ssize_t ret_remain;
+  char *buf_iter;
   struct GNUNET_MessageHeader *msg;
+  struct GNUNET_MessageHeader *msg_iter;
 
   connection->recv_task = NULL;
   GNUNET_assert (NULL != connection->sock);
@@ -365,9 +374,70 @@ do_read (void *cls)
     return;
   }
   LOG (GNUNET_ERROR_TYPE_DEBUG, "Read %d bytes\n", (int) ret);
-  GNUNET_assert (2 <= ret);
-  msg = GNUNET_malloc (ret);
-  GNUNET_memcpy (msg, buf, ret);
+  GNUNET_assert (2 <= ret); /* has to have returned enough for one full msg_hdr */
+
+  /* Handle the message itself */
+  msg = (struct GNUNET_MessageHeader *) buf;
+  ret_remain = ret;
+  buf_iter = buf;
+  /* Just debug logging */
+  while (0 < ret_remain)
+  {
+    msg_iter = (struct GNUNET_MessageHeader *) buf_iter;
+    LOG (GNUNET_ERROR_TYPE_DEBUG, "Length of message: %d bytes\n", ntohs (msg_iter->size));
+    LOG (GNUNET_ERROR_TYPE_DEBUG, "Remaining bytes of buffer: %d\n", ret_remain);
+
+    //{
+    //  // XXX only for debugging purposes
+    //  // this shows everything works as expected
+
+    //  struct GNUNET_UNDERLAY_DUMMY_Message
+    //  {
+    //    struct GNUNET_MessageHeader header;
+    //    // The following will be used for debugging
+    //    uint64_t id; // id of the message
+    //    uint64_t batch; // first batch of that peer (for this test 0 or 1)
+    //    //uint64_t peer; // number of sending peer (for this test 0 or 1)
+    //  };
+
+
+
+    //  struct GNUNET_UNDERLAY_DUMMY_Message *msg_dbg =
+    //    (struct GNUNET_UNDERLAY_DUMMY_Message *) msg_iter;
+    //  //LOG (GNUNET_ERROR_TYPE_DEBUG, "do_read - id: %u, batch: %u, peer: %u\n",
+    //  LOG (GNUNET_ERROR_TYPE_DEBUG, "do_read - id: %u, batch: %u\n",
+    //       GNUNET_ntohll (msg_dbg->id),
+    //       GNUNET_ntohll (msg_dbg->batch));
+    //  //LOG (GNUNET_ERROR_TYPE_DEBUG, "do_read - size: %u\n",
+    //  //     ntohs (msg_dbg->size));
+    //  //LOG (GNUNET_ERROR_TYPE_DEBUG, "do_read - (sanity) size msghdr: %u\n",
+    //  //     sizeof (struct GNUNET_MessageHeader));
+    //  //LOG (GNUNET_ERROR_TYPE_DEBUG, "do_read - (sanity) size msg field: %u\n",
+    //  //     sizeof (msg_dbg->id));
+    //}
+    buf_iter = buf_iter + ntohs (msg_iter->size);
+    ret_remain = ret_remain - ntohs (msg_iter->size);
+  }
+  /* Enqueue the following messages */
+  /* skip the first message */
+  LOG (GNUNET_ERROR_TYPE_DEBUG, "Enqueueing messages\n");
+  buf_iter = buf + ntohs (msg->size);
+  ret_remain = ret - ntohs (msg->size);
+  /* iterate over the rest */
+  while (0 < ret_remain)
+  {
+    LOG (GNUNET_ERROR_TYPE_DEBUG, "Enqueueing message\n");
+    msg_iter = (struct GNUNET_MessageHeader *) buf_iter;
+    struct QueuedMessage *q_msg = GNUNET_new (struct QueuedMessage);
+    q_msg->msg = GNUNET_malloc (ntohs (msg_iter->size));
+    GNUNET_memcpy (q_msg->msg, msg_iter, ntohs (msg_iter->size));
+    GNUNET_CONTAINER_DLL_insert_tail (connection->queued_recv_messages_head,
+                                      connection->queued_recv_messages_tail,
+                                      q_msg);
+
+    buf_iter = buf_iter + ntohs (msg_iter->size);
+    ret_remain = ret_remain - ntohs (msg_iter->size);
+  }
   GNUNET_MQ_handle_message (connection->handlers, msg);
   // TODO do proper rate limiting in sync with
 }
@@ -1095,6 +1165,10 @@ GNUNET_CORE_UNDERLAY_DUMMY_receive_continue (
     struct GNUNET_CORE_UNDERLAY_DUMMY_Handle *h,
     struct GNUNET_MQ_Handle *mq)
 {
+  struct Connection *connection;
+
+  LOG (GNUNET_ERROR_TYPE_DEBUG, "from _receive_continue()\n");
+
   /* Find the connection beloning to the mq */
   for (struct Connection *conn_iter = h->connections_head;
        NULL != conn_iter;
@@ -1103,16 +1177,39 @@ GNUNET_CORE_UNDERLAY_DUMMY_receive_continue (
     if (mq == conn_iter->mq)
     {
       GNUNET_assert (NULL == conn_iter->recv_task);
-      conn_iter->recv_task =
-        GNUNET_SCHEDULER_add_read_net (GNUNET_TIME_UNIT_FOREVER_REL,
-                                       conn_iter->sock,
-                                       do_read,
-                                       conn_iter);
-      return;
+      connection = conn_iter;
     }
   }
-  LOG (GNUNET_ERROR_TYPE_ERROR, "No connection with the given mq!\n");
-  GNUNET_assert (0);
+  GNUNET_assert (NULL != connection);
+
+  if (NULL != connection->queued_recv_messages_head)
+  {
+    LOG (GNUNET_ERROR_TYPE_DEBUG, "still messages in the queue - handle those\n");
+    struct QueuedMessage *q_msg = connection->queued_recv_messages_head;
+    struct GNUNET_MessageHeader *msg =
+      q_msg->msg;
+    GNUNET_CONTAINER_DLL_remove (
+        connection->queued_recv_messages_head,
+        connection->queued_recv_messages_tail,
+        q_msg);
+    GNUNET_free (q_msg);
+    // TODO maybe calling the message directly is not the best -
+    //      this should probably be scheduled?
+    GNUNET_MQ_handle_message (
+        connection->handlers,
+        msg);
+    //GNUNET_free (msg); // TODO what do we do with this pointer? Who owns it?
+                         //      Who cleans it?
+  }
+  else
+  {
+    LOG (GNUNET_ERROR_TYPE_DEBUG, "no messages in the queue - receive more from socket\n");
+    connection->recv_task =
+      GNUNET_SCHEDULER_add_read_net (GNUNET_TIME_UNIT_FOREVER_REL,
+                                     connection->sock,
+                                     do_read,
+                                     connection);
+  }
 }
 
 
