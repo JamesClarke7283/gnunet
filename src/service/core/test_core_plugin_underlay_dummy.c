@@ -25,6 +25,11 @@
  * TODO:
  *  - try to avoid generic pointer and globally known struct UnderlayDummyState
  *  - cleaner separate the waiting for connection to finish out of _cmd_connect()
+ *  - test closing of connection
+ *  - test opening connection after closing
+ *  - test multiple peers at once
+ *  - test discovery of peers
+ *  - test _connect_to_peer()
  */
 #include "platform.h"
 #include "gnunet_util_lib.h"
@@ -149,7 +154,6 @@ handle_test (void *cls, const struct GNUNET_UNDERLAY_DUMMY_Message *msg)
       "Received message (%u, %u) - going to call handlers\n",
       GNUNET_ntohll (msg->id),
       GNUNET_ntohll (msg->batch));
-  // TODO call registered handlers
   for (uint32_t i = 0; i < channel->uds->handlers_len; i++)
   {
     // FIXME: set cls per handler
@@ -315,6 +319,8 @@ handle_msg_test (void *cls,
   LOG (GNUNET_ERROR_TYPE_DEBUG, "received test message %u (%u)\n",
        GNUNET_ntohll (msg->id),
        GNUNET_ntohll (msg->batch));
+  channel_i = udrs->num_channels; /* For error checking -
+                                     should be overwritten in the following loop. */
   for (uint32_t i = 0; i<udrs->num_channels; i++)
   {
     channel_count = &udrs->channel_count[i];
@@ -332,7 +338,7 @@ handle_msg_test (void *cls,
     }
     // else: continue until suitable channel count structure is found
   }
-  // TODO check if no channel was found (check whether i >= num_channels)
+  GNUNET_break_op (channel_i != udrs->num_channels);
   channel_count->num_messages_received++;
 
   num_messages_received = channel_count->num_messages_received;
@@ -382,9 +388,10 @@ exec_recv_run (void *cls,
 static void
 exec_recv_cleanup (void *cls)
 {
-  struct UnderlayDummyState *uds = cls;
+  struct UnderlayDummyRecvState *udrs = cls;
 
-  // TODO
+  GNUNET_free (udrs->channel_count);
+  GNUNET_free (udrs);
 }
 
 
@@ -445,7 +452,7 @@ exec_send_run (void *cls,
     for (uint64_t ii = 0; ii < udss->num_messages; ii++)
     {
       LOG (GNUNET_ERROR_TYPE_DEBUG, "Going to send message %u (channel %u)\n", ii, i);
-      env = GNUNET_MQ_msg (msg, MTYPE); // TODO usually we wanted to keep the
+      env = GNUNET_MQ_msg (msg, MTYPE); // usually we wanted to keep the
                                         // envelopes to potentially cancel the
                                         // message
       msg->id = GNUNET_htonll (ii);

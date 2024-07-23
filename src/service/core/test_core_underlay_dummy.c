@@ -257,7 +257,7 @@ void *notify_connect_cb (
   }
   for (uint64_t i = 0; i < NUMBER_MESSAGES; i++)
   {
-    env = GNUNET_MQ_msg (msg, MTYPE); // TODO usually we wanted to keep the
+    env = GNUNET_MQ_msg (msg, MTYPE); // usually we wanted to keep the
                                       // envelopes to potentially cancel the
                                       // message
     // a real implementation would set message fields here
@@ -411,6 +411,7 @@ static void
 handle_test (void *cls, const struct GNUNET_UNDERLAY_DUMMY_Message *msg)
 {
   struct Connection *connection = cls;
+  uint32_t peer_id;
 
   GNUNET_assert (NULL != cls);
 
@@ -426,15 +427,14 @@ handle_test (void *cls, const struct GNUNET_UNDERLAY_DUMMY_Message *msg)
   {
     LOG (GNUNET_ERROR_TYPE_DEBUG, "on connection 1\n");
   }
-
-  // TODO check the content
-  //      - whether id is in order (and for the right batch?)
-  //      - whether the peer is the other peer
+  GNUNET_assert (GNUNET_ntohll (msg->id) == connection->result_replys);
 
   connection->result_replys++;
   LOG (GNUNET_ERROR_TYPE_DEBUG, "(%u messages on this channel now)\n",
        connection->result_replys);
-  LOG (GNUNET_ERROR_TYPE_DEBUG, "(peer %u)\n", &dc0 == connection->dc ? 0 : 1);
+  peer_id = &dc0 == connection->dc ? 0 : 1;
+  LOG (GNUNET_ERROR_TYPE_DEBUG, "(peer %u)\n", peer_id);
+  GNUNET_assert (GNUNET_ntohll (msg->peer) != peer_id);
   GNUNET_CORE_UNDERLAY_DUMMY_receive_continue (connection->dc->h,
                                                connection->mq);
 }
