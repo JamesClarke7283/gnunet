@@ -86,6 +86,7 @@ struct UnderlayDummyState
   // The number of channels supposed to reach
   uint32_t num_channels_target;
   struct GNUNET_TESTING_AsyncContext ac;
+  enum GNUNET_GenericReturnValue finished;
   const char *node_id;
   // FIXME: set cls per handler
   void *handlers_cls;
@@ -165,7 +166,8 @@ handle_test (void *cls, const struct GNUNET_UNDERLAY_DUMMY_Message *msg)
 }
 
 
-void *notify_connect_cb (
+void
+*notify_connect_cb (
   void *cls,
   uint32_t num_addresses,
   const char *addresses[static num_addresses],
@@ -183,10 +185,12 @@ void *notify_connect_cb (
                        uds->channels_len,
                        channel);
 
-  if (uds->num_channels_target == uds->channels_len)
+  if ((uds->num_channels_target == uds->channels_len) &&
+      (GNUNET_NO == uds->finished))
   {
-    GNUNET_TESTING_async_finish (&uds->ac);
     LOG (GNUNET_ERROR_TYPE_DEBUG, "(post connect_cb _async_finish)\n");
+    GNUNET_TESTING_async_finish (&uds->ac);
+    uds->finished = GNUNET_YES;
   }
   LOG (GNUNET_ERROR_TYPE_DEBUG,
       "(post connect_cb - %u of %u)\n",
@@ -293,6 +297,7 @@ GNUNET_CORE_cmd_connect (
   uds->handlers_len = 0;
   uds->num_channels_target = num_channels;
   uds->channels = GNUNET_new_array (0, struct Channel *);
+  uds->finished = GNUNET_NO;
   return GNUNET_TESTING_command_new_ac (
       uds, // state
       label,
