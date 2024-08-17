@@ -23,9 +23,9 @@ endif
 
 libgnunetnat = library('gnunetnat',
         libgnunetnat_src,
-        soversion: '2',
+        soversion: '',
         version: '2.0.0',
-        dependencies: libgnunetutil_dep,
+        dependencies: [gcrypt_dep, sodium_dep, libgnunetutil_dep],
         include_directories: [incdir, configuration_inc],
         install: true,
         install_dir: get_option('libdir'))
@@ -37,7 +37,7 @@ libgnunetnat = library('gnunetnatnew',
           'nat_api_stun.c'],
         soversion: '2',
         version: '2.0.0',
-        dependencies: libgnunetutil_dep,
+        dependencies: [gcrypt_dep, sodium_dep, libgnunetutil_dep],
         include_directories: [incdir, configuration_inc],
         install: true,
         install_dir: get_option('libdir'))
@@ -45,7 +45,7 @@ libgnunetnat_dep = declare_dependency(link_with : libgnunetnat)
 
 executable ('gnunet-service-nat',
             gnunetservicenat_src,
-            dependencies: [libgnunetnat_dep, libgnunetutil_dep,
+            dependencies: [gcrypt_dep, sodium_dep, libgnunetnat_dep, libgnunetutil_dep,
                            libgnunetstatistics_dep],
             include_directories: [incdir, configuration_inc],
             install: true,

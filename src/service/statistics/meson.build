@@ -17,9 +17,7 @@ endif
 
 libgnunetstatistics = library('gnunetstatistics',
         libgnunetstatistics_src,
-        soversion: '2',
-        version: '2.0.0',
-        dependencies: libgnunetutil_dep,
+        dependencies: [gcrypt_dep, sodium_dep, libgnunetutil_dep],
         include_directories: [incdir, configuration_inc],
         install: true,
         install_dir: get_option('libdir'))
@@ -29,7 +27,7 @@ pkg.generate(libgnunetstatistics, url: 'https://www.gnunet.org',
 
 executable ('gnunet-service-statistics',
             gnunetservicestatistics_src,
-            dependencies: [libgnunetstatistics_dep, libgnunetutil_dep],
+            dependencies: [gcrypt_dep, sodium_dep, libgnunetstatistics_dep, libgnunetutil_dep],
             include_directories: [incdir, configuration_inc],
             install: true,
             install_dir: get_option('libdir') / 'gnunet' / 'libexec')

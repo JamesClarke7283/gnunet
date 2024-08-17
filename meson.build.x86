@@ -15,6 +15,8 @@ r = run_command('sh', 'scripts/get_version.sh', '--major', check: true)
 cdata.set('gnunet_major_version', r.stdout().strip())
 r = run_command('sh', 'scripts/get_version.sh', '--minor', check: true)
 cdata.set('gnunet_minor_version', r.stdout().strip())
+r = run_command('sh', 'scripts/get_version.sh', '--micro', check: true)
+cdata.set('gnunet_micro_version', r.stdout().strip())
 
 pkgcfgdir = get_option('datadir')/'gnunet'/'config.d'
 docdir = get_option('datadir')/'doc'/'gnunet'
@@ -147,9 +149,30 @@ if not sqlite_dep.found()
     error('Sqlite version >= 3.35.0 requried')
   endif
 endif
+curl_dep = dependency('libcurl', version: '>=7.85.0', required : false)
+if not curl_dep.found()
+  curl_dep = cc.find_library('curl', required : true)
+  curl_version_check ='''#include <curl/curl.h>
+  int main(int argc, char **argv) {
+    return (LIBCURL_VERSION_NUM >= 0x075500) ? 0 : 1;
+    }
+  '''
+  if cc.run(curl_version_check, name : 'cURL version check',
+            dependencies: curl_dep).returncode() != 0
+    error('cURL version >=7.85.0 required')
+  endif
+endif
 zlib_dep = dependency('zlib', required : false)
 if not zlib_dep.found()
   zlib_dep = cc.find_library('zlib', required : true)
+endif
+mhd_dep = dependency('libmicrohttpd', required : false)
+if not mhd_dep.found()
+  mhd_dep = cc.find_library('microhttpd', required : true)
+endif
+json_dep = dependency('jansson', required : false)
+if not json_dep.found()
+  json_dep = cc.find_library('jansson', required : true)
 endif
 gcrypt_dep = dependency('libgcrypt', required : false)
 if not gcrypt_dep.found()
@@ -159,7 +182,14 @@ lgmp_dep = dependency('libgmp', required : false)
 if not lgmp_dep.found()
   lgmp_dep = cc.find_library('gmp', required : true)
 endif
-sodium_dep = dependency('libsodium', required : true, version: '>=1.0.18')
+gnutls_dep = dependency('libgnutls', required : false)
+if not gnutls_dep.found()
+  gnutls_dep = cc.find_library('gnutls', required : false)
+  if not gnutls_dep.found()
+    gnutls_dep = cc.find_library('gnutls-dane', required : true)
+  endif
+endif
+sodium_dep = dependency('libsodium', required : false, version: '>=1.0.18')
 if not sodium_dep.found()
   sodium_dep = cc.find_library('sodium', required : true)
   sodium_version_check ='''#include <sodium.h>
@@ -358,6 +388,30 @@ if cc.check_header('nss.h')
   add_project_arguments('-DHAVE_GLIBCNSS', language : 'c')
 endif
 
+# GNUTLS DANE
+if cc.check_header('gnutls/dane.h')
+  if cc.has_function('dane_verify_crt_raw',
+    prefix: '#include <gnutls/dane.h>',
+    dependencies: gnutls_dep)
+  add_project_arguments('-DHAVE_GNUTLS_DANE', language : 'c')
+endif
+endif
+curl_ssl_check ='''#include <curl/curl.h>
+  int main(int argc, char **argv) {
+    return (CURLSSLSET_OK != curl_global_sslset(CURLSSLBACKEND_GNUTLS, NULL, NULL));
+    }
+  '''
+
+result = cc.run(curl_ssl_check, name : 'cURL gnutls check',
+  dependencies: curl_dep)
+cdata.set('curl_gnutls', 0)
+if result.returncode() == 0
+  cdata.set('curl_gnutls', 1)
+endif
+
+if cc.has_function('getloadavg') == false
+  error('getloadadv missing')
+endif
 
 syscalls = [
   'memset_s', 'explicit_bzero', 'atoll', 'stat64',
@@ -432,6 +486,7 @@ summary({'host': host_machine.system(),
   'datadir': get_option('datadir'),
   'default interface': cdata.get('GNUNET_DEFAULT_INTERFACE'),
   'PostgreSQL': pq_dep.found(),
+  'curl w/ gnutls': (cdata.get('curl_gnutls') == 1),
   'ifconfig': ifconfig_bin.found(),
   'iptables': iptables_bin.found()
   }, section: 'Detected system')

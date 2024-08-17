@@ -3625,39 +3625,7 @@ run (void *cls,
 }
 
 
-/**
- * The main function for the UNIX communicator.
- *
- * @param argc number of arguments from the command line
- * @param argv command line arguments
- * @return 0 ok, 1 on error
- */
-int
-main (int argc, char *const *argv)
-{
-  static const struct GNUNET_GETOPT_CommandLineOption options[] = {
-    GNUNET_GETOPT_OPTION_END
-  };
-  int ret;
-
-  GNUNET_log_from_nocheck (GNUNET_ERROR_TYPE_DEBUG,
-                           "transport",
-                           "Starting udp communicator\n");
-  if (GNUNET_OK != GNUNET_STRINGS_get_utf8_args (argc, argv, &argc, &argv))
-    return 2;
-
-  ret = (GNUNET_OK == GNUNET_PROGRAM_run (argc,
-                                          argv,
-                                          "gnunet-communicator-udp",
-                                          _ ("GNUnet UDP communicator"),
-                                          options,
-                                          &run,
-                                          NULL))
-        ? 0
-        : 1;
-  GNUNET_free_nz ((void *) argv);
-  return ret;
-}
+GNUNET_DAEMON_MAIN ("gnunet-communicator-udp", _ ("GNUnet UDP communicator"), &run)
 
 
 /* end of gnunet-communicator-udp.c */

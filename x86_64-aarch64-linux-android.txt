@@ -1,6 +1,6 @@
 [binaries]
-c = 'aarch64-linux-android25-clang'
-cpp = 'aarch64-linux-android25-clang++'
+c = 'aarch64-linux-android26-clang'
+cpp = 'aarch64-linux-android26-clang++'
 ar = 'llvm-ar'
 strip = 'llvm-strip'
 pkgconfig = '/usr/bin/pkg-config'

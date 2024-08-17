@@ -125,7 +125,15 @@ GNUNET_PROGRAM_run (int argc,
 enum GNUNET_GenericReturnValue
 GNUNET_DAEMON_register (const char *daemon_name,
                         const char *daemon_desc,
-                        GNUNET_PROGRAM_Main task);
+                        GNUNET_SCHEDULER_TaskCallback task);
+
+/**
+ * Start all services and daemons in a single prozess.
+ */
+void
+GNUNET_PROGRAM_monolith_main (int argc,
+                              char *const *argv,
+                              struct GNUNET_CONFIGURATION_Handle *cfg);
 
 #ifndef HAVE_GNUNET_MONOLITH
 #define GNUNET_DAEMON_MAIN(daemon_name, daemon_help, init_cb) \
@@ -160,6 +168,27 @@ GNUNET_DAEMON_register (const char *daemon_name,
                                          init_cb); \
         }
 #endif
+
+
+/**
+ * Create configuration handle from options and configuration file.
+ */
+enum GNUNET_GenericReturnValue
+GNUNET_PROGRAM_conf_and_options (int argc,
+                                 char *const *argv,
+                                 struct GNUNET_CONFIGURATION_Handle *cfg);
+
+
+/**
+ * Run the mainloop in a monolithic libgnunet.
+ * Must be called such that services are actually launched.
+ */
+void
+GNUNET_DAEMON_main (int argc,
+                    char *const *argv,
+                    struct GNUNET_CONFIGURATION_Handle *cfg,
+                    enum GNUNET_GenericReturnValue with_scheduler);
+
 
 
 #if 0                           /* keep Emacsens' auto-indent happy */

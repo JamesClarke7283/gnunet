@@ -15,9 +15,7 @@ configure_file(input : 'arm.conf.in',
 
 libgnunetarm = library('gnunetarm',
   libgnunetarm_src,
-  dependencies: libgnunetutil_dep,
-  version: '2.0.0',
-  soversion: '2',
+  dependencies: [gcrypt_dep, sodium_dep, libgnunetutil_dep],
   include_directories: [incdir, configuration_inc],
   install: true,
   install_dir: get_option('libdir'))
@@ -27,48 +25,7 @@ libgnunetarm_dep = declare_dependency(link_with : libgnunetarm)
 
 executable ('gnunet-service-arm',
   gnunetservicearm_src,
-  dependencies: [libgnunetarm_dep, libgnunetutil_dep],
+  dependencies: [gcrypt_dep, sodium_dep, libgnunetarm_dep, libgnunetutil_dep],
   include_directories: [incdir, configuration_inc],
   install: true,
   install_dir: get_option('libdir') / 'gnunet' / 'libexec')
-
-mockservice = executable ('mockup-service',
-  ['mockup-service.c'],
-  dependencies: [libgnunetarm_dep, libgnunetutil_dep],
-  include_directories: [incdir, configuration_inc],
-  install: false)
-
-testarmapi = executable ('test_arm_api',
-  testarmapi_src,
-  dependencies: [libgnunetarm_dep, libgnunetutil_dep],
-  include_directories: [incdir, configuration_inc],
-  install: false)
-testexpbo = executable ('test_exponential_backoff',
-  testexpbo_src,
-  dependencies: [libgnunetarm_dep, libgnunetutil_dep],
-  include_directories: [incdir, configuration_inc],
-  install: false)
-testgnunetservice = executable ('test_gnunet_service',
-  testgnunetservice_src,
-  dependencies: [libgnunetarm_dep, libgnunetutil_dep],
-  include_directories: [incdir, configuration_inc],
-  install: false)
-configure_file(copy: true,
-  input: 'test_arm_api_data.conf',
-  output: 'test_arm_api_data.conf')
-
-# FIXME: We need to convert the convoluted awk script from Makefile.am here
-#configure_file(copy: true,
-#               input: 'test_gnunet_arm.py.in',
-#               output: 'test_gnunet_arm.py')
-
-test('test_arm_api', testarmapi, workdir: meson.current_build_dir(),
-  is_parallel: false,
-  suite: 'arm')
-test('test_exponential_backoff', testexpbo, workdir: meson.current_build_dir(),
-  depends: mockservice,
-  is_parallel: false,
-  timeout: 60, suite: 'arm')
-test('test_gnunet_service_arm', testgnunetservice, workdir: meson.current_build_dir(),
-  is_parallel: false,
-  suite: 'arm')

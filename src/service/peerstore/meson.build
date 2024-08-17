@@ -19,9 +19,7 @@ endif
 
 libgnunetpeerstore = library('gnunetpeerstore',
         libgnunetpeerstore_src,
-        soversion: '0',
-        version: '0.0.0',
-        dependencies: [libgnunetutil_dep, libgnunethello_dep],
+        dependencies: [gcrypt_dep, sodium_dep, libgnunetutil_dep, libgnunethello_dep],
         include_directories: [incdir, configuration_inc],
         install: true,
         install_dir: get_option('libdir'))
@@ -31,7 +29,7 @@ libgnunetpeerstore_dep = declare_dependency(link_with : libgnunetpeerstore)
 
 executable ('gnunet-service-peerstore',
             gnunetservicepeerstore_src,
-            dependencies: [libgnunetpeerstore_dep,
+            dependencies: [gcrypt_dep, sodium_dep, libgnunetpeerstore_dep,
                            libgnunetutil_dep,
                            libgnunethello_dep],
             include_directories: [incdir, configuration_inc],

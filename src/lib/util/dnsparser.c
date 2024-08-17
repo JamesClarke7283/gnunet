@@ -27,19 +27,7 @@
 
 #include "platform.h"
 #include "gnunet_util_lib.h"
-#if HAVE_LIBIDN2
-#if HAVE_IDN2_H
-#include <idn2.h>
-#elif HAVE_IDN2_IDN2_H
-#include <idn2/idn2.h>
-#endif
-#elif HAVE_LIBIDN
-#if HAVE_IDNA_H
 #include <idna.h>
-#elif HAVE_IDN_IDNA_H
-#include <idn/idna.h>
-#endif
-#endif
 
 /**
  * Check if a label in UTF-8 format can be coded into valid IDNA.
