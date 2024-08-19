@@ -80,12 +80,15 @@ read_from_file (const char *filename,
     GNUNET_log (GNUNET_ERROR_TYPE_DEBUG,
                 "Error on opening file %s.",
                 filename);
+    GNUNET_log_strerror_file (GNUNET_ERROR_TYPE_WARNING,
+                              "open",
+                              filename);
     return GNUNET_SYSERR;
   }
   if (0 != fstat (fd,
                   &sb))
   {
-    GNUNET_log_strerror_file (GNUNET_ERROR_TYPE_WARNING,
+    GNUNET_log_strerror_file (GNUNET_ERROR_TYPE_ERROR,
                               "stat",
                               filename);
     GNUNET_assert (0 == close (fd));
