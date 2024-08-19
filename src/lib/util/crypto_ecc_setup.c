@@ -77,6 +77,9 @@ read_from_file (const char *filename,
     memset (buf,
             0,
             buf_size);
+    GNUNET_log (GNUNET_ERROR_TYPE_DEBUG,
+                "Error on opening file %s.",
+                filename);
     return GNUNET_SYSERR;
   }
   if (0 != fstat (fd,
@@ -89,6 +92,9 @@ read_from_file (const char *filename,
     memset (buf,
             0,
             buf_size);
+    GNUNET_log (GNUNET_ERROR_TYPE_DEBUG,
+                "Error on fstat file %s.",
+                filename);
     return GNUNET_SYSERR;
   }
   if (sb.st_size != buf_size)
@@ -102,6 +108,9 @@ read_from_file (const char *filename,
     memset (buf,
             0,
             buf_size);
+    GNUNET_log (GNUNET_ERROR_TYPE_DEBUG,
+                "file %s has wrong size.",
+                filename);
     return GNUNET_SYSERR;
   }
   if (buf_size !=
@@ -116,6 +125,9 @@ read_from_file (const char *filename,
     memset (buf,
             0,
             buf_size);
+    GNUNET_log (GNUNET_ERROR_TYPE_DEBUG,
+                "Error on read file %s.",
+                filename);
     return GNUNET_SYSERR;
   }
   GNUNET_assert (0 == close (fd));
@@ -165,6 +177,9 @@ GNUNET_CRYPTO_eddsa_key_from_file (const char *filename,
                               pkey,
                               sizeof (*pkey),
                               GNUNET_DISK_PERM_USER_READ);
+  GNUNET_log (GNUNET_ERROR_TYPE_DEBUG,
+              "Creating key file %s.",
+              GNUNET_SYSERR == ret ? "failed" : "did not fail");
   if ( (GNUNET_OK == ret) ||
        (GNUNET_SYSERR == ret) )
     return ret;
@@ -256,6 +271,9 @@ GNUNET_CRYPTO_eddsa_key_create_from_configuration (
                                                "PRIVATE_KEY",
                                                &fn))
     return NULL;
+  GNUNET_log (GNUNET_ERROR_TYPE_DEBUG,
+              "Got private key file path %s from config.",
+              fn);
   priv = GNUNET_new (struct GNUNET_CRYPTO_EddsaPrivateKey);
   if (GNUNET_SYSERR == GNUNET_CRYPTO_eddsa_key_from_file (fn,
                                                           GNUNET_YES,

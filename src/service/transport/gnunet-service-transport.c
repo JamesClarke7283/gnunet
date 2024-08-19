@@ -12533,6 +12533,8 @@ run (void *cls,
   revalidation_map = GNUNET_CONTAINER_multihashmap_create (1024, GNUNET_YES);
   validation_heap =
     GNUNET_CONTAINER_heap_create (GNUNET_CONTAINER_HEAP_ORDER_MIN);
+  GNUNET_log (GNUNET_ERROR_TYPE_DEBUG,
+              "Retrievig private key file path from config.");
   GST_my_private_key =
     GNUNET_CRYPTO_eddsa_key_create_from_configuration (GST_cfg);
   if (NULL == GST_my_private_key)
