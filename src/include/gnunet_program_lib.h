@@ -136,7 +136,7 @@ GNUNET_PROGRAM_monolith_main (int argc,
                               struct GNUNET_CONFIGURATION_Handle *cfg);
 
 #ifndef HAVE_GNUNET_MONOLITH
-#define GNUNET_DAEMON_MAIN(daemon_name, daemon_help, init_cb) \
+#define GNUNET_DAEMON_MAIN(daemon_name, daemon_help, init_cb, init_cb_monolith)  \
         int \
         main (int argc, \
               char *const *argv) \
@@ -159,13 +159,13 @@ GNUNET_PROGRAM_monolith_main (int argc,
           return ret; \
         }
 #else
-#define GNUNET_DAEMON_MAIN(daemon_name, daemon_help, init_cb) \
+#define GNUNET_DAEMON_MAIN(daemon_name, daemon_help, init_cb, init_cb_monolith)  \
         static int __attribute__ ((constructor)) \
         init (void) \
         { \
           return GNUNET_DAEMON_register (daemon_name, \
                                          daemon_help, \
-                                         init_cb); \
+                                         init_cb_monolith); \
         }
 #endif
 

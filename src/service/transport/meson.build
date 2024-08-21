@@ -21,7 +21,7 @@ configure_file(input : 'gnunet-transport-certificate-creation.in',
                install_dir: get_option('bindir'))
 
 if get_option('monolith')
-  foreach p : libgnunettransportapplication_src + libgnunettransportcore_src + libgnunettransportcommunicator_src + libgnunettransportmonitor_src + gnunetservicetransport_src
+  foreach p : libgnunettransportapplication_src + libgnunettransportcore_src + libgnunettransportcommunicator_src + libgnunettransportmonitor_src + gnunetservicetransport_src + gnunetcommunicatorudp_src + gnunetcommunicatortcp_src
     gnunet_src += 'transport/' + p
   endforeach
 endif
@@ -93,29 +93,7 @@ executable ('gnunet-communicator-unix',
             include_directories: [incdir, configuration_inc],
             install: true,
             install_dir: get_option('libdir') / 'gnunet' / 'libexec')
-executable ('gnunet-communicator-udp',
-            gnunetcommunicatorudp_src,
-            dependencies: [gcrypt_dep, sodium_dep, libgnunettransportcommunicator_dep,
-                           libgnunettransportapplication_dep,
-                           libgnunetpeerstore_dep,
-                           libgnunetstatistics_dep,
-                           libgnunetnat_dep,
-                           gcrypt_dep,
-                           libgnunetutil_dep],
-            include_directories: [incdir, configuration_inc],
-            install: true,
-            install_dir: get_option('libdir') / 'gnunet' / 'libexec')
-executable ('gnunet-communicator-tcp',
-            gnunetcommunicatortcp_src,
-            dependencies: [gcrypt_dep, sodium_dep, libgnunettransportcommunicator_dep,
-                           libgnunetpeerstore_dep,
-                           libgnunetstatistics_dep,
-                           libgnunetnat_dep,
-                           gcrypt_dep,
-                           libgnunetutil_dep],
-            include_directories: [incdir, configuration_inc],
-            install: true,
-            install_dir: get_option('libdir') / 'gnunet' / 'libexec')
+
 if quic_dep.found() and get_option('experimental')
 executable ('gnunet-communicator-quic',
             gnunetcommunicatortcp_src,

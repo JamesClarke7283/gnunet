@@ -3057,7 +3057,7 @@ free_pending_acknowledgement (struct PendingAcknowledgement *pa)
   struct DistanceVectorHop *dvh = pa->dvh;
 
   GNUNET_log (GNUNET_ERROR_TYPE_DEBUG,
-              "free_pending_acknowledgement\n");
+              "free_pending_acknowledgement \n");
   if (NULL != q)
   {
     GNUNET_CONTAINER_MDLL_remove (queue, q->pa_head, q->pa_tail, pa);

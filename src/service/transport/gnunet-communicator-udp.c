@@ -48,6 +48,8 @@
 #include "gnunet_transport_application_service.h"
 #include "gnunet_transport_communication_service.h"
 
+#define LOG(kind, ...) GNUNET_log_from (kind, "util-program", __VA_ARGS__)
+
 /**
  * How often do we rekey based on time (at least)
  */
@@ -3418,19 +3420,8 @@ try_connection_reversal (void *cls,
 }
 
 
-/**
- * Setup communicator and launch network interactions.
- *
- * @param cls NULL (always)
- * @param args remaining command-line arguments
- * @param cfgfile name of the configuration file used (for saving, can be NULL!)
- * @param c configuration
- */
 static void
-run (void *cls,
-     char *const *args,
-     const char *cfgfile,
-     const struct GNUNET_CONFIGURATION_Handle *c)
+run_ (const struct GNUNET_CONFIGURATION_Handle *c)
 {
   char *bindto;
   struct sockaddr *in;
@@ -3438,7 +3429,9 @@ run (void *cls,
   struct sockaddr_storage in_sto;
   socklen_t sto_len;
 
-  (void) cls;
+  LOG (GNUNET_ERROR_TYPE_DEBUG,
+       "Entering the run method of udp communicator.\n");
+
   cfg = c;
   if (GNUNET_OK !=
       GNUNET_CONFIGURATION_get_value_string (cfg,
@@ -3451,7 +3444,9 @@ run (void *cls,
                                "BINDTO");
     return;
   }
-
+  LOG (GNUNET_ERROR_TYPE_DEBUG,
+       "The udp communicator will bind to %s\n",
+       bindto);
   if (GNUNET_OK !=
       GNUNET_CONFIGURATION_get_value_time (cfg,
                                            COMMUNICATOR_CONFIG_SECTION,
@@ -3624,8 +3619,35 @@ run (void *cls,
                              NULL /* closure */);
 }
 
+static void
+run_monolith (void *cls)
+{
+  const struct GNUNET_CONFIGURATION_Handle *c = cls;
 
-GNUNET_DAEMON_MAIN ("gnunet-communicator-udp", _ ("GNUnet UDP communicator"), &run)
+  run_ (c);
+}
+
+
+/**
+ * Setup communicator and launch network interactions.
+ *
+ * @param cls NULL (always)
+ * @param args remaining command-line arguments
+ * @param cfgfile name of the configuration file used (for saving, can be NULL!)
+ * @param c configuration
+ */
+static void
+run (void *cls,
+     char *const *args,
+     const char *cfgfile,
+     const struct GNUNET_CONFIGURATION_Handle *c)
+{
+  run_ (c);
+  }
+
+
+GNUNET_DAEMON_MAIN ("gnunet-communicator-udp", _ ("GNUnet UDP communicator"), &run, &run_monolith)
+
 
 
 /* end of gnunet-communicator-udp.c */

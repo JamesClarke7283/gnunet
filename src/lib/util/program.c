@@ -587,6 +587,8 @@ struct DaemonHandleList
 
   /* Program to launch */
   GNUNET_SCHEDULER_TaskCallback d;
+
+  const char *daemon_name;
 };
 
 /* The daemon list */
@@ -605,6 +607,9 @@ launch_daemons (void *cls)
        NULL != hll;
        hll = hll->next)
   {
+    LOG (GNUNET_ERROR_TYPE_DEBUG,
+         "Launching daemon %s\n",
+         hll->daemon_name);
     GNUNET_SCHEDULER_add_now (hll->d,
                               cfg);
   }
@@ -617,6 +622,8 @@ GNUNET_DAEMON_main (int argc,
                     struct GNUNET_CONFIGURATION_Handle *cfg,
                     enum GNUNET_GenericReturnValue with_scheduler)
 {
+  LOG (GNUNET_ERROR_TYPE_DEBUG,
+       "Entering GNUNET_DAEMON_main\n");
   if (GNUNET_YES == with_scheduler)
   {
     if (GNUNET_YES != GNUNET_PROGRAM_conf_and_options (argc,
@@ -638,8 +645,12 @@ GNUNET_DAEMON_register (const char *daemon_name,
 {
   struct DaemonHandleList *hle;
 
+  LOG (GNUNET_ERROR_TYPE_DEBUG,
+         "registering daemon %s\n",
+         daemon_name);
   hle = GNUNET_new (struct DaemonHandleList);
   hle->d = task;
+  hle->daemon_name = daemon_name;
   GNUNET_CONTAINER_DLL_insert (hll_head, hll_tail, hle);
   return GNUNET_OK;
 }
