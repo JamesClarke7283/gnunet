@@ -1,3 +1,9 @@
+gnunet (0.22.0) unstable; urgency=low
+
+  * Package for GNU Taler v0.13 release.
+
+ -- Florian Dold <dold@taler.net> Wed, 28 Aug 2024 18:15:47 +0200
+
 gnunet (0.21.1-3) unstable; urgency=low
 
   * Package for GNU Taler v0.11.1 release.
