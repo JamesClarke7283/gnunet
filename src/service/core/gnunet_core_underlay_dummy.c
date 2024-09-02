@@ -327,6 +327,60 @@ connection_destroy (struct Connection *connection)
 
 
 /**
+ * @brief Set the closures for mq handlers
+ *
+ * This is a utility function that sets the closures of the given mq handlers
+ * to a given closure
+ *
+ * @param handlers the list of handlers
+ * @param handlers_cls the new closure for the handlers
+ */
+static void
+set_handlers_closure (struct GNUNET_MQ_MessageHandler *handlers,
+                      void *handlers_cls)
+{
+  GNUNET_assert (NULL != handlers);
+
+  for (unsigned int i = 0; NULL != handlers[i].cb; i++)
+    handlers[i].cls = handlers_cls;
+}
+
+
+/**
+ * @brief Notify the api caller about a new connection.
+ *
+ * This connection could either be initiated by us or the connecting peer.
+ * The function is supposed to be called through the scheduler.
+ *
+ * @param cls
+ */
+static void
+do_notify_connect (void *cls)
+{
+  struct Connection *connection = cls;
+  struct GNUNET_CORE_UNDERLAY_DUMMY_Handle *h = connection->handle;
+  void *cls_mq;
+
+  connection->notify_connect_task = NULL;
+  /* The clobal closure is given to the handler, whereas the handler for
+   * individual connections is the return value of the hanlder. */
+  cls_mq =
+    h->notify_connect(h->cls,
+                      1,
+                      (const char **) &connection->peer_addr,
+                      connection->mq);
+  connection->handlers = GNUNET_MQ_copy_handlers (h->handlers);
+  set_handlers_closure (connection->handlers, h->cls);
+  if (NULL != cls_mq)
+  {
+    connection->cls_mq = cls_mq;
+    //GNUNET_MQ_set_handlers_closure (connection->mq, connection->cls_mq);
+    set_handlers_closure (connection->handlers, connection->cls_mq);
+  }
+}
+
+
+/**
  * @brief Callback scheduled to run when there is something to read from the
  * socket. Reads the data from the socket and passes it to the message queue.
  *
@@ -337,12 +391,9 @@ do_read (void *cls)
 {
   struct Connection *connection = cls;
 
-  ssize_t ret;
   char buf[65536] GNUNET_ALIGN;
-  ssize_t ret_remain;
-  char *buf_iter;
+  ssize_t ret;
   struct GNUNET_MessageHeader *msg;
-  struct GNUNET_MessageHeader *msg_iter;
 
   connection->recv_task = NULL;
   GNUNET_assert (NULL != connection->sock);
@@ -365,67 +416,94 @@ do_read (void *cls)
   GNUNET_assert (2 <= ret); /* has to have returned enough for one full msg_hdr */
 
   /* Handle the message itself */
-  msg = (struct GNUNET_MessageHeader *) buf;
-  ret_remain = ret;
-  buf_iter = buf;
-  /* Just debug logging */
-  while (0 < ret_remain)
   {
-    msg_iter = (struct GNUNET_MessageHeader *) buf_iter;
-    LOG (GNUNET_ERROR_TYPE_DEBUG, "Length of message: %d bytes\n", ntohs (msg_iter->size));
-    LOG (GNUNET_ERROR_TYPE_DEBUG, "Remaining bytes of buffer: %d\n", ret_remain);
+    ssize_t ret_remain;
+    char *buf_iter;
+    struct GNUNET_MessageHeader *msg_iter;
 
-    //{
-    //  // XXX only for debugging purposes
-    //  // this shows everything works as expected
+    msg = (struct GNUNET_MessageHeader *) buf;
+    ret_remain = ret;
+    buf_iter = buf;
+    /* Just debug logging */
+    while (0 < ret_remain)
+    {
+      msg_iter = (struct GNUNET_MessageHeader *) buf_iter;
+      LOG (GNUNET_ERROR_TYPE_DEBUG, "Length of message: %d bytes\n", ntohs (msg_iter->size));
+      LOG (GNUNET_ERROR_TYPE_DEBUG, "Remaining bytes of buffer: %d\n", ret_remain);
 
-    //  struct GNUNET_UNDERLAY_DUMMY_Message
-    //  {
-    //    struct GNUNET_MessageHeader header;
-    //    // The following will be used for debugging
-    //    uint64_t id; // id of the message
-    //    uint64_t batch; // first batch of that peer (for this test 0 or 1)
-    //    //uint64_t peer; // number of sending peer (for this test 0 or 1)
-    //  };
+      {
+        //// XXX only for debugging purposes
+        //// this shows everything works as expected
+
+        //struct GNUNET_UNDERLAY_DUMMY_Message
+        //{
+        //  struct GNUNET_MessageHeader header;
+        //  // The following will be used for debugging
+        //  uint64_t id; // id of the message
+        //  uint64_t batch; // first batch of that peer (for this test 0 or 1)
+        //  //uint64_t peer; // number of sending peer (for this test 0 or 1)
+        //};
 
 
 
-    //  struct GNUNET_UNDERLAY_DUMMY_Message *msg_dbg =
-    //    (struct GNUNET_UNDERLAY_DUMMY_Message *) msg_iter;
-    //  //LOG (GNUNET_ERROR_TYPE_DEBUG, "do_read - id: %u, batch: %u, peer: %u\n",
-    //  LOG (GNUNET_ERROR_TYPE_DEBUG, "do_read - id: %u, batch: %u\n",
-    //       GNUNET_ntohll (msg_dbg->id),
-    //       GNUNET_ntohll (msg_dbg->batch));
-    //  //LOG (GNUNET_ERROR_TYPE_DEBUG, "do_read - size: %u\n",
-    //  //     ntohs (msg_dbg->size));
-    //  //LOG (GNUNET_ERROR_TYPE_DEBUG, "do_read - (sanity) size msghdr: %u\n",
-    //  //     sizeof (struct GNUNET_MessageHeader));
-    //  //LOG (GNUNET_ERROR_TYPE_DEBUG, "do_read - (sanity) size msg field: %u\n",
-    //  //     sizeof (msg_dbg->id));
-    //}
-    buf_iter = buf_iter + ntohs (msg_iter->size);
-    ret_remain = ret_remain - ntohs (msg_iter->size);
+        //struct GNUNET_UNDERLAY_DUMMY_Message *msg_dbg =
+        //  (struct GNUNET_UNDERLAY_DUMMY_Message *) msg_iter;
+        ////LOG (GNUNET_ERROR_TYPE_DEBUG, "do_read - id: %u, batch: %u, peer: %u\n",
+        //LOG (GNUNET_ERROR_TYPE_DEBUG, "do_read - id: %u, batch: %u\n",
+        //     GNUNET_ntohll (msg_dbg->id),
+        //     GNUNET_ntohll (msg_dbg->batch));
+        ////LOG (GNUNET_ERROR_TYPE_DEBUG, "do_read - size: %u\n",
+        ////     ntohs (msg_dbg->size));
+        ////LOG (GNUNET_ERROR_TYPE_DEBUG, "do_read - (sanity) size msghdr: %u\n",
+        ////     sizeof (struct GNUNET_MessageHeader));
+        ////LOG (GNUNET_ERROR_TYPE_DEBUG, "do_read - (sanity) size msg field: %u\n",
+        ////     sizeof (msg_dbg->id));
+      }
+      buf_iter = buf_iter + ntohs (msg_iter->size);
+      ret_remain = ret_remain - ntohs (msg_iter->size);
+    }
+    /* Enqueue the following messages */
+    /* skip the first message */
+    LOG (GNUNET_ERROR_TYPE_DEBUG, "Enqueueing messages\n");
+    buf_iter = buf + ntohs (msg->size);
+    ret_remain = ret - ntohs (msg->size);
+    /* iterate over the rest */
+    while (0 < ret_remain)
+    {
+      LOG (GNUNET_ERROR_TYPE_DEBUG, "Enqueueing message\n");
+      msg_iter = (struct GNUNET_MessageHeader *) buf_iter;
+      struct QueuedMessage *q_msg = GNUNET_new (struct QueuedMessage);
+      q_msg->msg = GNUNET_malloc (ntohs (msg_iter->size));
+      GNUNET_memcpy (q_msg->msg, msg_iter, ntohs (msg_iter->size));
+      GNUNET_CONTAINER_DLL_insert_tail (connection->queued_recv_messages_head,
+                                        connection->queued_recv_messages_tail,
+                                        q_msg);
+
+      buf_iter = buf_iter + ntohs (msg_iter->size);
+      ret_remain = ret_remain - ntohs (msg_iter->size);
+    }
   }
-  /* Enqueue the following messages */
-  /* skip the first message */
-  LOG (GNUNET_ERROR_TYPE_DEBUG, "Enqueueing messages\n");
-  buf_iter = buf + ntohs (msg->size);
-  ret_remain = ret - ntohs (msg->size);
-  /* iterate over the rest */
-  while (0 < ret_remain)
+
+  /* check for and handle hello */
+  if ((NULL == connection->peer_addr) &&
+      (0 == ntohs (msg->type))) /* 0 = GNUNET_MESSAGE_TYPE_TEST is deprecated - usage for this dummy should be fine */
   {
-    LOG (GNUNET_ERROR_TYPE_DEBUG, "Enqueueing message\n");
-    msg_iter = (struct GNUNET_MessageHeader *) buf_iter;
-    struct QueuedMessage *q_msg = GNUNET_new (struct QueuedMessage);
-    q_msg->msg = GNUNET_malloc (ntohs (msg_iter->size));
-    GNUNET_memcpy (q_msg->msg, msg_iter, ntohs (msg_iter->size));
-    GNUNET_CONTAINER_DLL_insert_tail (connection->queued_recv_messages_head,
-                                      connection->queued_recv_messages_tail,
-                                      q_msg);
+    LOG (GNUNET_ERROR_TYPE_DEBUG, "Hello-Message - notifying caller\n");
+    connection->peer_addr = strdup ((char *) &msg[1]);
+    LOG (GNUNET_ERROR_TYPE_DEBUG,
+        "address of other peer: %s\n",
+        connection->peer_addr);
 
-    buf_iter = buf_iter + ntohs (msg_iter->size);
-    ret_remain = ret_remain - ntohs (msg_iter->size);
+    if (NULL != connection->handle->notify_connect)
+    {
+      GNUNET_assert (NULL == connection->notify_connect_task);
+      // FIXME only call this when we got the hello
+      connection->notify_connect_task =
+        GNUNET_SCHEDULER_add_now (do_notify_connect, connection);
+    }
+    return;
   }
+
   GNUNET_MQ_handle_message (connection->handlers, msg);
   // TODO do proper rate limiting in sync with
 }
@@ -603,60 +681,6 @@ mq_error_handler_impl (void *cls, enum GNUNET_MQ_Error error)
 
 
 /**
- * @brief Set the closures for mq handlers
- *
- * This is a utility function that sets the closures of the given mq handlers
- * to a given closure
- *
- * @param handlers the list of handlers
- * @param handlers_cls the new closure for the handlers
- */
-static void
-set_handlers_closure (struct GNUNET_MQ_MessageHandler *handlers,
-                      void *handlers_cls)
-{
-  GNUNET_assert (NULL != handlers);
-
-  for (unsigned int i = 0; NULL != handlers[i].cb; i++)
-    handlers[i].cls = handlers_cls;
-}
-
-
-/**
- * @brief Notify the api caller about a new connection.
- *
- * This connection could either be initiated by us or the connecting peer.
- * The function is supposed to be called through the scheduler.
- *
- * @param cls
- */
-static void
-do_notify_connect (void *cls)
-{
-  struct Connection *connection = cls;
-  struct GNUNET_CORE_UNDERLAY_DUMMY_Handle *h = connection->handle;
-  void *cls_mq;
-
-  connection->notify_connect_task = NULL;
-  /* The clobal closure is given to the handler, whereas the handler for
-   * individual connections is the return value of the hanlder. */
-  cls_mq =
-    h->notify_connect(h->cls,
-                      1,
-                      (const char **) &connection->peer_addr,
-                      connection->mq);
-  connection->handlers = GNUNET_MQ_copy_handlers (h->handlers);
-  set_handlers_closure (connection->handlers, h->cls);
-  if (NULL != cls_mq)
-  {
-    connection->cls_mq = cls_mq;
-    //GNUNET_MQ_set_handlers_closure (connection->mq, connection->cls_mq);
-    set_handlers_closure (connection->handlers, connection->cls_mq);
-  }
-}
-
-
-/**
  * Accept a connection on the dummy's socket
  *
  * @param cls the hanlde to the dummy passed as closure
@@ -701,7 +725,8 @@ do_accept (void *cls)
   }
   connection = GNUNET_new (struct Connection);
   connection->sock = sock;
-  connection->peer_addr = GNUNET_strdup (addr_other.sun_path);
+  connection->peer_addr = NULL; // GNUNET_strdup (addr_other.sun_path); should
+                                // be empty
   connection->handle = h;
   LOG (GNUNET_ERROR_TYPE_INFO, "Peer connected\n");
   GNUNET_CONTAINER_DLL_insert (h->connections_head,
@@ -715,31 +740,6 @@ do_accept (void *cls)
                                    h->handlers, // handlers - may be NULL?
                                    mq_error_handler_impl,
                                    connection->cls_mq); // FIXME cls for error_handler
-  {
-    // XXX
-    // If we were to get the connecting peers' address some of the following
-    // might be useful.
-    // The problem is that most connecting sockets won't have a name.
-    //
-    //char **addresses = GNUNET_new_array (1, char *);
-    //addresses[0] = GNUNET_malloc ((sizeof (char) * strlen (addr_other.sun_path)) + 1);
-    //addresses[0][0] = '\0';
-    ////GNUNET_memcpy (addresses[0], addr_other.sun_path, strlen (addr_other.sun_path));
-    //addresses[0] = GNUNET_strdup (addr_other.sun_path);
-    ////char *address = GNUNET_malloc (sizeof (char) * strlen (addr_other.sun_path));
-    //LOG (GNUNET_ERROR_TYPE_INFO, "addr_other_len: %u\n", addr_other_len);
-    //LOG (GNUNET_ERROR_TYPE_INFO, "strlen(addr_other.sun_path): %u\n", strlen(addr_other.sun_path));
-    //LOG (GNUNET_ERROR_TYPE_INFO, "Sanity check0: %s\n", addr_other.sun_path);
-    //LOG (GNUNET_ERROR_TYPE_INFO, "Sanity check1: %s\n", addresses[0]);
-    ////addr_other_p = GNUNET_NETWORK_get_addr (sock);
-    ////LOG (GNUNET_ERROR_TYPE_INFO, "Sanity check2: %s\n", addr_other_p->sa_data);
-  }
-  if (NULL != h->notify_connect)
-  {
-    GNUNET_assert (NULL == connection->notify_connect_task);
-    connection->notify_connect_task =
-      GNUNET_SCHEDULER_add_now (do_notify_connect, connection);
-  }
   connection->recv_task =
     GNUNET_SCHEDULER_add_read_net (GNUNET_TIME_UNIT_FOREVER_REL,
                                    connection->sock,
@@ -1270,6 +1270,21 @@ GNUNET_CORE_UNDERLAY_DUMMY_connect_to_peer (
     GNUNET_assert (NULL == connection->notify_connect_task);
     connection->notify_connect_task =
       GNUNET_SCHEDULER_add_now (do_notify_connect, connection);
+  }
+
+  /* Send hello-message */
+  {
+    struct GNUNET_MQ_Envelope *env;
+    struct GNUNET_MessageHeader *msg;
+    uint32_t peer_addr_len;
+
+    GNUNET_assert (NULL != connection->peer_addr);
+    peer_addr_len = strnlen (connection->peer_addr, 128);
+    env = GNUNET_MQ_msg_header_extra (msg, // usually we wanted to keep the
+        peer_addr_len,                     // envelopes to potentially cancel the
+        0);                                // message
+    GNUNET_memcpy (&msg[1], connection->peer_addr, peer_addr_len);
+    GNUNET_MQ_send (connection->mq, env);
   }
 
   //  FIXME: proper array
