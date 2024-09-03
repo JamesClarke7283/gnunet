@@ -503,6 +503,15 @@ do_read (void *cls)
       connection->notify_connect_task =
         GNUNET_SCHEDULER_add_now (do_notify_connect, connection);
     }
+    /* We need to schedule the recv_task here because this is not a message
+     * passed to the caller an thus the caller will not call
+     * GNUNET_CORE_UNDERLAY_DUMMY_receive_continue () which usually schedules
+     * the recv_task */
+    connection->recv_task =
+      GNUNET_SCHEDULER_add_read_net (GNUNET_TIME_UNIT_FOREVER_REL,
+                                     connection->sock,
+                                     do_read,
+                                     connection);
     return;
   }
 
