@@ -102,16 +102,13 @@ typedef void (*GNUNET_CORE_UNDERLAY_DUMMY_NotifyDisconnect) (
  * update its peer identity accordingly.
  *
  * @param cls closure from #GNUNET_CORE_UNDERLAY_DUMMY_connect
- * @param network_location_hash hash of the address URIs representing our
- *                              current network location
- * @param network_generation_id the id of the current network generation (this
- *                              id changes each time the network location
- *                              changes)
+ * @param num_addresses number of addresses now available to this peer
+ * @param addresses current addresses of this peer
  */
 typedef void (*GNUNET_CORE_UNDERLAY_DUMMY_NotifyAddressChange) (
   void *cls,
-  struct GNUNET_HashCode network_location_hash,
-  uint64_t network_generation_id);
+  uint32_t num_addresses,
+  const char *addresses[static num_addresses]);
 
 
 /**

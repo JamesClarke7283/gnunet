@@ -948,17 +948,14 @@ handle_underlay_notify_disconnect (void *cls,
  * update its peer identity accordingly.
  *
  * @param cls closure from #GNUNET_CORE_UNDERLAY_DUMMY_connect
- * @param network_location_hash hash of the address URIs representing our
- *                              current network location
- * @param network_generation_id the id of the current network generation (this
- *                              id changes each time the network location
- *                              changes)
+ * @param num_addresses number of addresses now available to this peer
+ * @param addresses current addresses of this peer
  */
 static void
 handle_underlay_notify_address_change (
     void *cls,
-    struct GNUNET_HashCode network_location_hash,
-    uint64_t network_generation_id)
+    uint32_t num_addresses,
+    const char *addresses[static num_addresses])
 {
   // TODO
 }
@@ -1293,7 +1290,7 @@ handle_ping (void *cls, const struct PingMessage *m)
         kx->decrypt_key))
   {
     GNUNET_break_op (0);
-    GNUNET_TRANSPORT_core_receive_continue (underlay, kx->peer);
+    GNUNET_CORE_UNDERLAY_DUMMY_receive_continue (underlay, kx->mq);
     return;
   }
 #else
@@ -1517,7 +1514,7 @@ handle_pong (void *cls, const struct PongMessage *m)
         kx->decrypt_key))
   {
     GNUNET_break_op (0);
-    GNUNET_TRANSPORT_core_receive_continue (underlay, kx->peer);
+    GNUNET_CORE_UNDERLAY_DUMMY_receive_continue (underlay, kx->mq);
     return;
   }
 #else
@@ -1846,7 +1843,7 @@ handle_encrypted (void *cls, const struct EncryptedMessage *m)
         kx->decrypt_key))
   {
     GNUNET_break_op (0);
-    GNUNET_TRANSPORT_core_receive_continue (underlay, kx->peer);
+    GNUNET_CORE_UNDERLAY_DUMMY_receive_continue (underlay, kx->mq);
     return;
   }
 #else

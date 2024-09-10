@@ -164,6 +164,8 @@ struct Connection
 
   /**
    * Queued received messages in a DLL
+   * TODO implement cleanup
+   * TODO replace with a performant queue
    */
   struct QueuedMessage *queued_recv_messages_head;
   struct QueuedMessage *queued_recv_messages_tail;
@@ -217,16 +219,6 @@ struct GNUNET_CORE_UNDERLAY_DUMMY_Handle
    * Socket on which we listen for incoming connections.
    */
   struct GNUNET_NETWORK_Handle *sock_listen;
-
-  /**
-   * Hash over the current address(es).
-   */
-  struct GNUNET_HashCode network_location_hash;
-
-  /**
-   * FIXME honestly I forgot what was planned for this. Look it up in notes!
-   */
-  uint64_t network_generation_id;
 
   /**
    * Task that waits for incoming connections
@@ -432,34 +424,34 @@ do_read (void *cls)
       LOG (GNUNET_ERROR_TYPE_DEBUG, "Length of message: %d bytes\n", ntohs (msg_iter->size));
       LOG (GNUNET_ERROR_TYPE_DEBUG, "Remaining bytes of buffer: %ld\n", ret_remain);
 
-      //{
-      //  // XXX only for debugging purposes
-      //  // this shows everything works as expected
+      {
+        // XXX only for debugging purposes
+        // this shows everything works as expected
 
-      //  struct GNUNET_UNDERLAY_DUMMY_Message
-      //  {
-      //    struct GNUNET_MessageHeader header;
-      //    // The following will be used for debugging
-      //    uint64_t id; // id of the message
-      //    uint64_t batch; // first batch of that peer (for this test 0 or 1)
-      //    //uint64_t peer; // number of sending peer (for this test 0 or 1)
-      //  };
+        struct GNUNET_UNDERLAY_DUMMY_Message
+        {
+          struct GNUNET_MessageHeader header;
+          // The following will be used for debugging
+          uint64_t id; // id of the message
+          uint64_t batch; // first batch of that peer (for this test 0 or 1)
+          //uint64_t peer; // number of sending peer (for this test 0 or 1)
+        };
 
 
 
-      //  struct GNUNET_UNDERLAY_DUMMY_Message *msg_dbg =
-      //    (struct GNUNET_UNDERLAY_DUMMY_Message *) msg_iter;
-      //  //LOG (GNUNET_ERROR_TYPE_DEBUG, "do_read - id: %u, batch: %u, peer: %u\n",
-      //  LOG (GNUNET_ERROR_TYPE_DEBUG, "do_read - id: %" PRIu64 ", batch: %" PRIu64 "\n",
-      //       GNUNET_ntohll (msg_dbg->id),
-      //       GNUNET_ntohll (msg_dbg->batch));
-      //  //LOG (GNUNET_ERROR_TYPE_DEBUG, "do_read - size: %u\n",
-      //  //     ntohs (msg_dbg->size));
-      //  //LOG (GNUNET_ERROR_TYPE_DEBUG, "do_read - (sanity) size msghdr: %u\n",
-      //  //     sizeof (struct GNUNET_MessageHeader));
-      //  //LOG (GNUNET_ERROR_TYPE_DEBUG, "do_read - (sanity) size msg field: %u\n",
-      //  //     sizeof (msg_dbg->id));
-      //}
+        struct GNUNET_UNDERLAY_DUMMY_Message *msg_dbg =
+          (struct GNUNET_UNDERLAY_DUMMY_Message *) msg_iter;
+        //LOG (GNUNET_ERROR_TYPE_DEBUG, "do_read - id: %u, batch: %u, peer: %u\n",
+        LOG (GNUNET_ERROR_TYPE_DEBUG, "do_read - id: %" PRIu64 ", batch: %" PRIu64 "\n",
+             GNUNET_ntohll (msg_dbg->id),
+             GNUNET_ntohll (msg_dbg->batch));
+        //LOG (GNUNET_ERROR_TYPE_DEBUG, "do_read - size: %u\n",
+        //     ntohs (msg_dbg->size));
+        //LOG (GNUNET_ERROR_TYPE_DEBUG, "do_read - (sanity) size msghdr: %u\n",
+        //     sizeof (struct GNUNET_MessageHeader));
+        //LOG (GNUNET_ERROR_TYPE_DEBUG, "do_read - (sanity) size msg field: %u\n",
+        //     sizeof (msg_dbg->id));
+      }
       buf_iter = buf_iter + ntohs (msg_iter->size);
       ret_remain = ret_remain - ntohs (msg_iter->size);
     }
@@ -534,34 +526,34 @@ write_cb (void *cls)
 
   connection->write_task = NULL;
   GNUNET_assert (NULL != connection->sock);
-  //{
-  //  // XXX only for debugging purposes
-  //  // this shows everything works as expected
+  {
+    // XXX only for debugging purposes
+    // this shows everything works as expected
 
-  //  struct GNUNET_UNDERLAY_DUMMY_Message
-  //  {
-  //    struct GNUNET_MessageHeader header;
-  //    // The following will be used for debugging
-  //    uint64_t id; // id of the message
-  //    uint64_t batch; // first batch of that peer (for this test 0 or 1)
-  //    //uint64_t peer; // number of sending peer (for this test 0 or 1)
-  //  };
+    struct GNUNET_UNDERLAY_DUMMY_Message
+    {
+      struct GNUNET_MessageHeader header;
+      // The following will be used for debugging
+      uint64_t id; // id of the message
+      uint64_t batch; // first batch of that peer (for this test 0 or 1)
+      //uint64_t peer; // number of sending peer (for this test 0 or 1)
+    };
 
 
 
-  //  struct GNUNET_UNDERLAY_DUMMY_Message *msg_dbg =
-  //    (struct GNUNET_UNDERLAY_DUMMY_Message *) connection->message_to_send;
-  //  //LOG (GNUNET_ERROR_TYPE_DEBUG, "write_cb - id: %u, batch: %u, peer: %u\n",
-  //  LOG (GNUNET_ERROR_TYPE_DEBUG, "write_cb - id: %" PRIu64 ", batch: %" PRIu64"\n",
-  //       GNUNET_ntohll (msg_dbg->id),
-  //       GNUNET_ntohll (msg_dbg->batch));
-  //  //LOG (GNUNET_ERROR_TYPE_DEBUG, "write_cb - size: %u\n",
-  //  //     ntohs (msg_dbg->size));
-  //  //LOG (GNUNET_ERROR_TYPE_DEBUG, "write_cb - (sanity) size msghdr: %u\n",
-  //  //     sizeof (struct GNUNET_MessageHeader));
-  //  //LOG (GNUNET_ERROR_TYPE_DEBUG, "write_cb - (sanity) size msg field: %u\n",
-  //  //     sizeof (msg_dbg->id));
-  //}
+    struct GNUNET_UNDERLAY_DUMMY_Message *msg_dbg =
+      (struct GNUNET_UNDERLAY_DUMMY_Message *) connection->message_to_send;
+    //LOG (GNUNET_ERROR_TYPE_DEBUG, "write_cb - id: %u, batch: %u, peer: %u\n",
+    LOG (GNUNET_ERROR_TYPE_DEBUG, "write_cb - id: %" PRIu64 ", batch: %" PRIu64"\n",
+         GNUNET_ntohll (msg_dbg->id),
+         GNUNET_ntohll (msg_dbg->batch));
+    //LOG (GNUNET_ERROR_TYPE_DEBUG, "write_cb - size: %u\n",
+    //     ntohs (msg_dbg->size));
+    //LOG (GNUNET_ERROR_TYPE_DEBUG, "write_cb - (sanity) size msghdr: %u\n",
+    //     sizeof (struct GNUNET_MessageHeader));
+    //LOG (GNUNET_ERROR_TYPE_DEBUG, "write_cb - (sanity) size msg field: %u\n",
+    //     sizeof (msg_dbg->id));
+  }
   GNUNET_assert (NULL != connection->message_to_send);
   sent = GNUNET_NETWORK_socket_send (
       connection->sock,
@@ -609,25 +601,25 @@ mq_send_impl (struct GNUNET_MQ_Handle *mq,
   struct Connection *connection = impl_state;
 
   LOG (GNUNET_ERROR_TYPE_DEBUG, "from mq_send_impl\n");
-  //{
-  //  // XXX only for debugging purposes
-  //  // this shows everything works as expected
+  {
+    // XXX only for debugging purposes
+    // this shows everything works as expected
 
-  //  struct GNUNET_UNDERLAY_DUMMY_Message
-  //  {
-  //    struct GNUNET_MessageHeader header;
-  //    // The following will be used for debugging
-  //    uint64_t id; // id of the message
-  //    uint64_t batch; // first batch of that peer (for this test 0 or 1)
-  //    //uint64_t peer; // number of sending peer (for this test 0 or 1)
-  //  };
+    struct GNUNET_UNDERLAY_DUMMY_Message
+    {
+      struct GNUNET_MessageHeader header;
+      // The following will be used for debugging
+      uint64_t id; // id of the message
+      uint64_t batch; // first batch of that peer (for this test 0 or 1)
+      //uint64_t peer; // number of sending peer (for this test 0 or 1)
+    };
 
-  //  struct GNUNET_UNDERLAY_DUMMY_Message *msg_dbg =
-  //    (struct GNUNET_UNDERLAY_DUMMY_Message *) msg;
-  //  LOG (GNUNET_ERROR_TYPE_DEBUG, "id: %" PRIu64 ", batch: %" PRIu64 "\n",
-  //       GNUNET_ntohll (msg_dbg->id),
-  //       GNUNET_ntohll (msg_dbg->batch));
-  //}
+    struct GNUNET_UNDERLAY_DUMMY_Message *msg_dbg =
+      (struct GNUNET_UNDERLAY_DUMMY_Message *) msg;
+    LOG (GNUNET_ERROR_TYPE_DEBUG, "id: %" PRIu64 ", batch: %" PRIu64 "\n",
+         GNUNET_ntohll (msg_dbg->id),
+         GNUNET_ntohll (msg_dbg->batch));
+  }
   connection->message_to_send = msg;
   GNUNET_assert (NULL == connection->write_task);
   connection->write_task =
@@ -704,6 +696,11 @@ do_accept (void *cls)
   struct sockaddr_un addr_other;
   socklen_t addr_other_len = sizeof(addr_other);
   memset (&addr_other, 0, sizeof (addr_other));
+
+  // TODO await hello message
+  //      - schedule special handler
+  //      - create a 'to-be-verified' queue
+  //      - await hello-message
 
   h->listen_task = GNUNET_SCHEDULER_add_read_net (GNUNET_TIME_UNIT_FOREVER_REL,
                                                   h->sock_listen,
@@ -794,11 +791,11 @@ static void
 do_notify_address_change (void *cls)
 {
   struct GNUNET_CORE_UNDERLAY_DUMMY_Handle *h = cls;
+  const char *addresses[1] = {h->sock_name}; // The dummy will only ever know
+                                             // about this one address
 
   h->notify_address_change_task = NULL;
-  h->notify_address_change (h->cls,
-                            h->network_location_hash,
-                            h->network_generation_id);
+  h->notify_address_change (h->cls, 1, addresses);
 }
 
 
@@ -965,7 +962,6 @@ do_open_socket (void *cls)
 
   if (NULL != h->notify_address_change)
   {
-    // TODO compute the network_location_hash and network_generation_id
     // TODO cancel and cleanup task on run and shutdown
     h->notify_address_change_task =
       GNUNET_SCHEDULER_add_now (do_notify_address_change, h);
@@ -1012,10 +1008,6 @@ GNUNET_CORE_UNDERLAY_DUMMY_connect (const struct GNUNET_CONFIGURATION_Handle *cf
   h->notify_address_change = na;
   if (NULL != handlers) h->handlers = GNUNET_MQ_copy_handlers (handlers);
   h->cls = cls;
-  // FIXME treat 0 as special, invalid value?
-  memset (&h->network_location_hash, 0, sizeof (struct GNUNET_HashCode));
-  // FIXME treat 0 as special, invalid value?
-  h->network_generation_id = 0;
 
   do_open_socket(h); // we could inline this function
 

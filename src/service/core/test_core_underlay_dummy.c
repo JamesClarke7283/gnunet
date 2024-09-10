@@ -42,6 +42,7 @@ extern "C" {
 #endif
 
 #include "gnunet_core_underlay_dummy.h"
+#include <inttypes.h>
 
 #define LOG(kind, ...) GNUNET_log_from (kind, "core", __VA_ARGS__)
 
@@ -297,8 +298,8 @@ void *notify_connect_cb (
  * @param network_generation_id The network generation id for the new address
  */
 void address_change_cb (void *cls,
-                        struct GNUNET_HashCode network_location_hash,
-                        uint64_t network_generation_id)
+                        uint32_t num_addresses,
+                        const char *addresses[static num_addresses])
 {
   struct DummyContext *dc = cls;
 
@@ -306,6 +307,16 @@ void address_change_cb (void *cls,
   LOG (GNUNET_ERROR_TYPE_INFO,
       "(%u) Got informed of address change\n",
       dc == &dc0 ? 0 : 1);
+  LOG (GNUNET_ERROR_TYPE_INFO,
+      "%" PRIu32 " new addresses:\n",
+      num_addresses);
+  for (uint32_t i = 0; i < num_addresses; i++)
+  {
+    LOG (GNUNET_ERROR_TYPE_INFO,
+        "%" PRIu32 ": %s\n",
+        i,
+        addresses[i]);
+  }
   if (&dc0 == dc)
   {
     /* We cannot know which peer has which socket - try both */
