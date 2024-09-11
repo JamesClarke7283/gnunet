@@ -58,6 +58,22 @@ extern "C" {
 GNUNET_NETWORK_STRUCT_BEGIN
 
 /**
+ * Message transmitted with the peer id of a peer.
+ */
+struct PeerIdMessage
+{
+  /**
+   * Message type is #GNUNET_MESSAGE_TYPE_CORE_EPHEMERAL_KEY.
+   */
+  struct GNUNET_MessageHeader header;
+
+  /**
+   * Public key of the sending peer.
+   */
+  struct GNUNET_PeerIdentity origin_identity;
+};
+
+/**
  * Message transmitted with the signed ephemeral key of a peer.  The
  * session key is then derived from the two ephemeral keys (ECDHE).
  */
@@ -297,11 +313,12 @@ typedef void (*GNUNET_CORE_DisconnectEventHandler) (
 /**
  * Function called after #GNUNET_CORE_connect has succeeded (or failed
  * for good).  Note that the private key of the peer is intentionally
- * not exposed here; if you need it, your process should try to read
- * the private key file directly (which should work if you are
- * authorized...).  Implementations of this function must not call
+ * not exposed here; if you need to sign something, do this via the
+ * pils service.  Implementations of this function must not call
  * #GNUNET_CORE_disconnect (other than by scheduling a new task to
  * do this later).
+ *
+ * TODO we could potentially also remove the identity argument
  *
  * @param cls closure
  * @param my_identity ID of this peer, NULL if we failed
@@ -310,7 +327,14 @@ typedef void (*GNUNET_CORE_StartupCallback) (
   void *cls,
   const struct GNUNET_PeerIdentity *my_identity);
 
+
 // TODO hanlder for peer id change
+// typedef void (*GNUNET_CORE_PidChangeCallback) (
+//   void *cls,
+//   const struct GNUNET_PeerIdentity *my_identity,
+//   const struct GNUNET_HashCode network_location_hash,
+//   uint64_t network_generation_id);
+
 
 /**
  * Connect to the core service.  Note that the connection may complete
@@ -391,6 +415,11 @@ enum GNUNET_CORE_KxState
    * No handshake yet.
    */
   GNUNET_CORE_KX_STATE_DOWN = 0,
+
+  /**
+   * We've sent our peer id.
+   */
+  GNUNET_CORE_KX_STATE_PID_SENT,
 
   /**
    * We've sent our session key.
@@ -514,6 +543,9 @@ GNUNET_CORE_is_peer_connected_sync (const struct GNUNET_CORE_Handle *h,
  * There must only be one queue per peer for each core handle.
  * The message queue can only be used to transmit messages,
  * not to receive them.
+ *
+ * TODO does this function in this form make sense? it's not used anywhere.
+ * Also it probably should take a hello as argument.
  *
  * @param h the core handle
  * @param target the target peer for this queue, may not be NULL

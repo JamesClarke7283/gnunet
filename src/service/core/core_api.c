@@ -696,7 +696,9 @@ GNUNET_CORE_connect (const struct GNUNET_CONFIGURATION_Handle *cfg,
                      GNUNET_CORE_ConnectEventHandler connects,
                      GNUNET_CORE_DisconnectEventHandler disconnects,
                      /* TODO handler for peerID change */
-                     /* TODO do we need a handler for address change? */
+                     /* TODO do we need a handler for address change? -
+                      * currently don't think so. I guess hello might be the
+                      * responsible service? */
                      const struct GNUNET_MQ_MessageHandler *handlers)
 {
   struct GNUNET_CORE_Handle *h;

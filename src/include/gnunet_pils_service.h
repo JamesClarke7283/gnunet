@@ -131,9 +131,9 @@ GNUNET_PILS_sign_by_peer_identity (const struct GNUNET_PILS_Handle *handle,
  *         peer id
  */
 struct GNUNET_HashCode *
-GNUNET_PILS_feed_address (const struct GNUNET_PILS_Handle *handle,
-                          uint32_t num_addresses,
-                          const char *address[static num_addresses]);
+GNUNET_PILS_feed_addresses (const struct GNUNET_PILS_Handle *handle,
+                            uint32_t num_addresses,
+                            const char *address[static num_addresses]);
 
 // TODO I don't remember did we also want to generate HELLOs here? I would
 // weakly tend to do this in core

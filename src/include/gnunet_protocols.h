@@ -3662,6 +3662,19 @@ extern "C" {
 #define GNUNET_TYPE_BURST_SYNC 1801
 
 
+/*********************************************************************************/
+/*********************************  CORE (cont.)  ********************************/
+/*********************************************************************************/
+/* CORE: message types 1811-1830
+ */
+
+/**
+ * Message exchanged between peers for burst synchronisation.
+ */
+#define GNUNET_MESSAGE_TYPE_CORE_PEER_ID 1811
+
+
+
 /**
  * Type used to match 'all' message types.
  */

@@ -848,35 +848,73 @@ handle_underlay_notify_connect (void *cls,
                                 const char *addresses[static num_addresses],
                                 struct GNUNET_MQ_Handle *mq)
 {
-  struct GNUNET_PeerIdentity *pid = NULL; // FIXME
+  // TODO if the underlay is L2O/gnunet-transport, it knows the pid already
+  //      find a way to pass it up from transport!
 
   struct GSC_KeyExchangeInfo *kx;
+  struct GNUNET_MQ_Envelope *env;
+  struct PeerIdMessage *msg;
+
+  GNUNET_log (GNUNET_ERROR_TYPE_DEBUG,
+              "Incoming connection of peer with %" PRIu32 "addresses\n",
+              num_addresses);
+  for (uint32_t i = 0; i < num_addresses; i++)
+  {
+    GNUNET_log (GNUNET_ERROR_TYPE_INFO,
+                "  (%" PRIu32 ": %s)\n",
+                i,
+                addresses[i]);
+  }
+
+  /* Set up kx struct */
+  kx = GNUNET_new (struct GSC_KeyExchangeInfo);
+  kx->mst = GNUNET_MST_create (&deliver_message, kx);
+  kx->mq = mq;
+  kx->set_key_retry_frequency = INITIAL_SET_KEY_RETRY_FREQUENCY;
+  kx->status = GNUNET_CORE_KX_STATE_PID_SENT;
+  GNUNET_CONTAINER_DLL_insert (kx_head, kx_tail, kx);
+
+  /* Send peer id to other peer */
+  env = GNUNET_MQ_msg (msg, GNUNET_MESSAGE_TYPE_CORE_PEER_ID);
+  GNUNET_memcpy (&msg->origin_identity,
+                 &GSC_my_identity,
+                 sizeof (struct GNUNET_PeerIdentity));
+  GNUNET_MQ_send (kx->mq, env);
+
+  /* set cls to kx */
+  return kx;
+}
+
+
+/**
+ * Handle the peer id of the other peer
+ *
+ * @param cls closure - the kx struct
+ * @param m message containing the peer id of the other peer
+ */
+static void
+handle_peer_id (void *cls, const struct PeerIdMessage *m)
+{
+  struct GSC_KeyExchangeInfo *kx = cls;
+  struct GNUNET_PeerIdentity *pid;
+
   struct GNUNET_HashCode h1;
   struct GNUNET_HashCode h2;
 
-  if (NULL == pid)
-  {
-    // FIXME consider the case that the underlay doesn't know about peer ids
-    // (libp2p)
-    // TODO exchange the peer id on top of underlay as a first
-    GNUNET_assert (0);
-  }
+  pid = GNUNET_new (struct GNUNET_PeerIdentity);
+  GNUNET_memcpy (pid, &GSC_my_identity, sizeof (struct GNUNET_PeerIdentity));
+  GNUNET_assert (NULL != pid);
 
   GNUNET_log (GNUNET_ERROR_TYPE_DEBUG,
-              "Initiating key exchange with `%s'\n",
+              "Initiating key exchange with peer %s\n",
               GNUNET_i2s (pid));
   GNUNET_STATISTICS_update (GSC_stats,
                             gettext_noop ("# key exchanges initiated"),
                             1,
                             GNUNET_NO);
 
-  kx = GNUNET_new (struct GSC_KeyExchangeInfo);
-  kx->mst = GNUNET_MST_create (&deliver_message, kx);
-  kx->mq = mq;
-  kx->peer = pid;
-  kx->set_key_retry_frequency = INITIAL_SET_KEY_RETRY_FREQUENCY;
-  GNUNET_CONTAINER_DLL_insert (kx_head, kx_tail, kx);
   kx->status = GNUNET_CORE_KX_STATE_KEY_SENT;
+  kx->peer = pid;
   monitor_notify_all (kx);
   GNUNET_CRYPTO_hash (pid, sizeof(struct GNUNET_PeerIdentity), &h1);
   GNUNET_CRYPTO_hash (&GSC_my_identity,
@@ -898,7 +936,7 @@ handle_underlay_notify_connect (void *cls,
                                     &set_key_retry_task,
                                     kx);
   }
-  return kx;
+  GNUNET_CORE_UNDERLAY_DUMMY_receive_continue (underlay, kx->mq);
 }
 
 
@@ -958,6 +996,11 @@ handle_underlay_notify_address_change (
     const char *addresses[static num_addresses])
 {
   // TODO
+  // call
+  // struct GNUNET_HashCode *
+  // GNUNET_PILS_feed_addresses (const struct GNUNET_PILS_Handle *handle,
+  //                             uint32_t num_addresses,
+  //                             const char *address[static num_addresses]);
 }
 
 
@@ -2082,6 +2125,10 @@ int
 GSC_KX_init (struct GNUNET_CRYPTO_EddsaPrivateKey *pk)
 {
   struct GNUNET_MQ_MessageHandler handlers[] = {
+    GNUNET_MQ_hd_fixed_size (peer_id,
+                             GNUNET_MESSAGE_TYPE_CORE_PEER_ID,
+                             struct PeerIdMessage,
+                             NULL),
     GNUNET_MQ_hd_fixed_size (ephemeral_key,
                              GNUNET_MESSAGE_TYPE_CORE_EPHEMERAL_KEY,
                              struct EphemeralKeyMessage,
@@ -2122,7 +2169,10 @@ GSC_KX_init (struct GNUNET_CRYPTO_EddsaPrivateKey *pk)
   underlay =
     GNUNET_CORE_UNDERLAY_DUMMY_connect (GSC_cfg,
                                         handlers,
-                                        NULL,
+                                        NULL, // cls - leaving this empty is
+                                              // fine the real cls will be set
+                                              // as a return value of
+                                              // handle_underlay_notify_connect
                                         &handle_underlay_notify_connect,
                                         &handle_underlay_notify_disconnect,
                                         &handle_underlay_notify_address_change);
