@@ -72,14 +72,16 @@ struct GNUNET_CORE_UNDERLAY_DUMMY_Handle;
  * @param cls closure
  * @param num_addresses number of addresses of the connecting peer
  * @param addresses address URIs of the connecting peer
- * @param mq message queue to use to transmit to @a peer
+ * @param mq message queue to use to transmit to peer
+ * @param peer_id (optional, may be NULL) the peer id of the connecting peer
  * @return closure to use in MQ handlers
  */
 typedef void *(*GNUNET_CORE_UNDERLAY_DUMMY_NotifyConnect) (
   void *cls,
   uint32_t num_addresses,
   const char *addresses[static num_addresses],
-  struct GNUNET_MQ_Handle *mq);
+  struct GNUNET_MQ_Handle *mq,
+  const struct GNUNET_PeerIdentity *peer_id);
 
 
 /**

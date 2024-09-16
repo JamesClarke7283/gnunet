@@ -171,10 +171,12 @@ void
   void *cls,
   uint32_t num_addresses,
   const char *addresses[static num_addresses],
-  struct GNUNET_MQ_Handle *mq)
+  struct GNUNET_MQ_Handle *mq,
+  const struct GNUNET_PeerIdentity *peer_id)
 {
   struct UnderlayDummyState *uds = cls;
   struct Channel *channel;
+  (void) peer_id; /* unused - the underlay dummy doesn't know abot peer ids */
 
   LOG (GNUNET_ERROR_TYPE_DEBUG, "A new connection was established\n");
 

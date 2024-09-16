@@ -840,20 +840,29 @@ deliver_message (void *cls, const struct GNUNET_MessageHeader *m)
  * @param num_addresses number of addresses of the connecting peer
  * @param addresses address URIs of the connecting peer
  * @param mq message queue towards peer
+ * @param peer_id (optional, may be NULL) the peer id of the connecting peer
  * @return key exchange information context
  */
 static void *
 handle_underlay_notify_connect (void *cls,
                                 uint32_t num_addresses,
                                 const char *addresses[static num_addresses],
-                                struct GNUNET_MQ_Handle *mq)
+                                struct GNUNET_MQ_Handle *mq,
+                                const struct GNUNET_PeerIdentity *peer_id)
 {
-  // TODO if the underlay is L2O/gnunet-transport, it knows the pid already
-  //      find a way to pass it up from transport!
-
   struct GSC_KeyExchangeInfo *kx;
   struct GNUNET_MQ_Envelope *env;
   struct PeerIdMessage *msg;
+
+  if (NULL == peer_id)
+  {
+    // TODO
+    // in this case we could shorten the whole process and skip waiting for the
+    // peer id from the other peer.
+    // This peer id means that the underlay is transport. Can we safely assume
+    // that the other peer is connected via transport then and also not send
+    // our peer id as a first message? - probably yes.
+  }
 
   GNUNET_log (GNUNET_ERROR_TYPE_DEBUG,
               "Incoming connection of peer with %" PRIu32 "addresses\n",

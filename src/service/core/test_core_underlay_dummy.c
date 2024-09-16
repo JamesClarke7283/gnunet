@@ -189,12 +189,14 @@ void *notify_connect_cb (
   void *cls,
   uint32_t num_addresses,
   const char *addresses[static num_addresses],
-  struct GNUNET_MQ_Handle *mq)
+  struct GNUNET_MQ_Handle *mq,
+  const struct GNUNET_PeerIdentity *peer_id)
 {
   struct DummyContext *dc = (struct DummyContext *) cls;
   struct GNUNET_MQ_Envelope *env;
   struct GNUNET_UNDERLAY_DUMMY_Message *msg;
   struct Connection *connection;
+  (void) peer_id; /* unused - the underlay dummy doesn't know abot peer ids */
 
   if (0 == num_addresses)
   {
