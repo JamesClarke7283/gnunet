@@ -16,20 +16,25 @@ if USE_COVERAGE
 endif
 
 plugin_LTLIBRARIES = \
-  #libgnunet_test_core_plugin_cmd_just_run.la \
-  libgnunet_test_core_plugin_cmd_run_emu.la \
-  libgnunet_test_core_plugin_underlay_dummy.la
+  libgnunet_test_core_plugin_underlay_dummy.la \
+  libgnunet_test_core_plugin_basic.la
+
+#libgnunet_test_core_plugin_cmd_run_emu.la
+#libgnunet_test_core_plugin_cmd_just_run.la
 
 TESTING_LIBS = \
-  libgnunetcoretesting.la
+  libgnunettestingcore.la
+#libgnunetcoretesting.la
 
 UNDERLAY_DUMMY_LIBS = \
   libgnunetcoreunderlaydummy.la
 
 lib_LTLIBRARIES = \
   libgnunetcore.la \
+  libgnunettestingcore.la \
   $(UNDERLAY_DUMMY_LIBS)
-#  libgnunettestingcore.la
+
+#libgnunetcoretesting.la
 
 libgnunetcore_la_SOURCES = \
   core_api.c core.h \
@@ -41,22 +46,39 @@ libgnunetcore_la_LDFLAGS = \
   $(GN_LIB_LDFLAGS)  \
   -version-info 0:1:0
 
-libgnunet_test_core_plugin_cmd_run_emu_la_SOURCES = \
- test_core_plugin_cmd_run_emu.c
-libgnunet_test_core_plugin_cmd_run_emu_la_LIBADD = \
-  libgnunetcoretesting.la \
-  $(top_builddir)/src/service/transport/libgnunettransportapplication.la \
-  $(top_builddir)/src/service/transport/libgnunettransportcore.la \
-  $(top_builddir)/src/lib/hello/libgnunethello.la \
-  $(top_builddir)/src/service/peerstore/libgnunetpeerstore.la \
-  $(top_builddir)/src/service/transport/libgnunettransporttesting2.la \
-  $(top_builddir)/src/service/testing/libgnunettesting.la \
-  $(top_builddir)/src/service/statistics/libgnunetstatistics.la \
-  $(top_builddir)/src/service/arm/libgnunetarm.la \
+libgnunettestingcore_la_SOURCES = \
+  testing_core_cmd_connect.c \
+  testing_core_cmd_recv.c \
+  testing_core_cmd_send.c \
+  testing_core_traits.c
+libgnunettestingcore_la_LIBADD = \
+  libgnunetcore.la \
+  $(top_builddir)/src/service/testbed/libgnunettestingtestbed.la \
+  $(top_builddir)/src/service/testbed/libgnunettestbed.la \
+  $(top_builddir)/src/lib/testing/libgnunettesting.la \
   $(top_builddir)/src/lib/util/libgnunetutil.la \
-  $(LTLIBINTL)
-libgnunet_test_core_plugin_cmd_run_emu_la_LDFLAGS = \
-  $(GN_PLUGIN_LDFLAGS)
+  $(GN_LIBINTL) $(XLIB)
+libgnunettestingcore_la_LDFLAGS = \
+  $(GN_LIB_LDFLAGS)   \
+  -version-info 0:0:0
+
+
+#libgnunet_test_core_plugin_cmd_run_emu_la_SOURCES = \
+# test_core_plugin_cmd_run_emu.c
+#libgnunet_test_core_plugin_cmd_run_emu_la_LIBADD = \
+#  libgnunetcoretesting.la \
+#  $(top_builddir)/src/service/transport/libgnunettransportapplication.la \
+#  $(top_builddir)/src/service/transport/libgnunettransportcore.la \
+#  $(top_builddir)/src/lib/hello/libgnunethello.la \
+#  $(top_builddir)/src/service/peerstore/libgnunetpeerstore.la \
+#  $(top_builddir)/src/service/transport/libgnunettransporttesting2.la \
+#  $(top_builddir)/src/service/testing/libgnunettesting.la \
+#  $(top_builddir)/src/service/statistics/libgnunetstatistics.la \
+#  $(top_builddir)/src/service/arm/libgnunetarm.la \
+#  $(top_builddir)/src/lib/util/libgnunetutil.la \
+#  $(LTLIBINTL)
+#libgnunet_test_core_plugin_cmd_run_emu_la_LDFLAGS = \
+#  $(GN_PLUGIN_LDFLAGS)
 
 libgnunetcoreunderlaydummy_la_SOURCES = \
   gnunet_core_underlay_dummy.h gnunet_core_underlay_dummy.c
@@ -67,37 +89,20 @@ libgnunetcoreunderlaydummy_la_LDFLAGS = \
   $(GN_LIB_LDFLAGS)
 
 
-#libgnunet_test_core_plugin_cmd_just_run_la_SOURCES = \
-# test_core_plugin_cmd_just_run.c
-#libgnunet_test_core_plugin_cmd_just_run_la_LIBADD = \
-#  libgnunettestingcore.la \
-#  $(top_builddir)/src/service/transport/libgnunettestingtransport.la \
-#  $(top_builddir)/src/lib/testing/libgnunettesting.la \
+#libgnunetcoretesting_la_SOURCES = \
+#  core_api_cmd_connecting_peers.c
+#libgnunetcoretesting_la_LIBADD = \
+#  $(top_builddir)/src/service/testing/libgnunettesting.la \
+#  $(top_builddir)/src/service/arm/libgnunetarm.la \
 #  $(top_builddir)/src/service/transport/libgnunettransportapplication.la \
-#  $(top_builddir)/src/service/transport/libgnunettransportcore.la \
 #  $(top_builddir)/src/lib/hello/libgnunethello.la \
 #  $(top_builddir)/src/service/peerstore/libgnunetpeerstore.la \
-#  $(top_builddir)/src/service/statistics/libgnunetstatistics.la \
-#  $(top_builddir)/src/service/arm/libgnunetarm.la \
-#  $(top_builddir)/src/lib/util/libgnunetutil.la \
-#  $(LTLIBINTL)
-#libgnunet_test_core_plugin_cmd_just_run_la_LDFLAGS = \
-#  $(GN_PLUGIN_LDFLAGS)
-
-libgnunetcoretesting_la_SOURCES = \
-  core_api_cmd_connecting_peers.c
-libgnunetcoretesting_la_LIBADD = \
-  $(top_builddir)/src/service/testing/libgnunettesting.la \
-  $(top_builddir)/src/service/arm/libgnunetarm.la \
-  $(top_builddir)/src/service/transport/libgnunettransportapplication.la \
-  $(top_builddir)/src/lib/hello/libgnunethello.la \
-  $(top_builddir)/src/service/peerstore/libgnunetpeerstore.la \
-  $(top_builddir)/src/service/transport/libgnunettransportcore.la \
-  $(top_builddir)/src/lib/util/libgnunetutil.la
-libgnunettestingcore_la_LDFLAGS = \
-  $(GN_LIBINTL) \
-  $(GN_LIB_LDFLAGS) \
-  -version-info 0:0:0
+#  $(top_builddir)/src/service/transport/libgnunettransportcore.la \
+#  $(top_builddir)/src/lib/util/libgnunetutil.la
+#libgnunetcoretesting_la_LDFLAGS = \
+#  $(GN_LIBINTL) \
+#  $(GN_LIB_LDFLAGS) \
+#  -version-info 0:0:0
 
 
 libexec_PROGRAMS = \
@@ -137,7 +142,8 @@ check_PROGRAMS = \
 #  test_core_start_testcase.sh
 
 check_SCRIPTS= \
-  test_core_underlay_dummy_testing.sh
+  test_core_underlay_dummy_testing.sh \
+  test_core_basic.sh
 
 # FIXME: This seems not to work
 check_DEPENDENCIES= \
@@ -194,6 +200,7 @@ EXTRA_DIST = \
   $(check_SCRIPTS) \
   test_core_start_testcase.sh \
   test_core_underlay_dummy.sh \
+  test_core_basic_peer.conf \
   test_core_defaults.conf \
   test_core_api_data.conf \
   test_core_api_peer1.conf \
@@ -206,3 +213,15 @@ EXTRA_DIST = \
   test_core_quota_peer1.conf \
   test_core_quota_peer2.conf \
   test_core_underlay_dummy_netjail_topo.conf
+
+libgnunet_test_core_plugin_basic_la_SOURCES = \
+ test_core_plugin_basic.c
+libgnunet_test_core_plugin_basic_la_LIBADD = \
+  libgnunettestingcore.la \
+  $(top_builddir)/src/lib/testing/libgnunettesting.la \
+  $(top_builddir)/src/service/testbed/libgnunettestbed.la \
+  $(top_builddir)/src/service/testbed/libgnunettestingtestbed.la \
+  $(top_builddir)/src/service/arm/libgnunettestingarm.la \
+  libgnunetcore.la \
+  $(top_builddir)/src/lib/util/libgnunetutil.la \
+  $(LTLIBINTL)

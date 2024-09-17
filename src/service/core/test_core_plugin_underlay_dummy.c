@@ -239,8 +239,8 @@ notify_disconnect_cb (
 
 
 void address_change_cb (void *cls,
-                        struct GNUNET_HashCode network_location_hash,
-                        uint64_t network_generation_id)
+                        uint32_t num_addresses,
+                        const char *addresses[static num_addresses])
 {
   struct UnderlayDummyState *uds = cls;
 
@@ -283,6 +283,8 @@ exec_connect_cleanup (void *cls)
 }
 
 
+// FIXME rename _CORE_ to _UNDERLAY_DUMMY_
+//       (in other places, too)
 const struct GNUNET_TESTING_Command
 GNUNET_CORE_cmd_connect (
   const char *label,
@@ -548,4 +550,3 @@ GNUNET_CORE_SIMPLE_DUMMY_UNDERLAY_TRAITS (
 
 
 /* end of src/service/core/test_core_plugin_underlay_dummy.c */
-

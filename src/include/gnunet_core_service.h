@@ -328,7 +328,7 @@ typedef void (*GNUNET_CORE_StartupCallback) (
   const struct GNUNET_PeerIdentity *my_identity);
 
 
-// TODO hanlder for peer id change
+// TODO handler for peer id change
 // typedef void (*GNUNET_CORE_PidChangeCallback) (
 //   void *cls,
 //   const struct GNUNET_PeerIdentity *my_identity,
