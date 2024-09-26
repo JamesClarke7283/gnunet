@@ -21,53 +21,92 @@
 /**
  * @author ch3
  *
- * @file include/gnunet_pils_service.h
+ * @file service/pils/pils_api.c
  * Peer Identity Lifecycle Service; the API for managing Peer Identities
  *
  * Peer Identity management
  *
  */
-#ifndef GNUNET_PILS_SERVICE_H
-#define GNUNET_PILS_SERVICE_H
-
-#ifdef __cplusplus
-extern "C" {
-#if 0 /* keep Emacsens' auto-indent happy */
-}
-#endif
-#endif
-
-
+#include "platform.h"
+//#include "gnunet_arm_service.h"
+#include "gnunet_protocols.h"
 #include "gnunet_util_lib.h"
+#include "gnunet_pils_service.h"
+#include "pils.h"
 
-
-/**
- * @brief A handler/callback to be called on the change of the peer id.
- *
- * TODO this might contain a reference (checksum, ...) to the addresses it was
- * based on in the future
- *
- * @param cls The closure given to #GNUNET_PILS_connect
- * @param peer_id The new peer id.
- * @param hash The hash of addresses the peer id is based on. This hash is also returned by #GNUNET_PILS_feed_address.
- */
-typedef void (*GNUNET_PILS_PidChangeCallback) (
-  void *cls,
-  const struct GNUNET_PeerIdentity *peer_id,
-  const struct GNUNET_HashCode *hash);
+#define LOG(kind, ...) GNUNET_log_from (kind, "pils-api", __VA_ARGS__)
 
 
 /**
  * @brief A handle for the PILS service.
  */
-struct GNUNET_PILS_Handle;
+struct GNUNET_PILS_Handle
+{
+  const struct GNUNET_CONFIGURATION_Handle *cfg;
+  GNUNET_PILS_PidChangeCallback pid_change_cb;
+  void *pid_change_cb_cls;
+  struct GNUNET_SCHEDULER_Task *reconnect_task;
+  struct GNUNET_MQ_Handle *mq;
+  // TODO
+};
+
+
+static void
+handle_peer_id (void *cls, const struct GNUNET_PILS_PeerIdMessage *pid_msg)
+{
+  // TODO
+}
+
+
+static void
+mq_error_handler (void *cls, enum GNUNET_MQ_Error error)
+{
+  // TODO
+}
+
+
+/**
+ * Try again to connect to peer identity lifecycle service
+ *
+ * @param cls the `struct GNUNET_PILS_Handle *`
+ */
+static void
+reconnect (void *cls)
+{
+  struct GNUNET_PILS_Handle *h = cls;
+  struct GNUNET_MQ_MessageHandler handlers[] =
+  {
+    GNUNET_MQ_hd_fixed_size (peer_id,
+                             GNUNET_MESSAGE_TYPE_PILS_PEER_ID,
+                             struct GNUNET_PILS_PeerIdMessage,
+                             h),
+    GNUNET_MQ_handler_end ()
+  };
+  struct GNUNET_MessageHeader *msg;
+  struct GNUNET_MQ_Envelope *env;
+
+  h->reconnect_task = NULL;
+  LOG (GNUNET_ERROR_TYPE_DEBUG,
+       "Connecting to peer identity lifecycle service.\n");
+  GNUNET_assert (NULL == h->mq);
+  h->mq = GNUNET_CLIENT_connect (h->cfg, "pils", handlers, &mq_error_handler, h);
+  if (NULL == h->mq)
+  {
+    LOG (GNUNET_ERROR_TYPE_ERROR,
+         "Failed to connect.\n");
+    return;
+  }
+  // TODO
+  //env = GNUNET_MQ_msg (msg, GNUNET_MESSAGE_TYPE_PILS_START);
+  //GNUNET_MQ_send (h->mq, env);
+}
 
 
 /**
  * @brief Connect to the PILS service
  *
  * @param cfg configuration to use
- * @param cls closer for the callbacks/handlers
+ * @param cls closer for the callbacks/handlers // FIXME
  * @param pid_change_cb handler/callback called once the peer id changes
  *
  * @return Handle to the PILS service
@@ -75,7 +114,17 @@ struct GNUNET_PILS_Handle;
 struct GNUNET_PILS_Handle *
 GNUNET_PILS_connect (const struct GNUNET_CONFIGURATION_Handle *cfg,
                      void *cls,
-                     GNUNET_PILS_PidChangeCallback pid_change_cb);
+                     GNUNET_PILS_PidChangeCallback pid_change_cb)
+{
+  struct GNUNET_PILS_Handle *h;
+
+  h = GNUNET_new (struct GNUNET_PILS_Handle);
+  h->cfg = cfg;
+  h->pid_change_cb = pid_change_cb;
+  h->pid_change_cb_cls = cls;
+  reconnect (h);
+  return h;
+}
 
 
 
@@ -86,7 +135,23 @@ GNUNET_PILS_connect (const struct GNUNET_CONFIGURATION_Handle *cfg,
  * #GNUNET_PILS_connect)
  */
 void
-GNUNET_PILS_disconnect (struct GNUNET_PILS_Handle *handle);
+GNUNET_PILS_disconnect (struct GNUNET_PILS_Handle *handle)
+{
+  GNUNET_assert (NULL != handle);
+  LOG (GNUNET_ERROR_TYPE_DEBUG,
+       "Disonnecting from peer identity lifecycle service.\n");
+  if (NULL != handle->reconnect_task)
+  {
+    GNUNET_SCHEDULER_cancel (handle->reconnect_task);
+    handle->reconnect_task = NULL;
+  }
+  if (NULL != handle->mq)
+  {
+    GNUNET_MQ_destroy (handle->mq);
+    handle->mq = NULL;
+  }
+  GNUNET_free (handle);
+}
 
 
 // TODO potentially provide function to update the change handler?
@@ -135,17 +200,5 @@ GNUNET_PILS_feed_addresses (const struct GNUNET_PILS_Handle *handle,
                             uint32_t num_addresses,
                             const char *address[static num_addresses]);
 
-// TODO I don't remember did we also want to generate HELLOs here? I would
-// weakly tend to do this in core
+/* end of pils_api.c */
 
-#if 0 /* keep Emacsens' auto-indent happy */
-{
-#endif
-#ifdef __cplusplus
-}
-#endif
-
-/* ifndef GNUNET_PILS_SERVICE_H */
-#endif
-
-/* end of gnunet_pils_service.h */

@@ -31,4 +31,5 @@ SUBDIRS = \
 	pt \
 	reclaim \
 	messenger \
-	rest
+	rest \
+	pils
